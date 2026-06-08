@@ -1,9 +1,14 @@
 import 'package:flutter/material.dart';
 
 import 'screens/home_screen.dart';
+import 'services/progress_store.dart';
 import 'theme/app_theme.dart';
 
-void main() => runApp(const BrainWorkoutApp());
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await ProgressStore.init();
+  runApp(const BrainWorkoutApp());
+}
 
 class BrainWorkoutApp extends StatelessWidget {
   const BrainWorkoutApp({super.key});

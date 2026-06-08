@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import '../../services/progress_store.dart';
 import 'arrow_escape_models.dart';
 
 /// Playable Arrow Escape board.
@@ -10,7 +11,9 @@ import 'arrow_escape_models.dart';
 /// arrow only leaves if its straight path to the edge is clear; otherwise it
 /// shakes and costs a heart. Clear the whole board to win.
 class ArrowEscapeScreen extends StatefulWidget {
-  const ArrowEscapeScreen({super.key});
+  const ArrowEscapeScreen({super.key, this.startLevel = 1});
+
+  final int startLevel;
 
   @override
   State<ArrowEscapeScreen> createState() => _ArrowEscapeScreenState();
@@ -19,6 +22,7 @@ class ArrowEscapeScreen extends StatefulWidget {
 class _ArrowEscapeScreenState extends State<ArrowEscapeScreen>
     with SingleTickerProviderStateMixin {
   static const _moveDuration = Duration(milliseconds: 380);
+  static const _gameId = 'arrow_escape';
 
   int _level = 1;
   late ArrowBoard _board;
@@ -45,7 +49,7 @@ class _ArrowEscapeScreenState extends State<ArrowEscapeScreen>
       vsync: this,
       duration: const Duration(milliseconds: 400),
     )..addListener(_onShakeTick);
-    _loadLevel(1);
+    _loadLevel(widget.startLevel);
   }
 
   @override
@@ -55,6 +59,7 @@ class _ArrowEscapeScreenState extends State<ArrowEscapeScreen>
   }
 
   void _loadLevel(int level) {
+    ProgressStore.instance.recordReached(_gameId, level);
     setState(() {
       _level = level;
       _board = ArrowBoard.generate(level);

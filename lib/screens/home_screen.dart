@@ -1,12 +1,48 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../games/games_catalog.dart';
 import '../models/game_definition.dart';
+import '../services/progress_store.dart';
 import 'coming_soon_screen.dart';
+import 'level_select_screen.dart';
+
+// TODO: replace with your real Ko-fi / Buy Me a Coffee page URL.
+const String _supportUrl = 'https://ko-fi.com/yourname';
 
 /// Startup screen: pick a brain-training game to play.
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  Future<void> _open(GameDefinition game) async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => game.available
+            ? LevelSelectScreen(game: game)
+            : ComingSoonScreen(title: game.title),
+      ),
+    );
+    // Returning from a game may have advanced progress — refresh the cards.
+    if (mounted) setState(() {});
+  }
+
+  Future<void> _support() async {
+    final ok = await launchUrl(
+      Uri.parse(_supportUrl),
+      mode: LaunchMode.externalApplication,
+    );
+    if (!ok && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not open the support page.')),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -43,8 +79,23 @@ class HomeScreen extends StatelessWidget {
                 crossAxisSpacing: 16,
                 childAspectRatio: 0.78,
                 children: [
-                  for (final game in gamesCatalog) _GameCard(game: game),
+                  for (final game in gamesCatalog)
+                    _GameCard(game: game, onOpen: () => _open(game)),
                 ],
+              ),
+            ),
+            // Quiet, optional support link below the games.
+            Padding(
+              padding: const EdgeInsets.only(top: 2, bottom: 10),
+              child: TextButton.icon(
+                onPressed: _support,
+                icon: const Icon(Icons.coffee_rounded, size: 18),
+                label: const Text('Support the developer'),
+                style: TextButton.styleFrom(
+                  foregroundColor: Colors.black45,
+                  textStyle:
+                      const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                ),
               ),
             ),
           ],
@@ -55,20 +106,10 @@ class HomeScreen extends StatelessWidget {
 }
 
 class _GameCard extends StatelessWidget {
-  const _GameCard({required this.game});
+  const _GameCard({required this.game, required this.onOpen});
 
   final GameDefinition game;
-
-  void _open(BuildContext context) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: game.available
-            ? game.builder!
-            : (_) => ComingSoonScreen(title: game.title),
-      ),
-    );
-  }
+  final VoidCallback onOpen;
 
   @override
   Widget build(BuildContext context) {
@@ -78,7 +119,7 @@ class _GameCard extends StatelessWidget {
       borderRadius: BorderRadius.circular(20),
       child: InkWell(
         borderRadius: BorderRadius.circular(20),
-        onTap: () => _open(context),
+        onTap: onOpen,
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Column(
@@ -112,11 +153,14 @@ class _GameCard extends StatelessWidget {
               if (game.available)
                 Row(
                   children: [
-                    Text('Play',
-                        style: TextStyle(
-                            fontWeight: FontWeight.w700, color: game.color)),
+                    Text(
+                      'Level ${ProgressStore.instance.highestLevel(game.id)}',
+                      style: TextStyle(
+                          fontWeight: FontWeight.w700, color: game.color),
+                    ),
+                    const Spacer(),
                     Icon(Icons.chevron_right_rounded,
-                        size: 20, color: game.color),
+                        size: 22, color: game.color),
                   ],
                 )
               else

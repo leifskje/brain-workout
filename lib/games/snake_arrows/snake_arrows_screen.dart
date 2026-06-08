@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import '../../services/progress_store.dart';
 import 'snake_arrows_models.dart';
 
 /// Playable "Arrow Maze": long, bent arrows that must slither off the board.
@@ -10,7 +11,9 @@ import 'snake_arrows_models.dart';
 /// ahead of its head is clear of other arrows; otherwise it shakes and costs a
 /// heart. Clear the whole board to win.
 class SnakeArrowsScreen extends StatefulWidget {
-  const SnakeArrowsScreen({super.key});
+  const SnakeArrowsScreen({super.key, this.startLevel = 1});
+
+  final int startLevel;
 
   @override
   State<SnakeArrowsScreen> createState() => _SnakeArrowsScreenState();
@@ -18,7 +21,8 @@ class SnakeArrowsScreen extends StatefulWidget {
 
 class _SnakeArrowsScreenState extends State<SnakeArrowsScreen>
     with TickerProviderStateMixin {
-  static const _escapeDuration = Duration(milliseconds: 360);
+  static const _escapeDuration = Duration(milliseconds: 520);
+  static const _gameId = 'arrow_maze';
 
   int _level = 1;
   late SnakeBoard _board;
@@ -46,7 +50,7 @@ class _SnakeArrowsScreenState extends State<SnakeArrowsScreen>
       vsync: this,
       duration: const Duration(milliseconds: 400),
     )..addListener(_tick);
-    _loadLevel(1);
+    _loadLevel(widget.startLevel);
   }
 
   @override
@@ -57,6 +61,7 @@ class _SnakeArrowsScreenState extends State<SnakeArrowsScreen>
   }
 
   void _loadLevel(int level) {
+    ProgressStore.instance.recordReached(_gameId, level);
     setState(() {
       _level = level;
       _board = SnakeBoard.generate(level);
@@ -339,28 +344,43 @@ class _SnakePainter extends CustomPainter {
       Offset(c.col * cell + cell / 2, c.row * cell + cell / 2);
 
   void _drawArrow(Canvas canvas, SnakeArrow arrow) {
-    var slide = Offset.zero;
-    var opacity = 1.0;
+    final dir = arrow.exitDir;
     var color = _normalColor;
+    List<Offset> points;
+    Offset headCenter;
 
     if (arrow.id == escapingId) {
-      final eased = Curves.easeIn.transform(escapeT);
-      final dist = eased * cell * (board.rows + 2);
-      slide = Offset(arrow.exitDir.dCol * dist, arrow.exitDir.dRow * dist);
-      opacity = (1 - escapeT * 1.4).clamp(0.0, 1.0);
-    } else if (arrow.id == blockedId && shakeT != null) {
-      color = _blockedColor;
-      final dx = math.sin(shakeT! * math.pi * 6) * (1 - shakeT!) * 6;
-      slide = Offset(dx, 0);
+      // Slither out: shift every body point forward along the snake's "rail"
+      // (its spine, then a straight extension past the head). The head leads
+      // out in the exit direction and each segment follows the path ahead of
+      // it — like a snake leaving its burrow, not a rigid block sliding.
+      final n = arrow.cells.length;
+      final spineLen = (n - 1) * cell;
+      // Enough travel for the tail to clear the board (square: rows == cols).
+      final totalShift = (n - 1 + board.rows + 1) * cell;
+      final shift = Curves.easeInOut.transform(escapeT) * totalShift;
+
+      points = <Offset>[];
+      final headArc = spineLen + shift;
+      final step = cell / 4; // sample finely so bends round smoothly
+      for (var a = shift; a < headArc; a += step) {
+        points.add(_railPoint(arrow, a));
+      }
+      points.add(_railPoint(arrow, headArc));
+      headCenter = points.last;
+    } else {
+      var shake = Offset.zero;
+      if (arrow.id == blockedId && shakeT != null) {
+        color = _blockedColor;
+        final dx = math.sin(shakeT! * math.pi * 6) * (1 - shakeT!) * 6;
+        shake = Offset(dx, 0);
+      }
+      points = [for (final c in arrow.cells) _center(c) + shake];
+      headCenter = points.last;
     }
 
-    if (opacity <= 0) return;
-    final paintColor = color.withValues(alpha: opacity);
-
-    final points = [for (final c in arrow.cells) _center(c) + slide];
-
     final body = Paint()
-      ..color = paintColor
+      ..color = color
       ..style = PaintingStyle.stroke
       ..strokeWidth = cell * 0.46
       ..strokeCap = StrokeCap.round
@@ -372,8 +392,6 @@ class _SnakePainter extends CustomPainter {
     canvas.drawPath(path, body);
 
     // Arrowhead at the head, pointing in the exit direction.
-    final dir = arrow.exitDir;
-    final headCenter = points.last;
     final reach = cell * 0.34;
     final tip = headCenter + Offset(dir.dCol * reach, dir.dRow * reach);
     final perp = Offset(-dir.dRow.toDouble(), dir.dCol.toDouble()) * (reach * 0.9);
@@ -382,7 +400,26 @@ class _SnakePainter extends CustomPainter {
       ..lineTo((headCenter + perp).dx, (headCenter + perp).dy)
       ..lineTo((headCenter - perp).dx, (headCenter - perp).dy)
       ..close();
-    canvas.drawPath(head, Paint()..color = paintColor);
+    canvas.drawPath(head, Paint()..color = color);
+  }
+
+  /// Maps arc-length [arc] (measured from the tail) onto the snake's rail: the
+  /// spine through its cell centres, then a straight extension in the exit
+  /// direction past the head. Driving every body point along this rail makes
+  /// the arrow slither out head-first.
+  Offset _railPoint(SnakeArrow arrow, double arc) {
+    final n = arrow.cells.length;
+    final spineLen = (n - 1) * cell;
+    if (arc <= spineLen) {
+      final k = (arc / cell).floor().clamp(0, n - 2);
+      final t = (arc - k * cell) / cell;
+      return Offset.lerp(
+          _center(arrow.cells[k]), _center(arrow.cells[k + 1]), t)!;
+    }
+    final headCenter = _center(arrow.cells[n - 1]);
+    final extra = arc - spineLen;
+    return headCenter +
+        Offset(arrow.exitDir.dCol * extra, arrow.exitDir.dRow * extra);
   }
 
   @override

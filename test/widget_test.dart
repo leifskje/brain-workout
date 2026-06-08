@@ -1,10 +1,19 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:brain_workout/games/arrow_escape/arrow_escape_models.dart';
+import 'package:brain_workout/games/memory_match/memory_match_models.dart';
 import 'package:brain_workout/games/snake_arrows/snake_arrows_models.dart';
 import 'package:brain_workout/main.dart';
+import 'package:brain_workout/services/progress_store.dart';
 
 void main() {
+  setUp(() async {
+    TestWidgetsFlutterBinding.ensureInitialized();
+    SharedPreferences.setMockInitialValues({});
+    await ProgressStore.init();
+  });
+
   testWidgets('Home screen shows the game catalog', (tester) async {
     await tester.pumpWidget(const BrainWorkoutApp());
 
@@ -42,6 +51,22 @@ void main() {
         arrow.escaped = true;
       }
       expect(board.isSolved, isTrue);
+    }
+  });
+
+  test('Memory boards are well-formed (every symbol appears exactly twice)', () {
+    for (var level = 1; level <= 10; level++) {
+      final board = MemoryBoard.generate(level);
+      expect(board.cards.length, board.rows * board.cols);
+      expect(board.cards.length.isEven, isTrue);
+      expect(board.isSolved, isFalse);
+
+      final counts = <String, int>{};
+      for (final card in board.cards) {
+        counts[card.symbol] = (counts[card.symbol] ?? 0) + 1;
+      }
+      expect(counts.values.every((n) => n == 2), isTrue,
+          reason: 'memory level $level has a non-paired symbol');
     }
   });
 }
