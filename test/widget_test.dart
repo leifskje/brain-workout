@@ -69,4 +69,30 @@ void main() {
           reason: 'memory level $level has a non-paired symbol');
     }
   });
+
+  test('Stars: recordStars keeps the best result', () {
+    final store = ProgressStore.instance;
+    expect(store.stars('arrow_escape', 1), 0);
+    store.recordStars('arrow_escape', 1, 2);
+    expect(store.stars('arrow_escape', 1), 2);
+    store.recordStars('arrow_escape', 1, 1); // lower → ignored
+    expect(store.stars('arrow_escape', 1), 2);
+    store.recordStars('arrow_escape', 1, 3);
+    expect(store.stars('arrow_escape', 1), 3);
+  });
+
+  test('Streak & daily: first play starts a streak and marks the game', () {
+    final store = ProgressStore.instance;
+    expect(store.currentStreak, 0);
+    expect(store.dailyDone(), isEmpty);
+
+    store.registerPlay('memory_match');
+    expect(store.currentStreak, 1);
+    expect(store.dailyDone(), contains('memory_match'));
+
+    // A second play the same day doesn't double-count the streak.
+    store.registerPlay('arrow_escape');
+    expect(store.currentStreak, 1);
+    expect(store.dailyDone(), containsAll(<String>['memory_match', 'arrow_escape']));
+  });
 }

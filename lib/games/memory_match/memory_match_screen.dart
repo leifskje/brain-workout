@@ -1,8 +1,11 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../services/progress_store.dart';
+import '../../widgets/game_header.dart';
+import '../../widgets/win_dialog.dart';
 import 'memory_match_models.dart';
 
 /// Playable "Memory Match": flip cards to find matching pairs. There is no lose
@@ -48,6 +51,7 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen> {
   void _onTapCard(MemoryCard card) {
     if (_busy || card.faceUp || card.matched) return;
 
+    HapticFeedback.selectionClick();
     setState(() => card.faceUp = true);
 
     if (_firstId == null) {
@@ -59,6 +63,7 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen> {
     setState(() => _moves++);
 
     if (first.symbol == card.symbol) {
+      HapticFeedback.lightImpact();
       setState(() {
         first.matched = true;
         card.matched = true;
@@ -71,6 +76,7 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen> {
         });
       }
     } else {
+      HapticFeedback.mediumImpact();
       _busy = true;
       Future.delayed(const Duration(milliseconds: 850), () {
         if (!mounted) return;
@@ -86,31 +92,28 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen> {
 
   void _showWin() {
     if (!mounted) return;
-    showDialog<void>(
-      context: context,
-      barrierDismissible: false,
-      builder: (dialogContext) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('🎉 Well done!'),
-        content: Text('You cleared level $_level in $_moves moves.'),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(dialogContext);
-              Navigator.pop(context);
-            },
-            child: const Text('Home'),
-          ),
-          FilledButton(
-            onPressed: () {
-              Navigator.pop(dialogContext);
-              _loadLevel(_level + 1);
-            },
-            child: const Text('Next level'),
-          ),
-        ],
-      ),
-    );
+    HapticFeedback.heavyImpact();
+    final pairs = _board.cards.length ~/ 2;
+    final stars = _moves <= (pairs * 1.7).ceil()
+        ? 3
+        : (_moves <= (pairs * 2.6).ceil() ? 2 : 1);
+    ProgressStore.instance
+      ..registerPlay(_gameId)
+      ..recordStars(_gameId, _level, stars);
+    showWinDialog(
+      context,
+      level: _level,
+      accent: _accent,
+      stars: stars,
+      message: 'You cleared level $_level in $_moves moves.',
+    ).then((action) {
+      if (!mounted || action == null) return;
+      if (action == WinAction.next) {
+        _loadLevel(_level + 1);
+      } else {
+        Navigator.popUntil(context, (route) => route.isFirst);
+      }
+    });
   }
 
   @override
@@ -121,34 +124,8 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-              child: Row(
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.arrow_back_rounded),
-                    iconSize: 28,
-                    tooltip: 'Back',
-                    onPressed: () => Navigator.pop(context),
-                  ),
-                  Expanded(
-                    child: Center(
-                      child: Text(
-                        'Level $_level',
-                        style: const TextStyle(
-                            fontSize: 24, fontWeight: FontWeight.bold),
-                      ),
-                    ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.refresh_rounded),
-                    iconSize: 28,
-                    tooltip: 'Restart level',
-                    onPressed: _restart,
-                  ),
-                ],
-              ),
-            ),
+            GameHeader(
+                title: 'Level $_level', accent: _accent, onRestart: _restart),
             Text(
               'Pairs found: $matched / $total',
               style: const TextStyle(

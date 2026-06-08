@@ -44,6 +44,93 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  Widget _buildDailyCard() {
+    final store = ProgressStore.instance;
+    final playable = [for (final g in gamesCatalog) if (g.available) g];
+    final done = store.dailyDone();
+    final doneCount = playable.where((g) => done.contains(g.id)).length;
+    final total = playable.length;
+    final complete = total > 0 && doneCount == total;
+    final streak = store.currentStreak;
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(20, 4, 20, 8),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: complete ? const Color(0xFFE8F5E9) : Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: complete ? const Color(0xFF66BB6A) : Colors.black12,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(streak > 0 ? '🔥' : '🧠',
+                  style: const TextStyle(fontSize: 22)),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  streak > 0
+                      ? '$streak day streak'
+                      : 'Start your streak today!',
+                  style: const TextStyle(
+                      fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+              ),
+              if (store.bestStreak > 1)
+                Text('Best: ${store.bestStreak}',
+                    style:
+                        const TextStyle(fontSize: 13, color: Colors.black45)),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  complete
+                      ? 'Today\'s workout complete! 🎉'
+                      : 'Today\'s workout: $doneCount of $total',
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: complete
+                        ? const Color(0xFF2E7D32)
+                        : Colors.black87,
+                  ),
+                ),
+              ),
+              for (final g in playable)
+                Padding(
+                  padding: const EdgeInsets.only(left: 6),
+                  child: _gameChip(g, done.contains(g.id)),
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _gameChip(GameDefinition game, bool done) {
+    return Container(
+      width: 32,
+      height: 32,
+      decoration: BoxDecoration(
+        color: done ? game.color : game.color.withValues(alpha: 0.12),
+        shape: BoxShape.circle,
+      ),
+      child: Icon(
+        done ? Icons.check_rounded : game.icon,
+        size: 18,
+        color: done ? Colors.white : game.color,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -71,6 +158,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 ],
               ),
             ),
+            _buildDailyCard(),
             Expanded(
               child: GridView.count(
                 padding: const EdgeInsets.all(16),

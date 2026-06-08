@@ -77,6 +77,7 @@ class _LevelSelectScreenState extends State<LevelSelectScreen> {
                 itemBuilder: (context, index) {
                   final level = index + 1;
                   final isCurrent = level == highest;
+                  final earned = ProgressStore.instance.stars(game.id, level);
                   return Material(
                     color: isCurrent ? game.color : Colors.white,
                     elevation: 2,
@@ -84,15 +85,38 @@ class _LevelSelectScreenState extends State<LevelSelectScreen> {
                     child: InkWell(
                       borderRadius: BorderRadius.circular(16),
                       onTap: () => _play(level),
-                      child: Center(
-                        child: Text(
-                          '$level',
-                          style: TextStyle(
-                            fontSize: 22,
-                            fontWeight: FontWeight.bold,
-                            color: isCurrent ? Colors.white : Colors.black87,
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            '$level',
+                            style: TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.bold,
+                              color: isCurrent ? Colors.white : Colors.black87,
+                            ),
                           ),
-                        ),
+                          const SizedBox(height: 2),
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              for (var s = 0; s < 3; s++)
+                                Icon(
+                                  s < earned
+                                      ? Icons.star_rounded
+                                      : Icons.star_outline_rounded,
+                                  size: 13,
+                                  color: s < earned
+                                      ? (isCurrent
+                                          ? Colors.white
+                                          : const Color(0xFFFFB300))
+                                      : (isCurrent
+                                          ? Colors.white38
+                                          : Colors.black12),
+                                ),
+                            ],
+                          ),
+                        ],
                       ),
                     ),
                   );

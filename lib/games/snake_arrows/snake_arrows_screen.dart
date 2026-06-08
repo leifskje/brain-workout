@@ -1,8 +1,11 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../services/progress_store.dart';
+import '../../widgets/game_header.dart';
+import '../../widgets/win_dialog.dart';
 import 'snake_arrows_models.dart';
 
 /// Playable "Arrow Maze": long, bent arrows that must slither off the board.
@@ -23,6 +26,7 @@ class _SnakeArrowsScreenState extends State<SnakeArrowsScreen>
     with TickerProviderStateMixin {
   static const _escapeDuration = Duration(milliseconds: 520);
   static const _gameId = 'arrow_maze';
+  static const _accent = Color(0xFF2E8B8B);
 
   int _level = 1;
   late SnakeBoard _board;
@@ -97,6 +101,7 @@ class _SnakeArrowsScreenState extends State<SnakeArrowsScreen>
     if (arrow == null || arrow.escaped) return;
 
     if (_board.isPathClear(arrow)) {
+      HapticFeedback.lightImpact();
       setState(() {
         _escapingId = arrow.id;
         _blockedId = null;
@@ -104,6 +109,7 @@ class _SnakeArrowsScreenState extends State<SnakeArrowsScreen>
       });
       _escapeCtrl.forward(from: 0);
     } else {
+      HapticFeedback.mediumImpact();
       setState(() {
         _blockedId = arrow.id;
         _hearts = math.max(0, _hearts - 1);
@@ -120,35 +126,26 @@ class _SnakeArrowsScreenState extends State<SnakeArrowsScreen>
 
   void _showWin() {
     if (!mounted) return;
-    showDialog<void>(
-      context: context,
-      barrierDismissible: false,
-      builder: (dialogContext) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('🎉 Well done!'),
-        content: Text('You cleared level $_level.'),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(dialogContext);
-              Navigator.pop(context);
-            },
-            child: const Text('Home'),
-          ),
-          FilledButton(
-            onPressed: () {
-              Navigator.pop(dialogContext);
-              _loadLevel(_level + 1);
-            },
-            child: const Text('Next level'),
-          ),
-        ],
-      ),
-    );
+    HapticFeedback.heavyImpact();
+    final lost = snakeConfigForLevel(_level).hearts - _hearts;
+    final stars = lost == 0 ? 3 : (lost <= 2 ? 2 : 1);
+    ProgressStore.instance
+      ..registerPlay(_gameId)
+      ..recordStars(_gameId, _level, stars);
+    showWinDialog(context, level: _level, accent: _accent, stars: stars)
+        .then((action) {
+      if (!mounted || action == null) return;
+      if (action == WinAction.next) {
+        _loadLevel(_level + 1);
+      } else {
+        Navigator.popUntil(context, (route) => route.isFirst);
+      }
+    });
   }
 
   void _showLose() {
     if (!mounted) return;
+    HapticFeedback.heavyImpact();
     showDialog<void>(
       context: context,
       barrierDismissible: false,
@@ -160,7 +157,7 @@ class _SnakeArrowsScreenState extends State<SnakeArrowsScreen>
           TextButton(
             onPressed: () {
               Navigator.pop(dialogContext);
-              Navigator.pop(context);
+              Navigator.popUntil(context, (route) => route.isFirst);
             },
             child: const Text('Home'),
           ),
@@ -183,7 +180,8 @@ class _SnakeArrowsScreenState extends State<SnakeArrowsScreen>
       body: SafeArea(
         child: Column(
           children: [
-            _buildHeader(context),
+            GameHeader(
+                title: 'Level $_level', accent: _accent, onRestart: _restart),
             _buildHearts(maxHearts),
             const SizedBox(height: 8),
             Expanded(
@@ -206,37 +204,6 @@ class _SnakeArrowsScreenState extends State<SnakeArrowsScreen>
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildHeader(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-      child: Row(
-        children: [
-          IconButton(
-            icon: const Icon(Icons.arrow_back_rounded),
-            iconSize: 28,
-            tooltip: 'Back',
-            onPressed: () => Navigator.pop(context),
-          ),
-          Expanded(
-            child: Center(
-              child: Text(
-                'Level $_level',
-                style:
-                    const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-              ),
-            ),
-          ),
-          IconButton(
-            icon: const Icon(Icons.refresh_rounded),
-            iconSize: 28,
-            tooltip: 'Restart level',
-            onPressed: _restart,
-          ),
-        ],
       ),
     );
   }
