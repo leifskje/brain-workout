@@ -43,3 +43,6 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Claude Code — personal/machine-specific settings (keep shared settings.json tracked)
+.claude/settings.local.json

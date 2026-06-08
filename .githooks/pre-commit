@@ -1,0 +1,14 @@
+#!/bin/sh
+# Pre-commit hook: run Flutter static analysis before allowing a commit.
+# Enabled via `git config core.hooksPath .githooks`.
+# Bypass once with: git commit --no-verify
+
+echo "pre-commit: running flutter analyze..."
+flutter analyze
+if [ $? -ne 0 ]; then
+  echo "pre-commit: flutter analyze reported issues — commit aborted."
+  echo "            (bypass with: git commit --no-verify)"
+  exit 1
+fi
+echo "pre-commit: analyze passed."
+exit 0
