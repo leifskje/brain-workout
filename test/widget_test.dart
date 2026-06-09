@@ -3,6 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:brain_workout/games/arrow_escape/arrow_escape_models.dart';
 import 'package:brain_workout/games/memory_match/memory_match_models.dart';
+import 'package:brain_workout/games/number_cross/number_cross_models.dart';
 import 'package:brain_workout/games/snake_arrows/snake_arrows_models.dart';
 import 'package:brain_workout/games/what_next/what_next_models.dart';
 import 'package:brain_workout/games/wordle/wordle_models.dart';
@@ -159,5 +160,48 @@ void main() {
     store.registerPlay('arrow_escape');
     expect(store.currentStreak, 1);
     expect(store.dailyCount, 2);
+  });
+
+  test('Number Cross puzzles are consistent and solvable', () {
+    for (var level = 1; level <= 30; level++) {
+      final board = NumberCrossBoard.generate(level);
+
+      // The correct values satisfy every row and column equation.
+      for (var i = 0; i < 3; i++) {
+        final a = board.numberCell(i, 0).value!;
+        final b = board.numberCell(i, 1).value!;
+        final c = board.numberCell(i, 2).value!;
+        expect(applyOp(board.opRow[i], a, b), c, reason: 'level $level row $i');
+      }
+      for (var j = 0; j < 3; j++) {
+        final a = board.numberCell(0, j).value!;
+        final b = board.numberCell(1, j).value!;
+        final c = board.numberCell(2, j).value!;
+        expect(applyOp(board.opCol[j], a, b), c, reason: 'level $level col $j');
+      }
+
+      expect(board.isSolved, isFalse, reason: 'level $level starts unsolved');
+
+      // Each blank's correct value is available in the pool.
+      final pool = [...board.pool];
+      for (var i = 0; i < 3; i++) {
+        for (var j = 0; j < 3; j++) {
+          final cell = board.numberCell(i, j);
+          if (!cell.fixed) {
+            expect(pool.remove(cell.value), isTrue,
+                reason: 'level $level pool missing ${cell.value}');
+          }
+        }
+      }
+
+      // Placing the correct values solves it.
+      for (var i = 0; i < 3; i++) {
+        for (var j = 0; j < 3; j++) {
+          final cell = board.numberCell(i, j);
+          if (!cell.fixed) cell.placed = cell.value;
+        }
+      }
+      expect(board.isSolved, isTrue, reason: 'level $level should be solvable');
+    }
   });
 }

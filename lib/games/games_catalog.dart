@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/game_definition.dart';
 import 'arrow_escape/arrow_escape_screen.dart';
 import 'memory_match/memory_match_screen.dart';
+import 'number_cross/number_cross_screen.dart';
 import 'snake_arrows/snake_arrows_screen.dart';
 import 'what_next/what_next_screen.dart';
 import 'wordle/wordle_screen.dart';
@@ -36,12 +37,13 @@ final List<GameDefinition> gamesCatalog = [
     color: const Color(0xFF6AAA64),
     screenBuilder: (_) => const WordleScreen(),
   ),
-  const GameDefinition(
-    id: 'quick_maths',
-    title: 'Quick Maths',
-    subtitle: 'Warm up with numbers',
+  GameDefinition(
+    id: 'number_cross',
+    title: 'Number Cross',
+    subtitle: 'Fill the math crossword',
     icon: Icons.calculate_rounded,
-    color: Color(0xFFB5651D),
+    color: const Color(0xFFB5651D),
+    levelBuilder: (level) => NumberCrossScreen(startLevel: level),
   ),
   GameDefinition(
     id: 'memory_match',
