@@ -4,6 +4,7 @@ import '../models/game_definition.dart';
 import 'arrow_escape/arrow_escape_screen.dart';
 import 'memory_match/memory_match_screen.dart';
 import 'snake_arrows/snake_arrows_screen.dart';
+import 'what_next/what_next_screen.dart';
 
 /// The list of mini-games shown on the home screen.
 ///
@@ -47,5 +48,13 @@ final List<GameDefinition> gamesCatalog = [
     icon: Icons.grid_view_rounded,
     color: const Color(0xFF7E57C2),
     levelBuilder: (level) => MemoryMatchScreen(startLevel: level),
+  ),
+  GameDefinition(
+    id: 'what_next',
+    title: 'What Comes Next?',
+    subtitle: 'Spot the pattern',
+    icon: Icons.trending_up_rounded,
+    color: const Color(0xFFEF8A3D),
+    levelBuilder: (level) => WhatNextScreen(startLevel: level),
   ),
 ];

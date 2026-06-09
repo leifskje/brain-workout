@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:brain_workout/games/arrow_escape/arrow_escape_models.dart';
 import 'package:brain_workout/games/memory_match/memory_match_models.dart';
 import 'package:brain_workout/games/snake_arrows/snake_arrows_models.dart';
+import 'package:brain_workout/games/what_next/what_next_models.dart';
 import 'package:brain_workout/main.dart';
 import 'package:brain_workout/services/progress_store.dart';
 
@@ -67,6 +68,22 @@ void main() {
       }
       expect(counts.values.every((n) => n == 2), isTrue,
           reason: 'memory level $level has a non-paired symbol');
+    }
+  });
+
+  test('What Comes Next: questions are well-formed', () {
+    for (var level = 1; level <= 20; level++) {
+      final questions = WhatNextRound.generate(level);
+      expect(questions, isNotEmpty, reason: 'level $level produced no questions');
+      for (final q in questions) {
+        expect(q.options.length, 4, reason: 'level $level: not 4 options');
+        expect(q.options.toSet().length, 4, reason: 'level $level: duplicate options');
+        expect(q.options, contains(q.answer),
+            reason: 'level $level: answer missing from options');
+        expect(q.answer > 0, isTrue, reason: 'level $level: non-positive answer');
+        expect(q.options.every((o) => o > 0), isTrue,
+            reason: 'level $level: non-positive option');
+      }
     }
   });
 
