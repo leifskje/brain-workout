@@ -5,6 +5,7 @@ import 'arrow_escape/arrow_escape_screen.dart';
 import 'memory_match/memory_match_screen.dart';
 import 'snake_arrows/snake_arrows_screen.dart';
 import 'what_next/what_next_screen.dart';
+import 'wordle/wordle_screen.dart';
 
 /// The list of mini-games shown on the home screen.
 ///
@@ -27,12 +28,13 @@ final List<GameDefinition> gamesCatalog = [
     color: const Color(0xFF2E8B8B),
     levelBuilder: (level) => SnakeArrowsScreen(startLevel: level),
   ),
-  const GameDefinition(
-    id: 'word_builder',
-    title: 'Word Builder',
-    subtitle: 'Find the hidden words',
+  GameDefinition(
+    id: 'wordle',
+    title: 'Word',
+    subtitle: 'Guess the hidden word',
     icon: Icons.abc_rounded,
-    color: Color(0xFF6A8D3F),
+    color: const Color(0xFF6AAA64),
+    screenBuilder: (_) => const WordleScreen(),
   ),
   const GameDefinition(
     id: 'quick_maths',

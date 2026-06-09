@@ -5,6 +5,7 @@ import 'package:brain_workout/games/arrow_escape/arrow_escape_models.dart';
 import 'package:brain_workout/games/memory_match/memory_match_models.dart';
 import 'package:brain_workout/games/snake_arrows/snake_arrows_models.dart';
 import 'package:brain_workout/games/what_next/what_next_models.dart';
+import 'package:brain_workout/games/wordle/wordle_models.dart';
 import 'package:brain_workout/main.dart';
 import 'package:brain_workout/services/progress_store.dart';
 
@@ -80,11 +81,49 @@ void main() {
         expect(q.options.toSet().length, 4, reason: 'level $level: duplicate options');
         expect(q.options, contains(q.answer),
             reason: 'level $level: answer missing from options');
-        expect(q.answer > 0, isTrue, reason: 'level $level: non-positive answer');
-        expect(q.options.every((o) => o > 0), isTrue,
-            reason: 'level $level: non-positive option');
+        if (q.kind == QuestionKind.number) {
+          expect(q.answer > 0, isTrue, reason: 'level $level: non-positive answer');
+          expect(q.options.every((o) => o > 0), isTrue,
+              reason: 'level $level: non-positive option');
+        }
       }
     }
+  });
+
+  test('Wordle scoring handles greens, yellows, and duplicates', () {
+    // All correct.
+    expect(scoreGuess('APPLE', 'APPLE'),
+        everyElement(LetterState.correct));
+
+    // No overlap at all.
+    expect(scoreGuess('FUZZY', 'GRIPE'),
+        everyElement(LetterState.absent));
+
+    // PAPER vs APPLE: one green P, the rest present/absent with duplicate care.
+    expect(scoreGuess('PAPER', 'APPLE'), [
+      LetterState.present, // P (in word, wrong spot)
+      LetterState.present, // A
+      LetterState.correct, // P matches position 2
+      LetterState.present, // E
+      LetterState.absent, // R not in APPLE
+    ]);
+
+    // A duplicate guessed letter beyond the target's count is grey.
+    // target ABCDE has one A; guess AAXYZ → first A green, second A absent.
+    expect(scoreGuess('AAXYZ', 'ABCDE'), [
+      LetterState.correct,
+      LetterState.absent,
+      LetterState.absent,
+      LetterState.absent,
+      LetterState.absent,
+    ]);
+  });
+
+  test('Wordle stars by guess count', () {
+    expect(wordleStars(1), 3);
+    expect(wordleStars(3), 3);
+    expect(wordleStars(4), 2);
+    expect(wordleStars(6), 1);
   });
 
   test('Stars: recordStars keeps the best result', () {
@@ -98,18 +137,19 @@ void main() {
     expect(store.stars('arrow_escape', 1), 3);
   });
 
-  test('Streak & daily: first play starts a streak and marks the game', () {
+  test('Streak & daily: first play starts a streak and counts toward the goal',
+      () {
     final store = ProgressStore.instance;
     expect(store.currentStreak, 0);
-    expect(store.dailyDone(), isEmpty);
+    expect(store.dailyCount, 0);
 
     store.registerPlay('memory_match');
     expect(store.currentStreak, 1);
-    expect(store.dailyDone(), contains('memory_match'));
+    expect(store.dailyCount, 1);
 
-    // A second play the same day doesn't double-count the streak.
+    // A second play the same day increments the count but not the streak.
     store.registerPlay('arrow_escape');
     expect(store.currentStreak, 1);
-    expect(store.dailyDone(), containsAll(<String>['memory_match', 'arrow_escape']));
+    expect(store.dailyCount, 2);
   });
 }

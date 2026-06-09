@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -163,7 +165,7 @@ class _WhatNextScreenState extends State<WhatNextScreen> {
             Padding(
               padding: const EdgeInsets.fromLTRB(24, 0, 24, 20),
               child: Text(
-                'Which number comes next?',
+                'Which comes next?',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                     fontSize: 15, color: Colors.black.withValues(alpha: 0.6)),
@@ -195,7 +197,7 @@ class _WhatNextScreenState extends State<WhatNextScreen> {
   }
 
   Widget _buildSequence(SequenceQuestion question) {
-    Widget box(String text, {required bool isAnswer}) => Container(
+    Widget box({required Widget child, required bool isAnswer}) => Container(
           margin: const EdgeInsets.all(4),
           width: 64,
           height: 64,
@@ -208,26 +210,22 @@ class _WhatNextScreenState extends State<WhatNextScreen> {
             ),
           ),
           alignment: Alignment.center,
-          child: FittedBox(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 6),
-              child: Text(
-                text,
-                style: TextStyle(
-                  fontSize: 26,
-                  fontWeight: FontWeight.bold,
-                  color: isAnswer ? _accent : Colors.black87,
-                ),
-              ),
-            ),
-          ),
+          child: child,
         );
 
     return Wrap(
       alignment: WrapAlignment.center,
       children: [
-        for (final term in question.shown) box('$term', isAnswer: false),
-        box('?', isAnswer: true),
+        for (final term in question.shown)
+          box(child: _renderValue(question.kind, term), isAnswer: false),
+        box(
+          child: const Text(
+            '?',
+            style: TextStyle(
+                fontSize: 26, fontWeight: FontWeight.bold, color: _accent),
+          ),
+          isAnswer: true,
+        ),
       ],
     );
   }
@@ -237,18 +235,18 @@ class _WhatNextScreenState extends State<WhatNextScreen> {
     return Column(
       children: [
         Row(children: [
-          Expanded(child: _option(o[0])),
-          Expanded(child: _option(o[1])),
+          Expanded(child: _option(question, o[0])),
+          Expanded(child: _option(question, o[1])),
         ]),
         Row(children: [
-          Expanded(child: _option(o[2])),
-          Expanded(child: _option(o[3])),
+          Expanded(child: _option(question, o[2])),
+          Expanded(child: _option(question, o[3])),
         ]),
       ],
     );
   }
 
-  Widget _option(int value) {
+  Widget _option(SequenceQuestion question, int value) {
     final wrong = value == _wrongValue;
     return Padding(
       padding: const EdgeInsets.all(6),
@@ -262,18 +260,67 @@ class _WhatNextScreenState extends State<WhatNextScreen> {
           child: SizedBox(
             height: 64,
             child: Center(
-              child: Text(
-                '$value',
-                style: TextStyle(
-                  fontSize: 26,
-                  fontWeight: FontWeight.bold,
-                  color: wrong ? Colors.white : Colors.black87,
-                ),
-              ),
+              child: _renderValue(question.kind, value, onRed: wrong),
             ),
           ),
         ),
       ),
     );
+  }
+
+  static const List<Color> _palette = [
+    Color(0xFFE53935), // red
+    Color(0xFF1E88E5), // blue
+    Color(0xFF43A047), // green
+    Color(0xFFFB8C00), // orange
+  ];
+
+  /// Renders a value according to the question kind: a number, that many dots,
+  /// a palette colour, or a rotated arrow.
+  Widget _renderValue(QuestionKind kind, int value, {bool onRed = false}) {
+    switch (kind) {
+      case QuestionKind.number:
+        return Text(
+          '$value',
+          style: TextStyle(
+            fontSize: 26,
+            fontWeight: FontWeight.bold,
+            color: onRed ? Colors.white : Colors.black87,
+          ),
+        );
+      case QuestionKind.color:
+        return Container(
+          width: 30,
+          height: 30,
+          decoration: BoxDecoration(
+              color: _palette[value], shape: BoxShape.circle),
+        );
+      case QuestionKind.arrow:
+        return Transform.rotate(
+          angle: value * (math.pi / 2),
+          child: Icon(
+            Icons.arrow_upward_rounded,
+            size: 34,
+            color: onRed ? Colors.white : const Color(0xFF37474F),
+          ),
+        );
+      case QuestionKind.dots:
+        return Wrap(
+          alignment: WrapAlignment.center,
+          spacing: 4,
+          runSpacing: 4,
+          children: [
+            for (var i = 0; i < value; i++)
+              Container(
+                width: 9,
+                height: 9,
+                decoration: BoxDecoration(
+                  color: onRed ? Colors.white : _accent,
+                  shape: BoxShape.circle,
+                ),
+              ),
+          ],
+        );
+    }
   }
 }

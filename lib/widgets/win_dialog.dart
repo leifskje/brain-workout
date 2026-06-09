@@ -12,6 +12,7 @@ Future<WinAction?> showWinDialog(
   required Color accent,
   required int stars,
   String? message,
+  String nextLabel = 'Next level',
 }) {
   return showGeneralDialog<WinAction>(
     context: context,
@@ -19,8 +20,12 @@ Future<WinAction?> showWinDialog(
     barrierLabel: 'Level complete',
     barrierColor: Colors.black54,
     transitionDuration: const Duration(milliseconds: 340),
-    pageBuilder: (context, _, _) =>
-        _WinDialog(level: level, accent: accent, stars: stars, message: message),
+    pageBuilder: (context, _, _) => _WinDialog(
+        level: level,
+        accent: accent,
+        stars: stars,
+        message: message,
+        nextLabel: nextLabel),
     transitionBuilder: (context, animation, _, child) {
       final curved =
           CurvedAnimation(parent: animation, curve: Curves.easeOutBack);
@@ -38,12 +43,14 @@ class _WinDialog extends StatefulWidget {
     required this.accent,
     required this.stars,
     this.message,
+    this.nextLabel = 'Next level',
   });
 
   final int level;
   final Color accent;
   final int stars;
   final String? message;
+  final String nextLabel;
 
   @override
   State<_WinDialog> createState() => _WinDialogState();
@@ -145,7 +152,7 @@ class _WinDialogState extends State<_WinDialog>
                     style:
                         FilledButton.styleFrom(backgroundColor: widget.accent),
                     onPressed: () => Navigator.pop(context, WinAction.next),
-                    child: const Text('Next level'),
+                    child: Text(widget.nextLabel),
                   ),
                 ],
               ),

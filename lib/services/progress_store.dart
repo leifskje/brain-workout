@@ -52,6 +52,11 @@ class ProgressStore {
     }
   }
 
+  // -------------------------------------------------------- wordle language ---
+
+  String get wordleLanguageId => _prefs.getString('wordle_lang') ?? 'en';
+  void setWordleLanguageId(String id) => _prefs.setString('wordle_lang', id);
+
   // ------------------------------------------------- daily workout & streak ---
 
   String _dateString(DateTime d) =>
@@ -73,27 +78,30 @@ class ProgressStore {
     return 0;
   }
 
-  /// Game ids the player has completed *today* (for the daily-workout goal).
-  Set<String> dailyDone() {
+  /// How many levels make up a daily workout (any games count toward it).
+  static const int dailyGoal = 3;
+
+  /// Levels completed today, toward the daily-workout goal.
+  int get dailyCount {
     final today = _dateString(DateTime.now());
-    if (_prefs.getString('daily_date') != today) return <String>{};
-    return (_prefs.getStringList('daily_done') ?? const <String>[]).toSet();
+    if (_prefs.getString('daily_date') != today) return 0;
+    return _prefs.getInt('daily_count') ?? 0;
   }
 
-  /// Call when the player completes a level in [gameId]. Adds it to today's
-  /// workout set and credits the day streak (each at most once per day).
+  bool get dailyWorkoutComplete => dailyCount >= dailyGoal;
+
+  /// Call when the player completes a level (in any game). Counts toward
+  /// today's workout goal and credits the day streak (streak once per day).
+  /// [gameId] is accepted for future per-game stats.
   void registerPlay(String gameId) {
     final now = DateTime.now();
     final today = _dateString(now);
 
-    // Daily-workout set — reset when the calendar day changes.
-    if (_prefs.getString('daily_date') != today) {
-      _prefs.setString('daily_date', today);
-      _prefs.setStringList('daily_done', const <String>[]);
-    }
-    final done = (_prefs.getStringList('daily_done') ?? <String>[]).toSet()
-      ..add(gameId);
-    _prefs.setStringList('daily_done', done.toList());
+    // Daily count — reset when the calendar day changes.
+    final isNewDay = _prefs.getString('daily_date') != today;
+    if (isNewDay) _prefs.setString('daily_date', today);
+    final count = isNewDay ? 0 : (_prefs.getInt('daily_count') ?? 0);
+    _prefs.setInt('daily_count', count + 1);
 
     // Streak — credit once per day.
     final lastDate = _prefs.getString('streak_lastDate');

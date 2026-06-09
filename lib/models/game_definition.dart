@@ -2,8 +2,9 @@ import 'package:flutter/material.dart';
 
 /// Metadata describing a single mini-game shown on the home screen.
 ///
-/// A game is considered playable when [levelBuilder] is provided; otherwise it
-/// is rendered as "coming soon".
+/// A game is playable when it provides either [levelBuilder] (a level-based
+/// game shown via the level picker) or [screenBuilder] (a direct-entry game
+/// with no numbered levels, e.g. Wordle). Otherwise it renders as "coming soon".
 class GameDefinition {
   const GameDefinition({
     required this.id,
@@ -12,6 +13,7 @@ class GameDefinition {
     required this.icon,
     required this.color,
     this.levelBuilder,
+    this.screenBuilder,
   });
 
   final String id;
@@ -20,8 +22,13 @@ class GameDefinition {
   final IconData icon;
   final Color color;
 
-  /// Builds the playable screen starting at [level]. Null = "coming soon".
+  /// Builds the playable screen starting at [level] (level-based game).
   final Widget Function(int level)? levelBuilder;
 
-  bool get available => levelBuilder != null;
+  /// Builds a direct-entry screen (no numbered levels). Takes precedence over
+  /// [levelBuilder] for routing.
+  final WidgetBuilder? screenBuilder;
+
+  bool get available => levelBuilder != null || screenBuilder != null;
+  bool get hasLevels => levelBuilder != null && screenBuilder == null;
 }

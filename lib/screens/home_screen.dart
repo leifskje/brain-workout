@@ -20,14 +20,15 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   Future<void> _open(GameDefinition game) async {
-    await Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => game.available
-            ? LevelSelectScreen(game: game)
-            : ComingSoonScreen(title: game.title),
-      ),
-    );
+    final WidgetBuilder builder;
+    if (game.screenBuilder != null) {
+      builder = game.screenBuilder!; // direct-entry game (e.g. Wordle)
+    } else if (game.hasLevels) {
+      builder = (_) => LevelSelectScreen(game: game);
+    } else {
+      builder = (_) => ComingSoonScreen(title: game.title);
+    }
+    await Navigator.push(context, MaterialPageRoute(builder: builder));
     // Returning from a game may have advanced progress — refresh the cards.
     if (mounted) setState(() {});
   }
@@ -46,11 +47,9 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildDailyCard() {
     final store = ProgressStore.instance;
-    final playable = [for (final g in gamesCatalog) if (g.available) g];
-    final done = store.dailyDone();
-    final doneCount = playable.where((g) => done.contains(g.id)).length;
-    final total = playable.length;
-    final complete = total > 0 && doneCount == total;
+    final count = store.dailyCount;
+    final goal = ProgressStore.dailyGoal;
+    final complete = store.dailyWorkoutComplete;
     final streak = store.currentStreak;
 
     return Container(
@@ -93,7 +92,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: Text(
                   complete
                       ? 'Today\'s workout complete! 🎉'
-                      : 'Today\'s workout: $doneCount of $total',
+                      : 'Today\'s workout: ${count.clamp(0, goal)} of $goal',
                   style: TextStyle(
                     fontSize: 15,
                     fontWeight: FontWeight.w600,
@@ -103,30 +102,22 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 ),
               ),
-              for (final g in playable)
+              for (var i = 0; i < goal; i++)
                 Padding(
                   padding: const EdgeInsets.only(left: 6),
-                  child: _gameChip(g, done.contains(g.id)),
+                  child: Icon(
+                    i < count
+                        ? Icons.check_circle_rounded
+                        : Icons.circle_outlined,
+                    size: 24,
+                    color: i < count
+                        ? const Color(0xFF66BB6A)
+                        : Colors.black26,
+                  ),
                 ),
             ],
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _gameChip(GameDefinition game, bool done) {
-    return Container(
-      width: 32,
-      height: 32,
-      decoration: BoxDecoration(
-        color: done ? game.color : game.color.withValues(alpha: 0.12),
-        shape: BoxShape.circle,
-      ),
-      child: Icon(
-        done ? Icons.check_rounded : game.icon,
-        size: 18,
-        color: done ? Colors.white : game.color,
       ),
     );
   }
@@ -242,7 +233,9 @@ class _GameCard extends StatelessWidget {
                 Row(
                   children: [
                     Text(
-                      'Level ${ProgressStore.instance.highestLevel(game.id)}',
+                      game.hasLevels
+                          ? 'Level ${ProgressStore.instance.highestLevel(game.id)}'
+                          : 'Play',
                       style: TextStyle(
                           fontWeight: FontWeight.w700, color: game.color),
                     ),
