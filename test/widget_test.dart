@@ -56,6 +56,14 @@ void main() {
     }
   });
 
+  test('Snake boards fill the grid densely on higher levels', () {
+    final board = SnakeBoard.generate(12);
+    final filled =
+        board.arrows.fold<int>(0, (sum, a) => sum + a.cells.length);
+    expect(filled / (board.rows * board.cols), greaterThan(0.5),
+        reason: 'maze should be dense, not sparse');
+  });
+
   test('Memory boards are well-formed (every symbol appears exactly twice)', () {
     for (var level = 1; level <= 10; level++) {
       final board = MemoryBoard.generate(level);

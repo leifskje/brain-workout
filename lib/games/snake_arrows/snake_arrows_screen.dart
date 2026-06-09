@@ -230,8 +230,10 @@ class _SnakeArrowsScreenState extends State<SnakeArrowsScreen>
   Widget _buildBoard() {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final dim = math.min(constraints.maxWidth, constraints.maxHeight);
-        final cell = dim / _board.rows;
+        final cell = math.min(
+          constraints.maxWidth / _board.cols,
+          constraints.maxHeight / _board.rows,
+        );
         final boardSize = Size(cell * _board.cols, cell * _board.rows);
 
         return GestureDetector(

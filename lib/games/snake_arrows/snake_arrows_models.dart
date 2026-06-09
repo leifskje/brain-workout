@@ -57,31 +57,36 @@ class SnakeLevelConfig {
   const SnakeLevelConfig({
     required this.rows,
     required this.cols,
-    required this.snakeCount,
     required this.minLength,
     required this.maxLength,
     required this.hearts,
+    required this.fillTarget,
   });
 
   final int rows;
   final int cols;
-  final int snakeCount;
   final int minLength;
   final int maxLength;
   final int hearts;
+
+  /// Fraction of the grid to fill with arrows (denser = harder).
+  final double fillTarget;
 }
 
 SnakeLevelConfig snakeConfigForLevel(int level) {
-  final size = (5 + (level - 1) ~/ 3).clamp(5, 8);
-  final count = (3 + level ~/ 2).clamp(3, 11);
-  final maxLen = (3 + level ~/ 3).clamp(3, 6);
+  // Portrait board: width (cols) grows with level, height (rows) ~1.45x wider
+  // to match a phone screen. Reaches ~10x15 then ~14x20 at high levels.
+  final cols = (6 + (level - 1) ~/ 2).clamp(6, 14);
+  final rows = (cols * 1.45).round();
+  final fill = (0.6 + level * 0.04).clamp(0.6, 0.92);
+  final maxLen = (4 + level ~/ 2).clamp(4, 8);
   return SnakeLevelConfig(
-    rows: size,
-    cols: size,
-    snakeCount: count,
+    rows: rows,
+    cols: cols,
     minLength: 2,
     maxLength: maxLen,
     hearts: 5,
+    fillTarget: fill,
   );
 }
 
@@ -120,11 +125,13 @@ class SnakeBoard {
 
   /// Builds a guaranteed-solvable board for [level].
   ///
-  /// Snakes are placed in reverse-solve order. For each one we pick a head cell
-  /// + exit direction whose straight path to the edge is currently clear, then
-  /// grow a body backwards into empty cells (never into the head's forward
-  /// path). Removing the snakes in the reverse of their placement order is
-  /// therefore always a valid solution. Deterministic per level (seeded).
+  /// Snakes are placed in reverse-solve order: each new snake gets a head whose
+  /// straight path to the edge is currently clear, then a long body grown
+  /// greedily into empty cells (never into the head's forward path). Removing
+  /// the snakes in reverse placement order is therefore always a valid
+  /// solution. We keep placing long snakes until the grid is filled to
+  /// [SnakeLevelConfig.fillTarget], so higher levels are dense and tangled.
+  /// Deterministic per level (seeded).
   static SnakeBoard generate(int level) {
     final cfg = snakeConfigForLevel(level);
     final rng = Random(level * 100003 + 41);
@@ -132,34 +139,48 @@ class SnakeBoard {
         List.generate(cfg.rows, (_) => List<bool>.filled(cfg.cols, false));
     final arrows = <SnakeArrow>[];
     var id = 0;
+    var filled = 0;
+    final target = (cfg.rows * cfg.cols * cfg.fillTarget).round();
     var attempts = 0;
-    const maxAttempts = 400;
+    final maxAttempts = cfg.rows * cfg.cols * 20;
 
     bool inBounds(int r, int c) =>
         r >= 0 && r < cfg.rows && c >= 0 && c < cfg.cols;
 
-    while (arrows.length < cfg.snakeCount && attempts < maxAttempts) {
+    bool rayClear(int r, int c, Dir dir) {
+      var rr = r + dir.dRow;
+      var cc = c + dir.dCol;
+      while (inBounds(rr, cc)) {
+        if (occupied[rr][cc]) return false;
+        rr += dir.dRow;
+        cc += dir.dCol;
+      }
+      return true;
+    }
+
+    while (filled < target && attempts < maxAttempts) {
       attempts++;
 
-      // Candidate heads: empty cell + direction whose forward ray is clear.
+      // Head candidates: an empty cell + exit direction whose forward ray is
+      // clear, and which can grow at least one body cell off the exit lane.
       final heads = <List<int>>[];
       for (var r = 0; r < cfg.rows; r++) {
         for (var c = 0; c < cfg.cols; c++) {
           if (occupied[r][c]) continue;
           for (var d = 0; d < Dir.values.length; d++) {
             final dir = Dir.values[d];
-            var rr = r + dir.dRow;
-            var cc = c + dir.dCol;
-            var clear = true;
-            while (inBounds(rr, cc)) {
-              if (occupied[rr][cc]) {
-                clear = false;
+            if (!rayClear(r, c, dir)) continue;
+            var growable = false;
+            for (final nd in Dir.values) {
+              if (nd == dir) continue; // first step can't go up the exit lane
+              final nr = r + nd.dRow;
+              final nc = c + nd.dCol;
+              if (inBounds(nr, nc) && !occupied[nr][nc]) {
+                growable = true;
                 break;
               }
-              rr += dir.dRow;
-              cc += dir.dCol;
             }
-            if (clear) heads.add([r, c, d]);
+            if (growable) heads.add([r, c, d]);
           }
         }
       }
@@ -169,7 +190,7 @@ class SnakeBoard {
       final headCell = Cell(pick[0], pick[1]);
       final dir = Dir.values[pick[2]];
 
-      // Cells in front of the head — the body must not grow into these.
+      // Cells in front of the head — the body must never enter these.
       final forward = <Cell>{};
       var fr = headCell.row + dir.dRow;
       var fc = headCell.col + dir.dCol;
@@ -179,33 +200,32 @@ class SnakeBoard {
         fc += dir.dCol;
       }
 
-      // Grow the body backwards via a random walk.
-      final desired =
-          cfg.minLength + rng.nextInt(cfg.maxLength - cfg.minLength + 1);
+      // Grow a long winding body greedily.
       final path = <Cell>[headCell];
       final inPath = <Cell>{headCell};
       var cur = headCell;
-      while (path.length < desired) {
-        final options = <Dir>[];
-        for (final d in Dir.values) {
-          final n = cur.step(d);
+      while (path.length < cfg.maxLength) {
+        final options = <Cell>[];
+        for (final nd in Dir.values) {
+          final n = cur.step(nd);
           if (!inBounds(n.row, n.col)) continue;
           if (occupied[n.row][n.col]) continue;
           if (inPath.contains(n)) continue;
           if (forward.contains(n)) continue;
-          options.add(d);
+          options.add(n);
         }
         if (options.isEmpty) break;
-        cur = cur.step(options[rng.nextInt(options.length)]);
+        cur = options[rng.nextInt(options.length)];
         path.add(cur);
         inPath.add(cur);
       }
 
-      if (path.length < cfg.minLength) continue; // too cramped; try again
+      if (path.length < cfg.minLength) continue;
 
       for (final cell in path) {
         occupied[cell.row][cell.col] = true;
       }
+      filled += path.length;
       arrows.add(SnakeArrow(
         id: id++,
         cells: path.reversed.toList(), // store tail -> head
