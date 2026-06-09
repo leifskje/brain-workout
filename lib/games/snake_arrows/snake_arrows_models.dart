@@ -72,9 +72,9 @@ class SnakeLevelConfig {
 }
 
 SnakeLevelConfig snakeConfigForLevel(int level) {
-  final size = (5 + (level - 1) ~/ 4).clamp(5, 7);
-  final count = (3 + level ~/ 2).clamp(3, 8);
-  final maxLen = (3 + level ~/ 3).clamp(3, 5);
+  final size = (5 + (level - 1) ~/ 3).clamp(5, 8);
+  final count = (3 + level ~/ 2).clamp(3, 11);
+  final maxLen = (3 + level ~/ 3).clamp(3, 6);
   return SnakeLevelConfig(
     rows: size,
     cols: size,

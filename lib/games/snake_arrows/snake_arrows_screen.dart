@@ -358,14 +358,18 @@ class _SnakePainter extends CustomPainter {
     }
     canvas.drawPath(path, body);
 
-    // Arrowhead at the head, pointing in the exit direction.
-    final reach = cell * 0.34;
-    final tip = headCenter + Offset(dir.dCol * reach, dir.dRow * reach);
-    final perp = Offset(-dir.dRow.toDouble(), dir.dCol.toDouble()) * (reach * 0.9);
+    // Arrowhead at the head, pointing in the exit direction. Drawn large and
+    // flared wider than the body so a bent final segment still reads clearly
+    // (kept within the head cell so it never overlaps a neighbouring arrow).
+    final dirOff = Offset(dir.dCol.toDouble(), dir.dRow.toDouble());
+    final perpUnit = Offset(-dir.dRow.toDouble(), dir.dCol.toDouble());
+    final tip = headCenter + dirOff * (cell * 0.42);
+    final base = headCenter - dirOff * (cell * 0.06);
+    final wing = perpUnit * (cell * 0.34);
     final head = Path()
       ..moveTo(tip.dx, tip.dy)
-      ..lineTo((headCenter + perp).dx, (headCenter + perp).dy)
-      ..lineTo((headCenter - perp).dx, (headCenter - perp).dy)
+      ..lineTo((base + wing).dx, (base + wing).dy)
+      ..lineTo((base - wing).dx, (base - wing).dy)
       ..close();
     canvas.drawPath(head, Paint()..color = color);
   }
