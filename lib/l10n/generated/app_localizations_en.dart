@@ -120,6 +120,18 @@ class AppLocalizationsEn extends AppLocalizations {
   String get gameWhatNextSubtitle => 'Spot the pattern';
 
   @override
+  String get gameWordSearchTitle => 'Word Search';
+
+  @override
+  String get gameWordSearchSubtitle => 'Find the hidden words';
+
+  @override
+  String get gameMiniSudokuTitle => 'Mini Sudoku';
+
+  @override
+  String get gameMiniSudokuSubtitle => 'Fill the grid, no repeats';
+
+  @override
   String comingSoonTitle(String game) {
     return '$game is coming soon!';
   }
@@ -203,6 +215,18 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get whichComesNext => 'Which comes next?';
+
+  @override
+  String get wordSearchHint => 'Drag across the letters to mark a word.';
+
+  @override
+  String wordsFound(int found, int total) {
+    return 'Found $found of $total';
+  }
+
+  @override
+  String get miniSudokuHint =>
+      'Tap a square, then a number. Each number fits once per row, column and box.';
 
   @override
   String get notEnoughLetters => 'Not enough letters';

@@ -120,6 +120,18 @@ class AppLocalizationsNb extends AppLocalizations {
   String get gameWhatNextSubtitle => 'Finn mønsteret';
 
   @override
+  String get gameWordSearchTitle => 'Ordleting';
+
+  @override
+  String get gameWordSearchSubtitle => 'Finn de skjulte ordene';
+
+  @override
+  String get gameMiniSudokuTitle => 'Mini-sudoku';
+
+  @override
+  String get gameMiniSudokuSubtitle => 'Fyll rutenettet uten gjentakelser';
+
+  @override
   String comingSoonTitle(String game) {
     return '$game kommer snart!';
   }
@@ -204,6 +216,18 @@ class AppLocalizationsNb extends AppLocalizations {
 
   @override
   String get whichComesNext => 'Hva kommer etterpå?';
+
+  @override
+  String get wordSearchHint => 'Dra over bokstavene for å markere et ord.';
+
+  @override
+  String wordsFound(int found, int total) {
+    return 'Funnet $found av $total';
+  }
+
+  @override
+  String get miniSudokuHint =>
+      'Trykk på en rute og så et tall. Hvert tall passer bare én gang i hver rad, kolonne og boks.';
 
   @override
   String get notEnoughLetters => 'For få bokstaver';

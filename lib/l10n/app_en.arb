@@ -40,6 +40,10 @@
   "gameMemoryMatchSubtitle": "Remember the pairs",
   "gameWhatNextTitle": "What Comes Next?",
   "gameWhatNextSubtitle": "Spot the pattern",
+  "gameWordSearchTitle": "Word Search",
+  "gameWordSearchSubtitle": "Find the hidden words",
+  "gameMiniSudokuTitle": "Mini Sudoku",
+  "gameMiniSudokuSubtitle": "Fill the grid, no repeats",
 
   "comingSoonTitle": "{game} is coming soon!",
   "@comingSoonTitle": {"placeholders": {"game": {"type": "String"}}},
@@ -74,6 +78,11 @@
   "questionOf": "Question {current} of {total}",
   "@questionOf": {"placeholders": {"current": {"type": "int"}, "total": {"type": "int"}}},
   "whichComesNext": "Which comes next?",
+
+  "wordSearchHint": "Drag across the letters to mark a word.",
+  "wordsFound": "Found {found} of {total}",
+  "@wordsFound": {"placeholders": {"found": {"type": "int"}, "total": {"type": "int"}}},
+  "miniSudokuHint": "Tap a square, then a number. Each number fits once per row, column and box.",
 
   "notEnoughLetters": "Not enough letters",
   "notInWordList": "Not in word list",

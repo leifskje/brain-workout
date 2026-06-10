@@ -3,9 +3,11 @@ import 'package:flutter/material.dart';
 import '../models/game_definition.dart';
 import 'arrow_escape/arrow_escape_screen.dart';
 import 'memory_match/memory_match_screen.dart';
+import 'mini_sudoku/mini_sudoku_screen.dart';
 import 'number_cross/number_cross_screen.dart';
 import 'snake_arrows/snake_arrows_screen.dart';
 import 'what_next/what_next_screen.dart';
+import 'word_search/word_search_screen.dart';
 import 'wordle/wordle_screen.dart';
 
 /// The list of mini-games shown on the home screen.
@@ -48,6 +50,24 @@ final List<GameDefinition> gamesCatalog = [
     color: const Color(0xFFB5651D),
     category: GameCategory.numbers,
     levelBuilder: (level) => NumberCrossScreen(startLevel: level),
+  ),
+  GameDefinition(
+    id: 'word_search',
+    title: (t) => t.gameWordSearchTitle,
+    subtitle: (t) => t.gameWordSearchSubtitle,
+    icon: Icons.manage_search_rounded,
+    color: const Color(0xFFB5527D),
+    category: GameCategory.words,
+    levelBuilder: (level) => WordSearchScreen(startLevel: level),
+  ),
+  GameDefinition(
+    id: 'mini_sudoku',
+    title: (t) => t.gameMiniSudokuTitle,
+    subtitle: (t) => t.gameMiniSudokuSubtitle,
+    icon: Icons.grid_3x3_rounded,
+    color: const Color(0xFF5C6BC0),
+    category: GameCategory.numbers,
+    levelBuilder: (level) => MiniSudokuScreen(startLevel: level),
   ),
   GameDefinition(
     id: 'memory_match',

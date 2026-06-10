@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -8,6 +10,10 @@ import 'package:brain_workout/games/number_cross/number_cross_models.dart';
 import 'package:brain_workout/games/number_cross/number_cross_screen.dart';
 import 'package:brain_workout/games/snake_arrows/snake_arrows_models.dart';
 import 'package:brain_workout/games/what_next/what_next_models.dart';
+import 'package:brain_workout/games/mini_sudoku/mini_sudoku_models.dart';
+import 'package:brain_workout/games/mini_sudoku/mini_sudoku_screen.dart';
+import 'package:brain_workout/games/word_search/word_search_models.dart';
+import 'package:brain_workout/games/word_search/word_search_screen.dart';
 import 'package:brain_workout/games/wordle/wordle_models.dart';
 import 'package:brain_workout/l10n/generated/app_localizations.dart';
 import 'package:brain_workout/main.dart';
@@ -301,6 +307,143 @@ void main() {
       }
       expect(board.isSolved, isTrue, reason: 'level $level should be solvable');
     }
+  });
+
+  test('Word Search boards contain every target word', () {
+    for (final language in ['en', 'nb']) {
+      for (var level = 1; level <= 30; level++) {
+        final board = WordSearchBoard.generate(level, language);
+        final cfg = wordSearchConfigForLevel(level);
+        expect(board.words.length, cfg.words,
+            reason: '$language level $level word count');
+        expect(board.size, cfg.size);
+
+        for (final w in board.words) {
+          // The placement actually spells the word on the grid.
+          final spelled =
+              [for (final (r, c) in w.cells) board.grid[r][c]].join();
+          expect(spelled, w.word,
+              reason: '$language level $level word ${w.word}');
+          // And selecting those cells finds it.
+          expect(board.trySelect(w.cells)?.word, w.word);
+        }
+        expect(board.isSolved, isTrue);
+
+        // Below the crossing threshold, words never share a cell — fully
+        // separate words are much easier to spot.
+        if (!cfg.allowCrossings) {
+          final seen = <(int, int)>{};
+          for (final w in board.words) {
+            for (final cell in w.cells) {
+              expect(seen.add(cell), isTrue,
+                  reason:
+                      '$language level $level: unexpected crossing at $cell');
+            }
+          }
+        }
+
+        // Deterministic: same level + language → same board.
+        final again = WordSearchBoard.generate(level, language);
+        expect(again.grid.toString(), board.grid.toString(),
+            reason: '$language level $level should be retry-stable');
+      }
+    }
+  });
+
+  test('Mini Sudoku puzzles are valid with a unique solution', () {
+    for (var level = 1; level <= 30; level++) {
+      final board = MiniSudokuBoard.generate(level);
+      final n = board.size;
+
+      // The solution is a valid sudoku: each row/column/box holds 1..n once.
+      final want = List.generate(n, (i) => i + 1);
+      for (var r = 0; r < n; r++) {
+        final row = [for (var c = 0; c < n; c++) board.cells[r][c].solution]
+          ..sort();
+        expect(row, want, reason: 'level $level row $r');
+      }
+      for (var c = 0; c < n; c++) {
+        final col = [for (var r = 0; r < n; r++) board.cells[r][c].solution]
+          ..sort();
+        expect(col, want, reason: 'level $level col $c');
+      }
+      for (var br = 0; br < n; br += board.boxRows) {
+        for (var bc = 0; bc < n; bc += board.boxCols) {
+          final box = [
+            for (var r = br; r < br + board.boxRows; r++)
+              for (var c = bc; c < bc + board.boxCols; c++)
+                board.cells[r][c].solution
+          ]..sort();
+          expect(box, want, reason: 'level $level box ($br,$bc)');
+        }
+      }
+
+      expect(board.blankCount, greaterThan(0));
+      expect(board.isSolved, isFalse, reason: 'level $level starts unsolved');
+
+      // No given conflicts, and entering the solution solves it.
+      for (var r = 0; r < n; r++) {
+        for (var c = 0; c < n; c++) {
+          expect(board.hasConflict(r, c), isFalse);
+          final cell = board.cells[r][c];
+          if (!cell.given) cell.entered = cell.solution;
+        }
+      }
+      expect(board.isSolved, isTrue, reason: 'level $level should solve');
+    }
+  });
+
+  testWidgets('Word Search and Mini Sudoku screens render', (tester) async {
+    tester.view.physicalSize = const Size(1080, 2280);
+    tester.view.devicePixelRatio = 2.625;
+    addTearDown(tester.view.reset);
+
+    for (final level in [1, 5, 12]) {
+      await tester.pumpWidget(localizedApp(
+          WordSearchScreen(key: ValueKey('ws$level'), startLevel: level)));
+      expect(find.text('Level $level'), findsOneWidget);
+      final board = WordSearchBoard.generate(level, 'en');
+      expect(find.text('Found 0 of ${board.words.length}'), findsOneWidget);
+
+      await tester.pumpWidget(localizedApp(
+          MiniSudokuScreen(key: ValueKey('ms$level'), startLevel: level)));
+      expect(find.text('Level $level'), findsOneWidget);
+      // The number pad covers 1..size.
+      final n = miniSudokuConfigForLevel(level).size;
+      expect(find.byIcon(Icons.backspace_outlined), findsOneWidget);
+      expect(find.widgetWithText(InkWell, '$n'), findsWidgets);
+    }
+  });
+
+  testWidgets('Word Search: dragging across a word finds it', (tester) async {
+    tester.view.physicalSize = const Size(1080, 2280);
+    tester.view.devicePixelRatio = 2.625;
+    addTearDown(tester.view.reset);
+
+    await tester
+        .pumpWidget(localizedApp(const WordSearchScreen(startLevel: 1)));
+    final board = WordSearchBoard.generate(1, 'en'); // same seed as screen
+    final word = board.words.first;
+
+    // The grid is the screen's only pan-handling GestureDetector; cell
+    // geometry mirrors the screen's LayoutBuilder math (8px panel padding).
+    final grid = find.byWidgetPredicate(
+        (w) => w is GestureDetector && w.onPanStart != null);
+    expect(grid, findsOneWidget);
+    final rect = tester.getRect(grid);
+    const pad = 8.0;
+    final cell = (math.min(rect.width, rect.height) - pad * 2) / board.size;
+    Offset center(int r, int c) => rect.topLeft +
+        Offset(pad + c * cell + cell / 2, pad + r * cell + cell / 2);
+
+    final cells = word.cells;
+    final (r0, c0) = cells.first;
+    final (r1, c1) = cells.last;
+    await tester.timedDragFrom(center(r0, c0),
+        center(r1, c1) - center(r0, c0), const Duration(milliseconds: 300));
+    await tester.pump();
+
+    expect(find.text('Found 1 of ${board.words.length}'), findsOneWidget);
   });
 
   testWidgets('Number Cross screen renders small and large layouts',

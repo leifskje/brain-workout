@@ -284,6 +284,30 @@ abstract class AppLocalizations {
   /// **'Spot the pattern'**
   String get gameWhatNextSubtitle;
 
+  /// No description provided for @gameWordSearchTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Word Search'**
+  String get gameWordSearchTitle;
+
+  /// No description provided for @gameWordSearchSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Find the hidden words'**
+  String get gameWordSearchSubtitle;
+
+  /// No description provided for @gameMiniSudokuTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Mini Sudoku'**
+  String get gameMiniSudokuTitle;
+
+  /// No description provided for @gameMiniSudokuSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Fill the grid, no repeats'**
+  String get gameMiniSudokuSubtitle;
+
   /// No description provided for @comingSoonTitle.
   ///
   /// In en, this message translates to:
@@ -421,6 +445,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Which comes next?'**
   String get whichComesNext;
+
+  /// No description provided for @wordSearchHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Drag across the letters to mark a word.'**
+  String get wordSearchHint;
+
+  /// No description provided for @wordsFound.
+  ///
+  /// In en, this message translates to:
+  /// **'Found {found} of {total}'**
+  String wordsFound(int found, int total);
+
+  /// No description provided for @miniSudokuHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap a square, then a number. Each number fits once per row, column and box.'**
+  String get miniSudokuHint;
 
   /// No description provided for @notEnoughLetters.
   ///

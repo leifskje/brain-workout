@@ -34,6 +34,10 @@
   "gameMemoryMatchSubtitle": "Husk hvor parene er",
   "gameWhatNextTitle": "Hva kommer etterpå?",
   "gameWhatNextSubtitle": "Finn mønsteret",
+  "gameWordSearchTitle": "Ordleting",
+  "gameWordSearchSubtitle": "Finn de skjulte ordene",
+  "gameMiniSudokuTitle": "Mini-sudoku",
+  "gameMiniSudokuSubtitle": "Fyll rutenettet uten gjentakelser",
 
   "comingSoonTitle": "{game} kommer snart!",
   "comingSoonBody": "Vi jobber fortsatt med dette spillet. Kom tilbake senere.",
@@ -62,6 +66,10 @@
   "clearedLevelInMoves": "Du klarte nivå {level} på {moves} trekk.",
   "questionOf": "Spørsmål {current} av {total}",
   "whichComesNext": "Hva kommer etterpå?",
+
+  "wordSearchHint": "Dra over bokstavene for å markere et ord.",
+  "wordsFound": "Funnet {found} av {total}",
+  "miniSudokuHint": "Trykk på en rute og så et tall. Hvert tall passer bare én gang i hver rad, kolonne og boks.",
 
   "notEnoughLetters": "For få bokstaver",
   "notInWordList": "Ordet er ikke i ordlisten",

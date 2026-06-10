@@ -5,12 +5,11 @@ they ship; add notes/links to per-game plan docs as they get designed.
 
 ## New games (priority order)
 
-- [ ] **Word Search** — top pick. Most familiar puzzle for the elderly
-  audience; trivially generatable (place words, fill random letters — solvable
-  by construction); drag-to-select with generous hit areas. Reuse the Wordle
-  word lists.
-- [ ] **Mini Sudoku** — 4×4 → 6×6 → 9×9 by level. Familiar; unique-solution
-  generators are well-trodden and fit the "guaranteed solvable" rule.
+- [x] **Word Search** — shipped; see `docs/plans/word-search.md`. Curated
+  en/nb word pools embedded in the model (Wordle lists were 5-letter-only
+  dictionaries — wrong fit); word list follows the app language.
+- [x] **Mini Sudoku** — shipped; see `docs/plans/mini-sudoku.md`. 4×4 → 6×6 →
+  9×9 by level, unique-solution digging, conflict highlighting.
 - [ ] **Crack the Code** (Mastermind with digits/colors) — deduction; tiny UI
   (big buttons); difficulty scales by code length + symbol count.
 - [ ] **Simon** (repeat the light/sound sequence) — second *memory* game;
