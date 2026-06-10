@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../l10n/generated/app_localizations.dart';
 import '../../services/progress_store.dart';
 import '../../widgets/game_header.dart';
 import '../../widgets/win_dialog.dart';
@@ -117,7 +118,9 @@ class _NumberCrossScreenState extends State<NumberCrossScreen> {
         child: Column(
           children: [
             GameHeader(
-                title: 'Level $_level', accent: _accent, onRestart: _restart),
+                title: AppLocalizations.of(context).levelN(_level),
+                accent: _accent,
+                onRestart: _restart),
             Expanded(
               child: Padding(
                 padding: const EdgeInsets.all(16),
@@ -128,8 +131,7 @@ class _NumberCrossScreenState extends State<NumberCrossScreen> {
             Padding(
               padding: const EdgeInsets.fromLTRB(24, 4, 24, 16),
               child: Text(
-                'Tap a number then a cell, or drag it in. Every across and '
-                'down equation must be correct.',
+                AppLocalizations.of(context).numberCrossHint,
                 textAlign: TextAlign.center,
                 style: TextStyle(
                     fontSize: 14, color: Colors.black.withValues(alpha: 0.6)),

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/generated/app_localizations.dart';
+
 /// Placeholder shown for games that are not built yet.
 class ComingSoonScreen extends StatelessWidget {
   const ComingSoonScreen({super.key, required this.title});
@@ -8,6 +10,7 @@ class ComingSoonScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context);
     return Scaffold(
       appBar: AppBar(title: Text(title)),
       body: Center(
@@ -20,21 +23,21 @@ class ComingSoonScreen extends StatelessWidget {
                   size: 72, color: Color(0xFFE89B27)),
               const SizedBox(height: 16),
               Text(
-                '$title is coming soon!',
+                t.comingSoonTitle(title),
                 textAlign: TextAlign.center,
                 style:
                     const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 8),
-              const Text(
-                'We are still building this game. Check back later.',
+              Text(
+                t.comingSoonBody,
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 16, color: Colors.black54),
+                style: const TextStyle(fontSize: 16, color: Colors.black54),
               ),
               const SizedBox(height: 24),
               FilledButton(
                 onPressed: () => Navigator.pop(context),
-                child: const Text('Back to games'),
+                child: Text(t.backToGames),
               ),
             ],
           ),

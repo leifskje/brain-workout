@@ -1,23 +1,28 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/generated/app_localizations.dart';
+
 /// What the player chose on the level-complete dialog.
 enum WinAction { home, next }
 
 /// Shows a celebratory "level complete" dialog: it pops in with an elastic
 /// scale, the 🎉 bursts, and a row of stars twinkles in. Returns the chosen
 /// [WinAction] (or null if dismissed unexpectedly).
+///
+/// [message] and [nextLabel] default to localized "You cleared level N." /
+/// "Next level".
 Future<WinAction?> showWinDialog(
   BuildContext context, {
   required int level,
   required Color accent,
   required int stars,
   String? message,
-  String nextLabel = 'Next level',
+  String? nextLabel,
 }) {
   return showGeneralDialog<WinAction>(
     context: context,
     barrierDismissible: false,
-    barrierLabel: 'Level complete',
+    barrierLabel: AppLocalizations.of(context).levelComplete,
     barrierColor: Colors.black54,
     transitionDuration: const Duration(milliseconds: 340),
     pageBuilder: (context, _, _) => _WinDialog(
@@ -43,14 +48,14 @@ class _WinDialog extends StatefulWidget {
     required this.accent,
     required this.stars,
     this.message,
-    this.nextLabel = 'Next level',
+    this.nextLabel,
   });
 
   final int level;
   final Color accent;
   final int stars;
   final String? message;
-  final String nextLabel;
+  final String? nextLabel;
 
   @override
   State<_WinDialog> createState() => _WinDialogState();
@@ -129,13 +134,15 @@ class _WinDialogState extends State<_WinDialog>
                 },
               ),
               const SizedBox(height: 12),
-              const Text(
-                'Well done!',
-                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+              Text(
+                AppLocalizations.of(context).wellDone,
+                style: const TextStyle(
+                    fontSize: 24, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 6),
               Text(
-                widget.message ?? 'You cleared level ${widget.level}.',
+                widget.message ??
+                    AppLocalizations.of(context).clearedLevel(widget.level),
                 textAlign: TextAlign.center,
                 style: const TextStyle(fontSize: 16, color: Colors.black54),
               ),
@@ -145,14 +152,15 @@ class _WinDialogState extends State<_WinDialog>
                 children: [
                   TextButton(
                     onPressed: () => Navigator.pop(context, WinAction.home),
-                    child: const Text('Home'),
+                    child: Text(AppLocalizations.of(context).home),
                   ),
                   const SizedBox(width: 8),
                   FilledButton(
                     style:
                         FilledButton.styleFrom(backgroundColor: widget.accent),
                     onPressed: () => Navigator.pop(context, WinAction.next),
-                    child: Text(widget.nextLabel),
+                    child: Text(widget.nextLabel ??
+                        AppLocalizations.of(context).nextLevel),
                   ),
                 ],
               ),

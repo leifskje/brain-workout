@@ -1,6 +1,27 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/generated/app_localizations.dart';
+
+/// The skill a game trains — shown as a chip on its card and (later) the
+/// basis for section headers and a balanced daily workout.
+enum GameCategory {
+  words,
+  numbers,
+  memory,
+  logic;
+
+  String label(AppLocalizations t) => switch (this) {
+        words => t.categoryWords,
+        numbers => t.categoryNumbers,
+        memory => t.categoryMemory,
+        logic => t.categoryLogic,
+      };
+}
+
 /// Metadata describing a single mini-game shown on the home screen.
+///
+/// Titles and subtitles are resolved through [AppLocalizations] so cards
+/// follow the app language.
 ///
 /// A game is playable when it provides either [levelBuilder] (a level-based
 /// game shown via the level picker) or [screenBuilder] (a direct-entry game
@@ -12,15 +33,17 @@ class GameDefinition {
     required this.subtitle,
     required this.icon,
     required this.color,
+    required this.category,
     this.levelBuilder,
     this.screenBuilder,
   });
 
   final String id;
-  final String title;
-  final String subtitle;
+  final String Function(AppLocalizations) title;
+  final String Function(AppLocalizations) subtitle;
   final IconData icon;
   final Color color;
+  final GameCategory category;
 
   /// Builds the playable screen starting at [level] (level-based game).
   final Widget Function(int level)? levelBuilder;

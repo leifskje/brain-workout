@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../l10n/generated/app_localizations.dart';
 import '../../services/progress_store.dart';
 import '../../widgets/game_header.dart';
 import '../../widgets/win_dialog.dart';
@@ -130,22 +131,22 @@ class _ArrowEscapeScreenState extends State<ArrowEscapeScreen>
       barrierDismissible: false,
       builder: (dialogContext) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('Out of hearts'),
-        content: const Text('No hearts left. Want to try this level again?'),
+        title: Text(AppLocalizations.of(context).outOfHearts),
+        content: Text(AppLocalizations.of(context).outOfHeartsBody),
         actions: [
           TextButton(
             onPressed: () {
               Navigator.pop(dialogContext);
               Navigator.popUntil(context, (route) => route.isFirst);
             },
-            child: const Text('Home'),
+            child: Text(AppLocalizations.of(context).home),
           ),
           FilledButton(
             onPressed: () {
               Navigator.pop(dialogContext);
               _restart();
             },
-            child: const Text('Try again'),
+            child: Text(AppLocalizations.of(context).tryAgain),
           ),
         ],
       ),
@@ -160,7 +161,9 @@ class _ArrowEscapeScreenState extends State<ArrowEscapeScreen>
         child: Column(
           children: [
             GameHeader(
-                title: 'Level $_level', accent: _accent, onRestart: _restart),
+                title: AppLocalizations.of(context).levelN(_level),
+                accent: _accent,
+                onRestart: _restart),
             _buildHearts(maxHearts),
             const SizedBox(height: 8),
             Expanded(
@@ -172,8 +175,7 @@ class _ArrowEscapeScreenState extends State<ArrowEscapeScreen>
             Padding(
               padding: const EdgeInsets.fromLTRB(24, 0, 24, 20),
               child: Text(
-                'Tap an arrow to send it off the board. '
-                'It needs a clear path to the edge.',
+                AppLocalizations.of(context).arrowEscapeHint,
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 15,

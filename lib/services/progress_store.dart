@@ -52,9 +52,44 @@ class ProgressStore {
     }
   }
 
+  /// Total stars earned across all levels of [gameId].
+  int totalStars(String gameId) {
+    var total = 0;
+    for (var level = 1; level <= highestLevel(gameId); level++) {
+      total += stars(gameId, level);
+    }
+    return total;
+  }
+
+  // ------------------------------------------------------------ last played ---
+
+  String _openedKey(String gameId) => 'last_opened_$gameId';
+
+  /// Call when the player opens a game from the home screen — drives the
+  /// "Continue" row.
+  void recordOpened(String gameId) =>
+      _prefs.setInt(_openedKey(gameId), DateTime.now().millisecondsSinceEpoch);
+
+  /// When the game was last opened (epoch millis; 0 = never).
+  int lastOpened(String gameId) => _prefs.getInt(_openedKey(gameId)) ?? 0;
+
+  // ----------------------------------------------------------- app language ---
+
+  /// The chosen app language ('en', 'nb'), or null to follow the phone.
+  String? get appLanguageId => _prefs.getString('app_lang');
+
+  void setAppLanguageId(String? id) {
+    if (id == null) {
+      _prefs.remove('app_lang');
+    } else {
+      _prefs.setString('app_lang', id);
+    }
+  }
+
   // -------------------------------------------------------- wordle language ---
 
-  String get wordleLanguageId => _prefs.getString('wordle_lang') ?? 'en';
+  /// The chosen Word language, or null to fall back to the app locale.
+  String? get wordleLanguageId => _prefs.getString('wordle_lang');
   void setWordleLanguageId(String id) => _prefs.setString('wordle_lang', id);
 
   // ------------------------------------------------- daily workout & streak ---

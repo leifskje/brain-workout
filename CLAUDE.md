@@ -51,6 +51,11 @@ A pre-commit hook (`.githooks/pre-commit`, enabled via `core.hooksPath`) runs
    imports, so it stays unit-testable) and a `*_screen.dart` (the playable widget).
 2. Add a `GameDefinition` with a `builder` to `games_catalog.dart`. Omit `builder`
    to render it as a "coming soon" card.
+3. **All UI strings are localized** (English + Norwegian Bokmål). Add every
+   user-facing string to *both* `lib/l10n/app_en.arb` and `app_nb.arb`, run
+   `flutter gen-l10n`, and use `AppLocalizations.of(context)` — never hardcode
+   UI text in widgets. `GameDefinition` titles/subtitles are
+   `String Function(AppLocalizations)`.
 
 ## Conventions (learned the hard way)
 

@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../l10n/generated/app_localizations.dart';
 import '../../services/progress_store.dart';
 import '../../widgets/game_header.dart';
 import '../../widgets/win_dialog.dart';
@@ -110,22 +111,22 @@ class _WhatNextScreenState extends State<WhatNextScreen> {
       barrierDismissible: false,
       builder: (dialogContext) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('Out of hearts'),
-        content: const Text('No hearts left. Want to try this level again?'),
+        title: Text(AppLocalizations.of(context).outOfHearts),
+        content: Text(AppLocalizations.of(context).outOfHeartsBody),
         actions: [
           TextButton(
             onPressed: () {
               Navigator.pop(dialogContext);
               Navigator.popUntil(context, (route) => route.isFirst);
             },
-            child: const Text('Home'),
+            child: Text(AppLocalizations.of(context).home),
           ),
           FilledButton(
             onPressed: () {
               Navigator.pop(dialogContext);
               _restart();
             },
-            child: const Text('Try again'),
+            child: Text(AppLocalizations.of(context).tryAgain),
           ),
         ],
       ),
@@ -141,11 +142,14 @@ class _WhatNextScreenState extends State<WhatNextScreen> {
         child: Column(
           children: [
             GameHeader(
-                title: 'Level $_level', accent: _accent, onRestart: _restart),
+                title: AppLocalizations.of(context).levelN(_level),
+                accent: _accent,
+                onRestart: _restart),
             _buildHearts(cfg.hearts),
             const SizedBox(height: 6),
             Text(
-              'Question ${_index + 1} of ${_questions.length}',
+              AppLocalizations.of(context)
+                  .questionOf(_index + 1, _questions.length),
               style: const TextStyle(
                   fontSize: 16, fontWeight: FontWeight.w600, color: Colors.black54),
             ),
@@ -165,7 +169,7 @@ class _WhatNextScreenState extends State<WhatNextScreen> {
             Padding(
               padding: const EdgeInsets.fromLTRB(24, 0, 24, 20),
               child: Text(
-                'Which comes next?',
+                AppLocalizations.of(context).whichComesNext,
                 textAlign: TextAlign.center,
                 style: TextStyle(
                     fontSize: 15, color: Colors.black.withValues(alpha: 0.6)),

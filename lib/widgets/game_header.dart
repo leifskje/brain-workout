@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/generated/app_localizations.dart';
+
 /// Shared game-screen header: back button, centered "Level N" title, and a
 /// restart button — tinted with the game's accent colour so each game has its
 /// own identity.
@@ -26,7 +28,7 @@ class GameHeader extends StatelessWidget {
             icon: const Icon(Icons.arrow_back_rounded),
             iconSize: 28,
             color: accent,
-            tooltip: 'Back',
+            tooltip: AppLocalizations.of(context).back,
             onPressed: () => Navigator.pop(context),
           ),
           Expanded(
@@ -42,7 +44,7 @@ class GameHeader extends StatelessWidget {
             icon: const Icon(Icons.refresh_rounded),
             iconSize: 28,
             color: accent,
-            tooltip: 'Restart level',
+            tooltip: AppLocalizations.of(context).restartLevel,
             onPressed: onRestart,
           ),
         ],

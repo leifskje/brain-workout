@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../l10n/generated/app_localizations.dart';
 import '../../services/progress_store.dart';
 import '../../widgets/win_dialog.dart';
 import 'word_repository.dart';
@@ -34,10 +35,18 @@ class _WordleScreenState extends State<WordleScreen> {
   String _current = '';
   bool _finished = false;
 
+  bool _initedLanguage = false;
+
   @override
-  void initState() {
-    super.initState();
-    _language = wordleLanguageById(ProgressStore.instance.wordleLanguageId);
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_initedLanguage) return;
+    _initedLanguage = true;
+    // No stored choice yet → match the app language (needs the inherited
+    // Localizations, hence didChangeDependencies rather than initState).
+    final stored = ProgressStore.instance.wordleLanguageId ??
+        Localizations.localeOf(context).languageCode;
+    _language = wordleLanguageById(stored);
     _load(_language);
   }
 
@@ -93,12 +102,12 @@ class _WordleScreenState extends State<WordleScreen> {
   void _onEnter() {
     if (_finished) return;
     if (_current.length < wordLength) {
-      _toast('Not enough letters');
+      _toast(AppLocalizations.of(context).notEnoughLetters);
       return;
     }
     if (!_repo!.isValid(_current)) {
       HapticFeedback.mediumImpact();
-      _toast('Not in word list');
+      _toast(AppLocalizations.of(context).notInWordList);
       return;
     }
 
@@ -143,8 +152,8 @@ class _WordleScreenState extends State<WordleScreen> {
       level: n,
       accent: _accent,
       stars: wordleStars(n),
-      message: 'Solved in $n ${n == 1 ? 'guess' : 'guesses'}!',
-      nextLabel: 'New word',
+      message: AppLocalizations.of(context).solvedInGuesses(n),
+      nextLabel: AppLocalizations.of(context).newWord,
     ).then((action) {
       if (!mounted || action == null) return;
       if (action == WinAction.next) {
@@ -163,15 +172,15 @@ class _WordleScreenState extends State<WordleScreen> {
       barrierDismissible: false,
       builder: (dialogContext) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('Out of guesses'),
-        content: Text('The word was "$_target".'),
+        title: Text(AppLocalizations.of(context).outOfGuesses),
+        content: Text(AppLocalizations.of(context).theWordWas(_target)),
         actions: [
           TextButton(
             onPressed: () {
               Navigator.pop(dialogContext);
               Navigator.popUntil(context, (route) => route.isFirst);
             },
-            child: const Text('Home'),
+            child: Text(AppLocalizations.of(context).home),
           ),
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: _accent),
@@ -179,7 +188,7 @@ class _WordleScreenState extends State<WordleScreen> {
               Navigator.pop(dialogContext);
               _startNewWord();
             },
-            child: const Text('New word'),
+            child: Text(AppLocalizations.of(context).newWord),
           ),
         ],
       ),
@@ -207,6 +216,7 @@ class _WordleScreenState extends State<WordleScreen> {
   }
 
   Widget _buildHeader() {
+    final t = AppLocalizations.of(context);
     return Container(
       color: _accent.withValues(alpha: 0.14),
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
@@ -216,25 +226,26 @@ class _WordleScreenState extends State<WordleScreen> {
             icon: const Icon(Icons.arrow_back_rounded),
             iconSize: 28,
             color: _accent,
-            tooltip: 'Back',
+            tooltip: t.back,
             onPressed: () => Navigator.pop(context),
           ),
-          const Expanded(
+          Expanded(
             child: Center(
-              child: Text('Word',
-                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+              child: Text(t.gameWordTitle,
+                  style: const TextStyle(
+                      fontSize: 24, fontWeight: FontWeight.bold)),
             ),
           ),
           IconButton(
             icon: const Icon(Icons.refresh_rounded),
             iconSize: 28,
             color: _accent,
-            tooltip: 'New word',
+            tooltip: t.newWord,
             onPressed: _loading ? null : _startNewWord,
           ),
           PopupMenuButton<String>(
             initialValue: _language.id,
-            tooltip: 'Language',
+            tooltip: t.language,
             onSelected: _changeLanguage,
             itemBuilder: (_) => [
               for (final l in wordleLanguages)

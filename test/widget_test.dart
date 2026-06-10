@@ -9,8 +9,19 @@ import 'package:brain_workout/games/number_cross/number_cross_screen.dart';
 import 'package:brain_workout/games/snake_arrows/snake_arrows_models.dart';
 import 'package:brain_workout/games/what_next/what_next_models.dart';
 import 'package:brain_workout/games/wordle/wordle_models.dart';
+import 'package:brain_workout/l10n/generated/app_localizations.dart';
 import 'package:brain_workout/main.dart';
+import 'package:brain_workout/screens/home_screen.dart';
+import 'package:brain_workout/services/app_locale.dart';
 import 'package:brain_workout/services/progress_store.dart';
+
+/// Wraps [home] in a MaterialApp with the app's localizations (English in
+/// tests), for pumping a single screen.
+Widget localizedApp(Widget home) => MaterialApp(
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
+      home: home,
+    );
 
 void main() {
   setUp(() async {
@@ -20,10 +31,83 @@ void main() {
   });
 
   testWidgets('Home screen shows the game catalog', (tester) async {
+    tester.view.physicalSize = const Size(1080, 2280);
+    tester.view.devicePixelRatio = 2.625;
+    addTearDown(tester.view.reset);
     await tester.pumpWidget(const BrainWorkoutApp());
 
     expect(find.text('Brain Workout'), findsOneWidget);
     expect(find.text('Arrow Escape'), findsOneWidget);
+    // Category chips and the Play next suggestion are visible; the Continue
+    // row is not (nothing has been played yet).
+    expect(find.text('Logic'), findsWidgets);
+    expect(find.text('Words'), findsOneWidget);
+    expect(find.textContaining('Play next:'), findsOneWidget);
+    expect(find.text('Continue'), findsNothing);
+  });
+
+  testWidgets('Language menu switches the app to Norwegian', (tester) async {
+    tester.view.physicalSize = const Size(1080, 2280);
+    tester.view.devicePixelRatio = 2.625;
+    addTearDown(tester.view.reset);
+    addTearDown(() => appLocaleOverride.value = null);
+
+    await tester.pumpWidget(const BrainWorkoutApp());
+    expect(find.text('Brain Workout'), findsOneWidget);
+
+    await tester.tap(find.byIcon(Icons.language_rounded));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Norsk'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Hjernetrim'), findsOneWidget);
+    expect(ProgressStore.instance.appLanguageId, 'nb');
+
+    // The choice is persisted for the next launch.
+    await tester.tap(find.byIcon(Icons.language_rounded));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Følg telefonens språk'));
+    await tester.pumpAndSettle();
+    expect(ProgressStore.instance.appLanguageId, isNull);
+  });
+
+  testWidgets('Home screen renders in Norwegian', (tester) async {
+    tester.view.physicalSize = const Size(1080, 2280);
+    tester.view.devicePixelRatio = 2.625;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(MaterialApp(
+      locale: const Locale('nb'),
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
+      home: const HomeScreen(),
+    ));
+
+    expect(find.text('Hjernetrim'), findsOneWidget);
+    expect(find.text('Tallkryss'), findsOneWidget);
+    expect(find.text('Logikk'), findsWidgets);
+    expect(find.textContaining('Spill neste:'), findsOneWidget);
+  });
+
+  testWidgets('Home screen shows Continue for the last opened game',
+      (tester) async {
+    SharedPreferences.setMockInitialValues({
+      'last_opened_arrow_escape': 1,
+      'last_opened_number_cross': 2, // most recent wins
+    });
+    await ProgressStore.init();
+    await tester.pumpWidget(const BrainWorkoutApp());
+
+    expect(find.text('Continue'), findsOneWidget);
+    expect(find.text('Number Cross — Level 1'), findsOneWidget);
+  });
+
+  test('totalStars sums the best result per level', () {
+    final store = ProgressStore.instance;
+    store.recordReached('g', 3);
+    store.recordStars('g', 1, 2);
+    store.recordStars('g', 1, 3); // best kept
+    store.recordStars('g', 2, 1);
+    expect(store.totalStars('g'), 4);
   });
 
   test('Generated levels are always solvable', () {
@@ -227,8 +311,8 @@ void main() {
     addTearDown(tester.view.reset);
 
     for (final level in [1, 10, 30]) {
-      await tester.pumpWidget(MaterialApp(
-          home: NumberCrossScreen(key: ValueKey(level), startLevel: level)));
+      await tester.pumpWidget(localizedApp(
+          NumberCrossScreen(key: ValueKey(level), startLevel: level)));
       expect(find.text('Level $level'), findsOneWidget);
       // The pool has chips to place.
       final board = NumberCrossBoard.generate(level);
@@ -242,7 +326,7 @@ void main() {
     addTearDown(tester.view.reset);
 
     await tester.pumpWidget(
-        const MaterialApp(home: NumberCrossScreen(startLevel: 1)));
+        localizedApp(const NumberCrossScreen(startLevel: 1)));
     final board = NumberCrossBoard.generate(1); // same seed as the screen's
     final poolSize = board.pool.length;
     final value = board.pool.first;

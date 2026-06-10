@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../l10n/generated/app_localizations.dart';
 import '../../services/progress_store.dart';
 import '../../widgets/game_header.dart';
 import '../../widgets/win_dialog.dart';
@@ -105,7 +106,8 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen> {
       level: _level,
       accent: _accent,
       stars: stars,
-      message: 'You cleared level $_level in $_moves moves.',
+      message:
+          AppLocalizations.of(context).clearedLevelInMoves(_level, _moves),
     ).then((action) {
       if (!mounted || action == null) return;
       if (action == WinAction.next) {
@@ -125,9 +127,11 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen> {
         child: Column(
           children: [
             GameHeader(
-                title: 'Level $_level', accent: _accent, onRestart: _restart),
+                title: AppLocalizations.of(context).levelN(_level),
+                accent: _accent,
+                onRestart: _restart),
             Text(
-              'Pairs found: $matched / $total',
+              AppLocalizations.of(context).pairsFound(matched, total),
               style: const TextStyle(
                   fontSize: 18, fontWeight: FontWeight.w600, color: _accent),
             ),
@@ -141,7 +145,7 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen> {
             Padding(
               padding: const EdgeInsets.fromLTRB(24, 0, 24, 20),
               child: Text(
-                'Tap two cards to find a matching pair.',
+                AppLocalizations.of(context).memoryMatchHint,
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 15,

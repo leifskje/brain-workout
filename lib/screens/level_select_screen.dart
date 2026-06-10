@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/generated/app_localizations.dart';
 import '../models/game_definition.dart';
 import '../services/progress_store.dart';
 
@@ -26,12 +27,13 @@ class _LevelSelectScreenState extends State<LevelSelectScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context);
     final game = widget.game;
     final highest = ProgressStore.instance.highestLevel(game.id);
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(game.title),
+        title: Text(game.title(t)),
         backgroundColor: game.color.withValues(alpha: 0.18),
       ),
       body: SafeArea(
@@ -50,17 +52,17 @@ class _LevelSelectScreenState extends State<LevelSelectScreen> {
                   onPressed: () => _play(highest),
                   icon: const Icon(Icons.play_arrow_rounded, size: 30),
                   label: Text(
-                    'Continue — Level $highest',
+                    t.continueAtLevel(highest),
                     style: const TextStyle(fontSize: 20),
                   ),
                 ),
               ),
             ),
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 20),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
               child: Text(
-                'Replay a level',
-                style: TextStyle(fontSize: 16, color: Colors.black54),
+                t.replayLevel,
+                style: const TextStyle(fontSize: 16, color: Colors.black54),
               ),
             ),
             const SizedBox(height: 8),
