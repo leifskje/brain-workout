@@ -7,8 +7,11 @@ self-contained. Cross-platform Flutter, primary target Android.
 ## Working in this repo (for AI agents)
 
 - **Verify, don't claim.** "Done" means `/test` (or `flutter analyze` + `flutter
-  test`) is green — quote the result, don't assert it. For anything visual, it also
-  means it was actually run/seen, not just compiled.
+  test`) is green — quote the result, don't assert it. For anything visual:
+  widget tests (phone-size render + gestures) and board text dumps
+  (`tool/dump_*.dart`) are the agent's channels; do **not** launch the app or
+  take screenshots (screen capture triggers a corporate IT alert) — the owner
+  tests look & feel on the emulator via hot reload and reports back.
 - **These bugs already bit us once — don't reintroduce them** (details under
   *Conventions* below):
   1. `AnimationController` built lazily as a `late final` field → crashes on Back
