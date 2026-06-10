@@ -52,7 +52,19 @@ always consistent), reverse-blanked into a pool. Difficulty scales by operators
 (+ → +− → +−×), blank count, and decoys. Win = every row & column valid (any
 valid fill), so it's forgiving. Tested for consistency + solvability, levels 1–30.
 
-## v2 — irregular crossword layout (planned)
+## v2 — irregular crossword layout
+
+✅ Shipped. Equations (`a op b = c`, 5 cells) grow from a seed equation by
+attaching crossing ones at shared *number* cells (the shared value is fixed,
+the free operand/operator chosen to fit — reverse construction, so always
+consistent). Spacing rules keep every non-blank segment exactly one equation;
+the board is trimmed to its bounding box. `isSolved` scans the grid for
+`[num][op][num][=][num]` runs (across & down) and checks each. 3 equations at
+level 1 growing to 7; blanks/decoys/operators scale as in v1. The screen
+carried over with only (r,c) indexing + variable grid dims.
+`tool/dump_number_cross.dart` prints boards as ASCII for inspection.
+
+Original quick plan:
 
 Goal: look and feel like the brainplay math-crossword — equations of varying
 positions/lengths placed across a larger grid, intersecting at shared number

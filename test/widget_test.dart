@@ -1,9 +1,11 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:brain_workout/games/arrow_escape/arrow_escape_models.dart';
 import 'package:brain_workout/games/memory_match/memory_match_models.dart';
 import 'package:brain_workout/games/number_cross/number_cross_models.dart';
+import 'package:brain_workout/games/number_cross/number_cross_screen.dart';
 import 'package:brain_workout/games/snake_arrows/snake_arrows_models.dart';
 import 'package:brain_workout/games/what_next/what_next_models.dart';
 import 'package:brain_workout/games/wordle/wordle_models.dart';
@@ -164,30 +166,41 @@ void main() {
 
   test('Number Cross puzzles are consistent and solvable', () {
     for (var level = 1; level <= 30; level++) {
+      // The constructor scans the grid for equations and throws on any
+      // malformed segment, so generate() itself asserts the layout shape.
       final board = NumberCrossBoard.generate(level);
+      expect(board.runs.length, greaterThanOrEqualTo(3),
+          reason: 'level $level should have at least 3 equations');
 
-      // The correct values satisfy every row and column equation.
-      for (var i = 0; i < 3; i++) {
-        final a = board.numberCell(i, 0).value!;
-        final b = board.numberCell(i, 1).value!;
-        final c = board.numberCell(i, 2).value!;
-        expect(applyOp(board.opRow[i], a, b), c, reason: 'level $level row $i');
+      // The correct values satisfy every equation, and every number cell
+      // belongs to at least one equation.
+      final inRuns = <NcCell>{};
+      for (final run in board.runs) {
+        final a = board.cellOf(run, 0);
+        final b = board.cellOf(run, 2);
+        final res = board.cellOf(run, 4);
+        inRuns.addAll([a, b, res]);
+        expect(applyOp(board.cellOf(run, 1).op!, a.value!, b.value!),
+            res.value!,
+            reason: 'level $level run at (${run.r},${run.c})');
       }
-      for (var j = 0; j < 3; j++) {
-        final a = board.numberCell(0, j).value!;
-        final b = board.numberCell(1, j).value!;
-        final c = board.numberCell(2, j).value!;
-        expect(applyOp(board.opCol[j], a, b), c, reason: 'level $level col $j');
+      for (final row in board.cells) {
+        for (final cell in row) {
+          if (cell.kind == NcKind.number) {
+            expect(inRuns.contains(cell), isTrue,
+                reason: 'level $level has an orphan number cell');
+          }
+        }
       }
 
+      expect(board.blankCount, greaterThan(0));
       expect(board.isSolved, isFalse, reason: 'level $level starts unsolved');
 
       // Each blank's correct value is available in the pool.
       final pool = [...board.pool];
-      for (var i = 0; i < 3; i++) {
-        for (var j = 0; j < 3; j++) {
-          final cell = board.numberCell(i, j);
-          if (!cell.fixed) {
+      for (final row in board.cells) {
+        for (final cell in row) {
+          if (cell.kind == NcKind.number && !cell.fixed) {
             expect(pool.remove(cell.value), isTrue,
                 reason: 'level $level pool missing ${cell.value}');
           }
@@ -195,13 +208,59 @@ void main() {
       }
 
       // Placing the correct values solves it.
-      for (var i = 0; i < 3; i++) {
-        for (var j = 0; j < 3; j++) {
-          final cell = board.numberCell(i, j);
-          if (!cell.fixed) cell.placed = cell.value;
+      for (final row in board.cells) {
+        for (final cell in row) {
+          if (cell.kind == NcKind.number && !cell.fixed) {
+            cell.placed = cell.value;
+          }
         }
       }
       expect(board.isSolved, isTrue, reason: 'level $level should be solvable');
     }
+  });
+
+  testWidgets('Number Cross screen renders small and large layouts',
+      (tester) async {
+    // Phone-ish portrait surface; overflows would fail the test.
+    tester.view.physicalSize = const Size(1080, 2280);
+    tester.view.devicePixelRatio = 2.625;
+    addTearDown(tester.view.reset);
+
+    for (final level in [1, 10, 30]) {
+      await tester.pumpWidget(MaterialApp(
+          home: NumberCrossScreen(key: ValueKey(level), startLevel: level)));
+      expect(find.text('Level $level'), findsOneWidget);
+      // The pool has chips to place.
+      final board = NumberCrossBoard.generate(level);
+      expect(board.pool, isNotEmpty);
+    }
+  });
+
+  testWidgets('Number Cross: tap-to-place and tap-to-return', (tester) async {
+    tester.view.physicalSize = const Size(1080, 2280);
+    tester.view.devicePixelRatio = 2.625;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(
+        const MaterialApp(home: NumberCrossScreen(startLevel: 1)));
+    final board = NumberCrossBoard.generate(1); // same seed as the screen's
+    final poolSize = board.pool.length;
+    final value = board.pool.first;
+
+    Finder chips() => find.byType(Draggable<int>);
+    expect(chips(), findsNWidgets(poolSize));
+
+    // Tap the first pool chip (last matching text — the pool sits below the
+    // grid), then an empty cell: the number moves from pool to cell.
+    await tester.tap(find.text('$value').last);
+    await tester.pump();
+    await tester.tap(find.byType(DragTarget<int>).first);
+    await tester.pump();
+    expect(chips(), findsNWidgets(poolSize - 1));
+
+    // Tapping the placed cell returns the number to the pool.
+    await tester.tap(find.byType(DragTarget<int>).first);
+    await tester.pump();
+    expect(chips(), findsNWidgets(poolSize));
   });
 }

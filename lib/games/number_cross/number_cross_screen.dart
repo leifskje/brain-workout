@@ -8,9 +8,9 @@ import '../../widgets/game_header.dart';
 import '../../widgets/win_dialog.dart';
 import 'number_cross_models.dart';
 
-/// Playable Number Cross: place pool numbers into the blanks so every row and
-/// column equation holds. Place by tapping (number then cell) or by dragging a
-/// number onto a cell. No lose state — rearrange freely until it's solved.
+/// Playable Number Cross: place pool numbers into the blanks so every across
+/// and down equation holds. Place by tapping (number then cell) or by dragging
+/// a number onto a cell. No lose state — rearrange freely until it's solved.
 class NumberCrossScreen extends StatefulWidget {
   const NumberCrossScreen({super.key, this.startLevel = 1});
 
@@ -55,11 +55,11 @@ class _NumberCrossScreenState extends State<NumberCrossScreen> {
     setState(() => _selectedPool = _selectedPool == index ? null : index);
   }
 
-  /// Places the pool number at [poolIndex] into cell (i,j) — used by both tap
+  /// Places the pool number at [poolIndex] into cell (r,c) — used by both tap
   /// and drag.
-  void _placeFromPool(int poolIndex, int i, int j) {
+  void _placeFromPool(int poolIndex, int r, int c) {
     if (_busy || poolIndex < 0 || poolIndex >= _board.pool.length) return;
-    final cell = _board.numberCell(i, j);
+    final cell = _board.cells[r][c];
     if (cell.fixed) return;
     final value = _board.pool[poolIndex];
     setState(() {
@@ -76,12 +76,12 @@ class _NumberCrossScreenState extends State<NumberCrossScreen> {
     }
   }
 
-  void _onCellTap(int i, int j) {
+  void _onCellTap(int r, int c) {
     if (_busy) return;
-    final cell = _board.numberCell(i, j);
+    final cell = _board.cells[r][c];
     if (cell.fixed) return;
     if (_selectedPool != null) {
-      _placeFromPool(_selectedPool!, i, j);
+      _placeFromPool(_selectedPool!, r, c);
     } else if (cell.placed != null) {
       setState(() {
         _board.pool.add(cell.placed!);
@@ -128,8 +128,8 @@ class _NumberCrossScreenState extends State<NumberCrossScreen> {
             Padding(
               padding: const EdgeInsets.fromLTRB(24, 4, 24, 16),
               child: Text(
-                'Tap a number then a cell, or drag it in. Every row and column '
-                'must make a correct sum.',
+                'Tap a number then a cell, or drag it in. Every across and '
+                'down equation must be correct.',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                     fontSize: 14, color: Colors.black.withValues(alpha: 0.6)),
@@ -142,12 +142,14 @@ class _NumberCrossScreenState extends State<NumberCrossScreen> {
   }
 
   Widget _buildGrid() {
+    final rows = _board.rows, cols = _board.cols;
     return LayoutBuilder(
       builder: (context, constraints) {
         const panelPad = 10.0;
-        final dim = math.min(constraints.maxWidth, constraints.maxHeight) -
-            panelPad * 2;
-        final cell = dim / 5;
+        final cell = math.min(
+          (constraints.maxWidth - panelPad * 2) / cols,
+          (constraints.maxHeight - panelPad * 2) / rows,
+        );
         return Container(
           padding: const EdgeInsets.all(panelPad),
           decoration: BoxDecoration(
@@ -155,13 +157,13 @@ class _NumberCrossScreenState extends State<NumberCrossScreen> {
             borderRadius: BorderRadius.circular(18),
           ),
           child: SizedBox(
-            width: cell * 5,
-            height: cell * 5,
+            width: cell * cols,
+            height: cell * rows,
             child: Column(
               children: [
-                for (var r = 0; r < 5; r++)
+                for (var r = 0; r < rows; r++)
                   Row(children: [
-                    for (var c = 0; c < 5; c++) _buildCell(r, c, cell),
+                    for (var c = 0; c < cols; c++) _buildCell(r, c, cell),
                   ]),
               ],
             ),
@@ -181,7 +183,7 @@ class _NumberCrossScreenState extends State<NumberCrossScreen> {
       case NcKind.equals:
         return _symbolCell('=', size);
       case NcKind.number:
-        return _numberCell(cell, r ~/ 2, c ~/ 2, size);
+        return _numberCell(cell, r, c, size);
     }
   }
 
@@ -221,7 +223,7 @@ class _NumberCrossScreenState extends State<NumberCrossScreen> {
     );
   }
 
-  Widget _numberCell(NcCell cell, int i, int j, double size) {
+  Widget _numberCell(NcCell cell, int r, int c, double size) {
     final numStyle = TextStyle(fontSize: size * 0.4, fontWeight: FontWeight.bold);
 
     if (cell.fixed) {
@@ -239,7 +241,7 @@ class _NumberCrossScreenState extends State<NumberCrossScreen> {
     // previews the number being dragged in.
     return DragTarget<int>(
       onWillAcceptWithDetails: (_) => !_busy,
-      onAcceptWithDetails: (d) => _placeFromPool(d.data, i, j),
+      onAcceptWithDetails: (d) => _placeFromPool(d.data, r, c),
       builder: (context, candidate, rejected) {
         final hovering = candidate.isNotEmpty;
         final filled = cell.placed != null;
@@ -269,7 +271,7 @@ class _NumberCrossScreenState extends State<NumberCrossScreen> {
 
         return GestureDetector(
           behavior: HitTestBehavior.opaque,
-          onTap: () => _onCellTap(i, j),
+          onTap: () => _onCellTap(r, c),
           child: _tileBox(
             size,
             bg: bg,
