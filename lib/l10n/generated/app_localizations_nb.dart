@@ -132,6 +132,30 @@ class AppLocalizationsNb extends AppLocalizations {
   String get gameMiniSudokuSubtitle => 'Fyll rutenettet uten gjentakelser';
 
   @override
+  String get gameSimonTitle => 'Simon';
+
+  @override
+  String get gameSimonSubtitle => 'Gjenta lysrekkefølgen';
+
+  @override
+  String get gameWordScrambleTitle => 'Bokstavsalat';
+
+  @override
+  String get gameWordScrambleSubtitle => 'Sett bokstavene i riktig rekkefølge';
+
+  @override
+  String get gameCrackCodeTitle => 'Knekk koden';
+
+  @override
+  String get gameCrackCodeSubtitle => 'Gjett den hemmelige koden';
+
+  @override
+  String get gameTrailTitle => 'Følg sporet';
+
+  @override
+  String get gameTrailSubtitle => 'Trykk på sirklene i rekkefølge';
+
+  @override
   String comingSoonTitle(String game) {
     return '$game kommer snart!';
   }
@@ -173,6 +197,60 @@ class AppLocalizationsNb extends AppLocalizations {
 
   @override
   String get restartLevel => 'Start nivået på nytt';
+
+  @override
+  String get howToPlay => 'Slik spiller du';
+
+  @override
+  String get gotIt => 'Skjønner!';
+
+  @override
+  String get helpArrowEscape =>
+      'Hver pil vil fly ut av brettet i retningen den peker. Trykk på en pil for å sende den av gårde — men banen må være fri. Send ut alle pilene for å vinne.';
+
+  @override
+  String get helpArrowMaze =>
+      'De lange pilene glir ut av brettet med hodet først. Trykk på en for å sende den ut — banen foran hodet må være fri. Tøm hele brettet for å vinne.';
+
+  @override
+  String get helpWord =>
+      'Gjett det skjulte ordet på fem bokstaver på seks forsøk. Grønn betyr riktig bokstav på riktig plass, gul betyr at bokstaven finnes et annet sted i ordet, grå betyr at den ikke er med.';
+
+  @override
+  String get helpNumberCross =>
+      'Plasser tallene fra brettet i de tomme rutene slik at alle regnestykkene stemmer — både bortover og nedover. Trykk på et tall og så en rute, eller dra det inn. Trykk på et plassert tall for å ta det tilbake.';
+
+  @override
+  String get helpWordSearch =>
+      'Alle ordene under rutenettet er gjemt blant bokstavene. Dra fingeren over et ord for å markere det — forlengs eller baklengs. Finn alle for å vinne.';
+
+  @override
+  String get helpMiniSudoku =>
+      'Fyll de tomme rutene slik at hver rad, kolonne og boks inneholder hvert tall nøyaktig én gang. Trykk på en rute, og så på et tall. Tall som krasjer blir røde, så du kan rette dem.';
+
+  @override
+  String get helpMemoryMatch =>
+      'Alle kortene ligger med bildesiden ned, og hvert bilde har en tvilling. Snu to kort om gangen og husk hva du ser. Finn alle parene for å vinne.';
+
+  @override
+  String get helpSimon =>
+      'Se på knappene som lyser opp, én etter én. Trykk så på de samme knappene i samme rekkefølge. Rekken blir ett trinn lengre for hver runde — heng med til slutten!';
+
+  @override
+  String get helpWhatNext =>
+      'Se på tallrekken og finn mønsteret. Velg så tallet som kommer etterpå. Feil svar koster et hjerte.';
+
+  @override
+  String get helpWordScramble =>
+      'Bokstavene i et kjent ord er stokket om. Trykk på dem i riktig rekkefølge for å stave ordet. Trykk på en bokstav i svaret for å legge den tilbake.';
+
+  @override
+  String get helpCrackCode =>
+      'Finn den hemmelige koden! Etter hvert forsøk får du hint: en grønn prikk betyr riktig tall på riktig plass, en gul prikk betyr riktig tall på feil plass. Knekk koden før forsøkene er brukt opp.';
+
+  @override
+  String get helpTrail =>
+      'Trykk på sirklene i rekkefølge: 1, 2, 3 … På høyere nivåer veksler du mellom tall og bokstaver: 1, A, 2, B. Feil trykk koster et hjerte.';
 
   @override
   String get outOfHearts => 'Tomt for hjerter';
@@ -228,6 +306,53 @@ class AppLocalizationsNb extends AppLocalizations {
   @override
   String get miniSudokuHint =>
       'Trykk på en rute og så et tall. Hvert tall passer bare én gang i hver rad, kolonne og boks.';
+
+  @override
+  String get simonHint =>
+      'Se på knappene som lyser opp, og trykk dem i samme rekkefølge.';
+
+  @override
+  String get simonWatch => 'Se nøye etter…';
+
+  @override
+  String get simonYourTurn => 'Din tur!';
+
+  @override
+  String simonRound(int current, int total) {
+    return 'Runde $current av $total';
+  }
+
+  @override
+  String get wordScrambleHint =>
+      'Trykk på bokstavene i riktig rekkefølge. Trykk på en bokstav i svaret for å legge den tilbake.';
+
+  @override
+  String wordOf(int current, int total) {
+    return 'Ord $current av $total';
+  }
+
+  @override
+  String get crackCodeHint =>
+      'Grønn prikk: riktig tall på riktig plass. Gul prikk: riktig tall på feil plass.';
+
+  @override
+  String crackGuessOf(int current, int total) {
+    return 'Forsøk $current av $total';
+  }
+
+  @override
+  String crackCodeWas(String code) {
+    return 'Koden var $code.';
+  }
+
+  @override
+  String get trailHint =>
+      'Trykk på sirklene i rekkefølge. Linjen følger fremgangen din.';
+
+  @override
+  String trailNext(String label) {
+    return 'Neste: $label';
+  }
 
   @override
   String get notEnoughLetters => 'For få bokstaver';

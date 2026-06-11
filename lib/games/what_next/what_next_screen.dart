@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import '../../l10n/generated/app_localizations.dart';
 import '../../services/progress_store.dart';
 import '../../widgets/game_header.dart';
+import '../../widgets/how_to_play.dart';
 import '../../widgets/win_dialog.dart';
 import 'what_next_models.dart';
 
@@ -35,6 +36,14 @@ class _WhatNextScreenState extends State<WhatNextScreen> {
   void initState() {
     super.initState();
     _loadLevel(widget.startLevel);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        maybeShowHowToPlay(context,
+            gameId: _gameId,
+            body: AppLocalizations.of(context).helpWhatNext,
+            accent: _accent);
+      }
+    });
   }
 
   void _loadLevel(int level) {
@@ -144,7 +153,10 @@ class _WhatNextScreenState extends State<WhatNextScreen> {
             GameHeader(
                 title: AppLocalizations.of(context).levelN(_level),
                 accent: _accent,
-                onRestart: _restart),
+                onRestart: _restart,
+                onHelp: () => showHowToPlay(context,
+                    body: AppLocalizations.of(context).helpWhatNext,
+                    accent: _accent)),
             _buildHearts(cfg.hearts),
             const SizedBox(height: 6),
             Text(

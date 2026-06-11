@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import '../../l10n/generated/app_localizations.dart';
 import '../../services/progress_store.dart';
 import '../../widgets/game_header.dart';
+import '../../widgets/how_to_play.dart';
 import '../../widgets/win_dialog.dart';
 import 'memory_match_models.dart';
 
@@ -34,6 +35,14 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen> {
   void initState() {
     super.initState();
     _loadLevel(widget.startLevel);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        maybeShowHowToPlay(context,
+            gameId: _gameId,
+            body: AppLocalizations.of(context).helpMemoryMatch,
+            accent: _accent);
+      }
+    });
   }
 
   void _loadLevel(int level) {
@@ -129,7 +138,10 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen> {
             GameHeader(
                 title: AppLocalizations.of(context).levelN(_level),
                 accent: _accent,
-                onRestart: _restart),
+                onRestart: _restart,
+                onHelp: () => showHowToPlay(context,
+                    body: AppLocalizations.of(context).helpMemoryMatch,
+                    accent: _accent)),
             Text(
               AppLocalizations.of(context).pairsFound(matched, total),
               style: const TextStyle(

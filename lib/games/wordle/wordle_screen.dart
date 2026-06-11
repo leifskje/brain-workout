@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 
 import '../../l10n/generated/app_localizations.dart';
 import '../../services/progress_store.dart';
+import '../../widgets/how_to_play.dart';
 import '../../widgets/win_dialog.dart';
 import 'word_repository.dart';
 import 'wordle_models.dart';
@@ -48,6 +49,14 @@ class _WordleScreenState extends State<WordleScreen> {
         Localizations.localeOf(context).languageCode;
     _language = wordleLanguageById(stored);
     _load(_language);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        maybeShowHowToPlay(context,
+            gameId: _gameId,
+            body: AppLocalizations.of(context).helpWord,
+            accent: _accent);
+      }
+    });
   }
 
   Future<void> _load(WordleLanguage language) async {
@@ -235,6 +244,14 @@ class _WordleScreenState extends State<WordleScreen> {
                   style: const TextStyle(
                       fontSize: 24, fontWeight: FontWeight.bold)),
             ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.help_outline_rounded),
+            iconSize: 28,
+            color: _accent,
+            tooltip: t.howToPlay,
+            onPressed: () =>
+                showHowToPlay(context, body: t.helpWord, accent: _accent),
           ),
           IconButton(
             icon: const Icon(Icons.refresh_rounded),

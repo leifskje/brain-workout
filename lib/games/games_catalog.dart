@@ -2,11 +2,15 @@ import 'package:flutter/material.dart';
 
 import '../models/game_definition.dart';
 import 'arrow_escape/arrow_escape_screen.dart';
+import 'crack_code/crack_code_screen.dart';
 import 'memory_match/memory_match_screen.dart';
 import 'mini_sudoku/mini_sudoku_screen.dart';
 import 'number_cross/number_cross_screen.dart';
+import 'simon/simon_screen.dart';
 import 'snake_arrows/snake_arrows_screen.dart';
+import 'trail/trail_screen.dart';
 import 'what_next/what_next_screen.dart';
+import 'word_scramble/word_scramble_screen.dart';
 import 'word_search/word_search_screen.dart';
 import 'wordle/wordle_screen.dart';
 
@@ -77,6 +81,42 @@ final List<GameDefinition> gamesCatalog = [
     color: const Color(0xFF7E57C2),
     category: GameCategory.memory,
     levelBuilder: (level) => MemoryMatchScreen(startLevel: level),
+  ),
+  GameDefinition(
+    id: 'word_scramble',
+    title: (t) => t.gameWordScrambleTitle,
+    subtitle: (t) => t.gameWordScrambleSubtitle,
+    icon: Icons.shuffle_rounded,
+    color: const Color(0xFF7A9D3C),
+    category: GameCategory.words,
+    levelBuilder: (level) => WordScrambleScreen(startLevel: level),
+  ),
+  GameDefinition(
+    id: 'crack_code',
+    title: (t) => t.gameCrackCodeTitle,
+    subtitle: (t) => t.gameCrackCodeSubtitle,
+    icon: Icons.password_rounded,
+    color: const Color(0xFF607D8B),
+    category: GameCategory.logic,
+    levelBuilder: (level) => CrackCodeScreen(startLevel: level),
+  ),
+  GameDefinition(
+    id: 'trail',
+    title: (t) => t.gameTrailTitle,
+    subtitle: (t) => t.gameTrailSubtitle,
+    icon: Icons.timeline_rounded,
+    color: const Color(0xFFCC7722),
+    category: GameCategory.logic,
+    levelBuilder: (level) => TrailScreen(startLevel: level),
+  ),
+  GameDefinition(
+    id: 'simon',
+    title: (t) => t.gameSimonTitle,
+    subtitle: (t) => t.gameSimonSubtitle,
+    icon: Icons.touch_app_rounded,
+    color: const Color(0xFFC94B4B),
+    category: GameCategory.memory,
+    levelBuilder: (level) => SimonScreen(startLevel: level),
   ),
   GameDefinition(
     id: 'what_next',

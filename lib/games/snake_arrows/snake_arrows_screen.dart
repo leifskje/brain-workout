@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import '../../l10n/generated/app_localizations.dart';
 import '../../services/progress_store.dart';
 import '../../widgets/game_header.dart';
+import '../../widgets/how_to_play.dart';
 import '../../widgets/win_dialog.dart';
 import 'snake_arrows_models.dart';
 
@@ -56,6 +57,14 @@ class _SnakeArrowsScreenState extends State<SnakeArrowsScreen>
       duration: const Duration(milliseconds: 400),
     )..addListener(_tick);
     _loadLevel(widget.startLevel);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        maybeShowHowToPlay(context,
+            gameId: _gameId,
+            body: AppLocalizations.of(context).helpArrowMaze,
+            accent: _accent);
+      }
+    });
   }
 
   @override
@@ -184,7 +193,10 @@ class _SnakeArrowsScreenState extends State<SnakeArrowsScreen>
             GameHeader(
                 title: AppLocalizations.of(context).levelN(_level),
                 accent: _accent,
-                onRestart: _restart),
+                onRestart: _restart,
+                onHelp: () => showHowToPlay(context,
+                    body: AppLocalizations.of(context).helpArrowMaze,
+                    accent: _accent)),
             _buildHearts(maxHearts),
             const SizedBox(height: 8),
             Expanded(

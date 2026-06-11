@@ -10,10 +10,14 @@ they ship; add notes/links to per-game plan docs as they get designed.
   dictionaries — wrong fit); word list follows the app language.
 - [x] **Mini Sudoku** — shipped; see `docs/plans/mini-sudoku.md`. 4×4 → 6×6 →
   9×9 by level, unique-solution digging, conflict highlighting.
-- [ ] **Crack the Code** (Mastermind with digits/colors) — deduction; tiny UI
-  (big buttons); difficulty scales by code length + symbol count.
-- [ ] **Simon** (repeat the light/sound sequence) — second *memory* game;
-  simplest possible UI: four huge colored buttons.
+- [x] **Crack the Code** — shipped; see `docs/plans/crack-code.md`.
+  Digit Mastermind, no repeated digits, dot clues.
+- [x] **Simon** — shipped; see `docs/plans/simon.md`. Four huge buttons,
+  grows 3→12 steps, hearts + replay-the-round on a miss.
+- [x] **Word Scramble** (Bokstavsalat) — shipped; see
+  `docs/plans/word-scramble.md`. Reuses the curated word pools.
+- [x] **Follow the Trail** — shipped; see `docs/plans/trail.md`. Classic
+  trail-making: tap 1, 2, 3 … / 1, A, 2, B in order.
 
 Lower priority / parked:
 
@@ -48,8 +52,9 @@ Lower priority / parked:
 - [x] **In-app language switcher** — globe menu on the home screen:
   follow phone / English / Norsk; persisted (`app_lang`) and applied live via
   `appLocaleOverride` (`lib/services/app_locale.dart`).
-- [ ] **First-time "how to play" overlay per game** — one dismissible sheet
-  with a picture, shown once (flag in ProgressStore).
+- [x] **First-time "how to play" overlay per game** — bottom sheet with large
+  text shown once per game (flag in ProgressStore), reopenable via a "?"
+  button in every game header. Simon pauses its playback under the sheet.
 - [ ] **Section headers by category** — only when the catalog reaches ~9–10
   games. Single scroll list with headers; never tabs.
 - [ ] **Smarter daily workout** — "one word, one number, one memory game"

@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import '../../l10n/generated/app_localizations.dart';
 import '../../services/progress_store.dart';
 import '../../widgets/game_header.dart';
+import '../../widgets/how_to_play.dart';
 import '../../widgets/win_dialog.dart';
 import 'arrow_escape_models.dart';
 
@@ -55,6 +56,14 @@ class _ArrowEscapeScreenState extends State<ArrowEscapeScreen>
       duration: const Duration(milliseconds: 400),
     )..addListener(_onShakeTick);
     _loadLevel(widget.startLevel);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        maybeShowHowToPlay(context,
+            gameId: _gameId,
+            body: AppLocalizations.of(context).helpArrowEscape,
+            accent: _accent);
+      }
+    });
   }
 
   @override
@@ -163,7 +172,10 @@ class _ArrowEscapeScreenState extends State<ArrowEscapeScreen>
             GameHeader(
                 title: AppLocalizations.of(context).levelN(_level),
                 accent: _accent,
-                onRestart: _restart),
+                onRestart: _restart,
+                onHelp: () => showHowToPlay(context,
+                    body: AppLocalizations.of(context).helpArrowEscape,
+                    accent: _accent)),
             _buildHearts(maxHearts),
             const SizedBox(height: 8),
             Expanded(

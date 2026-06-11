@@ -49,15 +49,23 @@ While `flutter run` is active, press `r` to hot-reload and `R` to hot-restart.
 
 ## Notes for Windows on ARM (e.g. Surface Pro)
 
-- Flutter's stable channel supports Windows arm64 hosts; Microsoft OpenJDK 17
-  has native ARM64 builds.
-- The Android emulator needs **arm64-v8a system images** on an ARM host —
-  x86_64 images (like the `pixel_api35` AVD used on the dev machine) won't
-  run. Create an AVD with e.g. `system-images;android-35;google_apis;arm64-v8a`.
-- If the emulator is troublesome, the easy paths are a physical phone over
-  USB (`flutter run` picks it up) or `flutter run -d chrome`.
-- `flutter run -d windows` on ARM needs the Visual Studio C++ ARM64
-  components.
+Tested on an ARM Surface — expect these differences:
+
+- **The Android emulator is not available on Windows ARM hosts.** The AVD
+  flow ends with a "no emulator" message; this is a platform gap, not a
+  setup mistake. Don't burn time on it.
+- Test on a **physical Android phone instead**: enable Developer options +
+  USB debugging on the phone, plug it in (or use wireless debugging /
+  `adb pair`), and `flutter run` picks it up. For quick UI checks with no
+  device at hand, `flutter run -d chrome` works everywhere.
+- Flutter's setup flow will likely install **Android Studio** — that's fine;
+  it's just the SDK provider. You don't have to use the IDE: install the
+  Flutter extension in VS Code and point it at the SDK
+  (`%LOCALAPPDATA%\Android\Sdk`) and you have the same editor setup as the
+  dev machine.
+- Flutter stable and Microsoft OpenJDK 17 both run natively on Windows
+  arm64. `flutter run -d windows` additionally needs the Visual Studio C++
+  ARM64 components.
 
 ## Development
 

@@ -5,13 +5,22 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:brain_workout/games/arrow_escape/arrow_escape_models.dart';
+import 'package:brain_workout/games/crack_code/crack_code_models.dart';
+import 'package:brain_workout/games/crack_code/crack_code_screen.dart';
+import 'package:brain_workout/games/games_catalog.dart';
 import 'package:brain_workout/games/memory_match/memory_match_models.dart';
 import 'package:brain_workout/games/number_cross/number_cross_models.dart';
 import 'package:brain_workout/games/number_cross/number_cross_screen.dart';
+import 'package:brain_workout/games/simon/simon_models.dart';
+import 'package:brain_workout/games/simon/simon_screen.dart';
 import 'package:brain_workout/games/snake_arrows/snake_arrows_models.dart';
+import 'package:brain_workout/games/trail/trail_models.dart';
+import 'package:brain_workout/games/trail/trail_screen.dart';
 import 'package:brain_workout/games/what_next/what_next_models.dart';
 import 'package:brain_workout/games/mini_sudoku/mini_sudoku_models.dart';
 import 'package:brain_workout/games/mini_sudoku/mini_sudoku_screen.dart';
+import 'package:brain_workout/games/word_scramble/word_scramble_models.dart';
+import 'package:brain_workout/games/word_scramble/word_scramble_screen.dart';
 import 'package:brain_workout/games/word_search/word_search_models.dart';
 import 'package:brain_workout/games/word_search/word_search_screen.dart';
 import 'package:brain_workout/games/wordle/wordle_models.dart';
@@ -34,6 +43,10 @@ void main() {
     TestWidgetsFlutterBinding.ensureInitialized();
     SharedPreferences.setMockInitialValues({});
     await ProgressStore.init();
+    // Keep the first-open "how to play" sheet out of unrelated tests.
+    for (final game in gamesCatalog) {
+      ProgressStore.instance.markHelpSeen(game.id);
+    }
   });
 
   testWidgets('Home screen shows the game catalog', (tester) async {
@@ -391,6 +404,252 @@ void main() {
       }
       expect(board.isSolved, isTrue, reason: 'level $level should solve');
     }
+  });
+
+  test('Simon sequences are well-formed and the tap flow works', () {
+    for (var level = 1; level <= 30; level++) {
+      final cfg = simonConfigForLevel(level);
+      final game = SimonGame.generate(level);
+      expect(game.sequence.length, cfg.targetLength,
+          reason: 'level $level length');
+      for (final b in game.sequence) {
+        expect(b, inInclusiveRange(0, cfg.buttons - 1));
+      }
+      // Never the same button three times in a row.
+      for (var i = 2; i < game.sequence.length; i++) {
+        expect(
+            game.sequence[i] == game.sequence[i - 1] &&
+                game.sequence[i] == game.sequence[i - 2],
+            isFalse,
+            reason: 'level $level triple at $i');
+      }
+      // Deterministic.
+      expect(SimonGame.generate(level).sequence, game.sequence);
+
+      // Playing every round correctly wins the level.
+      var taps = 0;
+      while (true) {
+        final result = game.tap(game.sequence[game.inputPos]);
+        taps++;
+        if (result == SimonTap.won) break;
+        expect(taps, lessThan(1000)); // safety net
+      }
+      expect(game.round, game.sequence.length);
+    }
+
+    // A wrong tap resets the round's input.
+    final game = SimonGame.generate(1);
+    final wrong = (game.sequence[0] + 1) % 4;
+    expect(game.tap(wrong), SimonTap.wrong);
+    expect(game.inputPos, 0);
+    expect(game.tap(game.sequence[0]),
+        game.sequence.length == 1 ? SimonTap.won : anything);
+  });
+
+  testWidgets('Simon: watching a round then repeating it advances',
+      (tester) async {
+    tester.view.physicalSize = const Size(1080, 2280);
+    tester.view.devicePixelRatio = 2.625;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(localizedApp(const SimonScreen(startLevel: 1)));
+    final game = SimonGame.generate(1); // same seed as the screen's
+    expect(find.text('Level 1'), findsOneWidget);
+    expect(find.text('Round 1 of ${game.sequence.length}'), findsOneWidget);
+    expect(find.text('Watch closely…'), findsOneWidget);
+
+    // Let the lead-in + round-1 playback finish (700ms + flash + gap).
+    await tester.pump(const Duration(milliseconds: 700));
+    await tester.pump(const Duration(milliseconds: 650));
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(find.text('Your turn!'), findsOneWidget);
+
+    // Repeat the one-button sequence → round 2 plays.
+    await tester.tap(find.byKey(ValueKey('simon_btn_${game.sequence[0]}')));
+    await tester.pump(const Duration(milliseconds: 700));
+    expect(find.text('Round 2 of ${game.sequence.length}'), findsOneWidget);
+
+    // Drain pending playback timers before the test ends.
+    await tester.pump(const Duration(seconds: 5));
+  });
+
+  test('Word Scramble rounds are well-formed in both languages', () {
+    for (final language in ['en', 'nb']) {
+      for (var level = 1; level <= 30; level++) {
+        final cfg = wordScrambleConfigForLevel(level);
+        final round = generateScrambleRound(level, language);
+        expect(round.length, cfg.words,
+            reason: '$language level $level word count');
+        for (final w in round) {
+          expect(w.word.length, inInclusiveRange(cfg.minLen, cfg.maxLen));
+          // The scramble is a permutation of the word, and never the word.
+          expect([...w.letters]..sort(), [...w.word.split('')]..sort());
+          expect(w.letters.join(), isNot(w.word));
+        }
+        // No duplicate words in a round; deterministic regeneration.
+        expect({for (final w in round) w.word}.length, round.length);
+        expect(
+            [for (final w in generateScrambleRound(level, language)) w.word],
+            [for (final w in round) w.word]);
+      }
+    }
+  });
+
+  test('Crack the Code: codes are valid and scoring is correct', () {
+    for (var level = 1; level <= 30; level++) {
+      final cfg = crackCodeConfigForLevel(level);
+      final game = CrackCodeGame.generate(level);
+      expect(game.code.length, cfg.length);
+      expect(game.code.toSet().length, cfg.length, reason: 'distinct digits');
+      for (final d in game.code) {
+        expect(d, inInclusiveRange(1, cfg.symbols));
+      }
+      expect(CrackCodeGame.generate(level).code, game.code,
+          reason: 'level $level deterministic');
+
+      // Guessing the code itself wins with all-exact.
+      final result = game.submit(game.code);
+      expect(result.exact, cfg.length);
+      expect(result.present, 0);
+      expect(game.isWon, isTrue);
+    }
+
+    // Scoring: a rotation of the code is all-present, no exact.
+    final game = CrackCodeGame.generate(5);
+    final rotated = [...game.code.skip(1), game.code.first];
+    final r = game.submit(rotated);
+    expect(r.exact, 0);
+    expect(r.present, game.code.length);
+  });
+
+  test('Trail boards are ordered, labelled, and spaced', () {
+    for (var level = 1; level <= 30; level++) {
+      final cfg = trailConfigForLevel(level);
+      final board = TrailBoard.generate(level);
+      expect(board.nodes.length, cfg.count);
+
+      for (var i = 0; i < board.nodes.length; i++) {
+        final n = board.nodes[i];
+        expect(n.x, inInclusiveRange(0, 1));
+        expect(n.y, inInclusiveRange(0, 1));
+        final expected = !cfg.alternating
+            ? '${i + 1}'
+            : i.isEven
+                ? '${i ~/ 2 + 1}'
+                : String.fromCharCode('A'.codeUnitAt(0) + i ~/ 2);
+        expect(n.label, expected, reason: 'level $level node $i');
+        // Nodes never overlap.
+        for (var j = 0; j < i; j++) {
+          final dx = board.nodes[j].x - n.x, dy = board.nodes[j].y - n.y;
+          expect(math.sqrt(dx * dx + dy * dy), greaterThan(0.08),
+              reason: 'level $level nodes $i/$j too close');
+        }
+      }
+      expect(TrailBoard.generate(level).nodes.first.x,
+          board.nodes.first.x, reason: 'deterministic');
+    }
+  });
+
+  testWidgets('Word Scramble: spelling the word advances to the next',
+      (tester) async {
+    tester.view.physicalSize = const Size(1080, 2280);
+    tester.view.devicePixelRatio = 2.625;
+    addTearDown(tester.view.reset);
+
+    await tester
+        .pumpWidget(localizedApp(const WordScrambleScreen(startLevel: 1)));
+    final round = generateScrambleRound(1, 'en'); // same seed as the screen
+    expect(find.text('Word 1 of ${round.length}'), findsOneWidget);
+
+    // Tap the tiles in the order that spells the word.
+    final word = round.first;
+    final used = List<bool>.filled(word.letters.length, false);
+    for (final ch in word.word.split('')) {
+      final i = List.generate(word.letters.length, (i) => i)
+          .firstWhere((i) => !used[i] && word.letters[i] == ch);
+      used[i] = true;
+      await tester.tap(find.byKey(ValueKey('ws_tile_$i')));
+      await tester.pump();
+    }
+    await tester.pump(const Duration(milliseconds: 500));
+    expect(find.text('Word 2 of ${round.length}'), findsOneWidget);
+  });
+
+  testWidgets('Crack the Code: guessing the code wins', (tester) async {
+    tester.view.physicalSize = const Size(1080, 2280);
+    tester.view.devicePixelRatio = 2.625;
+    addTearDown(tester.view.reset);
+
+    await tester
+        .pumpWidget(localizedApp(const CrackCodeScreen(startLevel: 1)));
+    final game = CrackCodeGame.generate(1); // same seed as the screen
+    expect(find.text('Guess 1 of ${game.maxGuesses}'), findsOneWidget);
+
+    for (final d in game.code) {
+      await tester.tap(find.byKey(ValueKey('cc_pad_$d')));
+      await tester.pump();
+    }
+    await tester.tap(find.byIcon(Icons.check_rounded));
+    await tester.pump(const Duration(milliseconds: 350));
+    await tester.pumpAndSettle();
+    expect(find.text('Well done!'), findsOneWidget);
+  });
+
+  testWidgets('Trail: wrong tap costs a heart, ordered taps win',
+      (tester) async {
+    tester.view.physicalSize = const Size(1080, 2280);
+    tester.view.devicePixelRatio = 2.625;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(localizedApp(const TrailScreen(startLevel: 1)));
+    final board = TrailBoard.generate(1); // same seed as the screen
+    expect(find.text('Next: 1'), findsOneWidget);
+
+    // Wrong node first: a heart is lost.
+    await tester.tap(find.byKey(const ValueKey('trail_node_2')));
+    await tester.pump();
+    expect(find.byIcon(Icons.favorite_border_rounded), findsOneWidget);
+    await tester.pump(const Duration(milliseconds: 600));
+
+    // Then tap everything in order — win dialog appears.
+    for (var i = 0; i < board.nodes.length; i++) {
+      await tester.tap(find.byKey(ValueKey('trail_node_$i')));
+      await tester.pump();
+    }
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.pumpAndSettle();
+    expect(find.text('Well done!'), findsOneWidget);
+  });
+
+  testWidgets('How to play: shown once on first open, reopenable via ?',
+      (tester) async {
+    tester.view.physicalSize = const Size(1080, 2280);
+    tester.view.devicePixelRatio = 2.625;
+    addTearDown(tester.view.reset);
+
+    // Fresh prefs — nothing marked seen.
+    SharedPreferences.setMockInitialValues({});
+    await ProgressStore.init();
+
+    await tester.pumpWidget(
+        localizedApp(const NumberCrossScreen(key: ValueKey(1))));
+    await tester.pumpAndSettle();
+    expect(find.text('How to play'), findsOneWidget);
+
+    await tester.tap(find.text('Got it!'));
+    await tester.pumpAndSettle();
+    expect(find.text('How to play'), findsNothing);
+
+    // Second open: not shown again.
+    await tester.pumpWidget(
+        localizedApp(const NumberCrossScreen(key: ValueKey(2))));
+    await tester.pump();
+    expect(find.text('How to play'), findsNothing);
+
+    // But the ? button brings it back.
+    await tester.tap(find.byIcon(Icons.help_outline_rounded));
+    await tester.pumpAndSettle();
+    expect(find.text('How to play'), findsOneWidget);
   });
 
   testWidgets('Word Search and Mini Sudoku screens render', (tester) async {

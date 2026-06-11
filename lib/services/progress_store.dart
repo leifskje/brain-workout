@@ -73,6 +73,14 @@ class ProgressStore {
   /// When the game was last opened (epoch millis; 0 = never).
   int lastOpened(String gameId) => _prefs.getInt(_openedKey(gameId)) ?? 0;
 
+  // ------------------------------------------------------------- how to play ---
+
+  /// Whether the first-time "how to play" sheet was already shown for a game.
+  bool helpSeen(String gameId) => _prefs.getBool('help_seen_$gameId') ?? false;
+
+  void markHelpSeen(String gameId) =>
+      _prefs.setBool('help_seen_$gameId', true);
+
   // ----------------------------------------------------------- app language ---
 
   /// The chosen app language ('en', 'nb'), or null to follow the phone.

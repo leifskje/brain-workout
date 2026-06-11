@@ -308,6 +308,54 @@ abstract class AppLocalizations {
   /// **'Fill the grid, no repeats'**
   String get gameMiniSudokuSubtitle;
 
+  /// No description provided for @gameSimonTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Simon'**
+  String get gameSimonTitle;
+
+  /// No description provided for @gameSimonSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Repeat the light sequence'**
+  String get gameSimonSubtitle;
+
+  /// No description provided for @gameWordScrambleTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Word Scramble'**
+  String get gameWordScrambleTitle;
+
+  /// No description provided for @gameWordScrambleSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Unscramble the letters'**
+  String get gameWordScrambleSubtitle;
+
+  /// No description provided for @gameCrackCodeTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Crack the Code'**
+  String get gameCrackCodeTitle;
+
+  /// No description provided for @gameCrackCodeSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Guess the secret code'**
+  String get gameCrackCodeSubtitle;
+
+  /// No description provided for @gameTrailTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Follow the Trail'**
+  String get gameTrailTitle;
+
+  /// No description provided for @gameTrailSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap the circles in order'**
+  String get gameTrailSubtitle;
+
   /// No description provided for @comingSoonTitle.
   ///
   /// In en, this message translates to:
@@ -379,6 +427,90 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Restart level'**
   String get restartLevel;
+
+  /// No description provided for @howToPlay.
+  ///
+  /// In en, this message translates to:
+  /// **'How to play'**
+  String get howToPlay;
+
+  /// No description provided for @gotIt.
+  ///
+  /// In en, this message translates to:
+  /// **'Got it!'**
+  String get gotIt;
+
+  /// No description provided for @helpArrowEscape.
+  ///
+  /// In en, this message translates to:
+  /// **'Every arrow wants to fly off the board in the direction it points. Tap an arrow to send it away — but its path must be clear. Send off all the arrows to win.'**
+  String get helpArrowEscape;
+
+  /// No description provided for @helpArrowMaze.
+  ///
+  /// In en, this message translates to:
+  /// **'The long arrows slide off the board head-first. Tap one to send it out — the path in front of its head must be clear. Clear the whole board to win.'**
+  String get helpArrowMaze;
+
+  /// No description provided for @helpWord.
+  ///
+  /// In en, this message translates to:
+  /// **'Guess the hidden five-letter word in six tries. Green means the right letter in the right spot, yellow means the letter is somewhere else in the word, grey means it is not in the word.'**
+  String get helpWord;
+
+  /// No description provided for @helpNumberCross.
+  ///
+  /// In en, this message translates to:
+  /// **'Place the numbers from the tray into the empty squares so every equation is correct — across and down. Tap a number and then a square, or drag it in. Tap a placed number to take it back.'**
+  String get helpNumberCross;
+
+  /// No description provided for @helpWordSearch.
+  ///
+  /// In en, this message translates to:
+  /// **'All the words below the grid are hidden among the letters. Drag your finger across a word to mark it — forwards or backwards. Find them all to win.'**
+  String get helpWordSearch;
+
+  /// No description provided for @helpMiniSudoku.
+  ///
+  /// In en, this message translates to:
+  /// **'Fill the empty squares so every row, column and box contains each number exactly once. Tap a square, then tap a number. Clashing numbers turn red so you can fix them.'**
+  String get helpMiniSudoku;
+
+  /// No description provided for @helpMemoryMatch.
+  ///
+  /// In en, this message translates to:
+  /// **'All the cards lie face down, and every picture has a twin. Flip two cards at a time and remember what you see. Find all the pairs to win.'**
+  String get helpMemoryMatch;
+
+  /// No description provided for @helpSimon.
+  ///
+  /// In en, this message translates to:
+  /// **'Watch the buttons light up, one after another. Then tap the same buttons in the same order. The sequence grows one step each round — keep up to the end!'**
+  String get helpSimon;
+
+  /// No description provided for @helpWhatNext.
+  ///
+  /// In en, this message translates to:
+  /// **'Look at the row of numbers and figure out the pattern. Then pick the number that comes next. A wrong pick costs a heart.'**
+  String get helpWhatNext;
+
+  /// No description provided for @helpWordScramble.
+  ///
+  /// In en, this message translates to:
+  /// **'The letters of a familiar word have been shuffled. Tap them in the right order to spell the word. Tap a letter in your answer to put it back.'**
+  String get helpWordScramble;
+
+  /// No description provided for @helpCrackCode.
+  ///
+  /// In en, this message translates to:
+  /// **'Find the secret code! After each guess you get clues: a green dot means a correct digit in the correct spot, a yellow dot means a correct digit in the wrong spot. Crack the code before your guesses run out.'**
+  String get helpCrackCode;
+
+  /// No description provided for @helpTrail.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap the circles in order: 1, 2, 3 … On higher levels you alternate numbers and letters: 1, A, 2, B. A wrong tap costs a heart.'**
+  String get helpTrail;
 
   /// No description provided for @outOfHearts.
   ///
@@ -463,6 +595,72 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Tap a square, then a number. Each number fits once per row, column and box.'**
   String get miniSudokuHint;
+
+  /// No description provided for @simonHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Watch the buttons light up, then tap them in the same order.'**
+  String get simonHint;
+
+  /// No description provided for @simonWatch.
+  ///
+  /// In en, this message translates to:
+  /// **'Watch closely…'**
+  String get simonWatch;
+
+  /// No description provided for @simonYourTurn.
+  ///
+  /// In en, this message translates to:
+  /// **'Your turn!'**
+  String get simonYourTurn;
+
+  /// No description provided for @simonRound.
+  ///
+  /// In en, this message translates to:
+  /// **'Round {current} of {total}'**
+  String simonRound(int current, int total);
+
+  /// No description provided for @wordScrambleHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap the letters in order. Tap a letter in the answer to put it back.'**
+  String get wordScrambleHint;
+
+  /// No description provided for @wordOf.
+  ///
+  /// In en, this message translates to:
+  /// **'Word {current} of {total}'**
+  String wordOf(int current, int total);
+
+  /// No description provided for @crackCodeHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Green dot: right digit, right spot. Yellow dot: right digit, wrong spot.'**
+  String get crackCodeHint;
+
+  /// No description provided for @crackGuessOf.
+  ///
+  /// In en, this message translates to:
+  /// **'Guess {current} of {total}'**
+  String crackGuessOf(int current, int total);
+
+  /// No description provided for @crackCodeWas.
+  ///
+  /// In en, this message translates to:
+  /// **'The code was {code}.'**
+  String crackCodeWas(String code);
+
+  /// No description provided for @trailHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap the circles in order. The line follows your progress.'**
+  String get trailHint;
+
+  /// No description provided for @trailNext.
+  ///
+  /// In en, this message translates to:
+  /// **'Next: {label}'**
+  String trailNext(String label);
 
   /// No description provided for @notEnoughLetters.
   ///

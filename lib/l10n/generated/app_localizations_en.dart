@@ -132,6 +132,30 @@ class AppLocalizationsEn extends AppLocalizations {
   String get gameMiniSudokuSubtitle => 'Fill the grid, no repeats';
 
   @override
+  String get gameSimonTitle => 'Simon';
+
+  @override
+  String get gameSimonSubtitle => 'Repeat the light sequence';
+
+  @override
+  String get gameWordScrambleTitle => 'Word Scramble';
+
+  @override
+  String get gameWordScrambleSubtitle => 'Unscramble the letters';
+
+  @override
+  String get gameCrackCodeTitle => 'Crack the Code';
+
+  @override
+  String get gameCrackCodeSubtitle => 'Guess the secret code';
+
+  @override
+  String get gameTrailTitle => 'Follow the Trail';
+
+  @override
+  String get gameTrailSubtitle => 'Tap the circles in order';
+
+  @override
   String comingSoonTitle(String game) {
     return '$game is coming soon!';
   }
@@ -173,6 +197,60 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get restartLevel => 'Restart level';
+
+  @override
+  String get howToPlay => 'How to play';
+
+  @override
+  String get gotIt => 'Got it!';
+
+  @override
+  String get helpArrowEscape =>
+      'Every arrow wants to fly off the board in the direction it points. Tap an arrow to send it away — but its path must be clear. Send off all the arrows to win.';
+
+  @override
+  String get helpArrowMaze =>
+      'The long arrows slide off the board head-first. Tap one to send it out — the path in front of its head must be clear. Clear the whole board to win.';
+
+  @override
+  String get helpWord =>
+      'Guess the hidden five-letter word in six tries. Green means the right letter in the right spot, yellow means the letter is somewhere else in the word, grey means it is not in the word.';
+
+  @override
+  String get helpNumberCross =>
+      'Place the numbers from the tray into the empty squares so every equation is correct — across and down. Tap a number and then a square, or drag it in. Tap a placed number to take it back.';
+
+  @override
+  String get helpWordSearch =>
+      'All the words below the grid are hidden among the letters. Drag your finger across a word to mark it — forwards or backwards. Find them all to win.';
+
+  @override
+  String get helpMiniSudoku =>
+      'Fill the empty squares so every row, column and box contains each number exactly once. Tap a square, then tap a number. Clashing numbers turn red so you can fix them.';
+
+  @override
+  String get helpMemoryMatch =>
+      'All the cards lie face down, and every picture has a twin. Flip two cards at a time and remember what you see. Find all the pairs to win.';
+
+  @override
+  String get helpSimon =>
+      'Watch the buttons light up, one after another. Then tap the same buttons in the same order. The sequence grows one step each round — keep up to the end!';
+
+  @override
+  String get helpWhatNext =>
+      'Look at the row of numbers and figure out the pattern. Then pick the number that comes next. A wrong pick costs a heart.';
+
+  @override
+  String get helpWordScramble =>
+      'The letters of a familiar word have been shuffled. Tap them in the right order to spell the word. Tap a letter in your answer to put it back.';
+
+  @override
+  String get helpCrackCode =>
+      'Find the secret code! After each guess you get clues: a green dot means a correct digit in the correct spot, a yellow dot means a correct digit in the wrong spot. Crack the code before your guesses run out.';
+
+  @override
+  String get helpTrail =>
+      'Tap the circles in order: 1, 2, 3 … On higher levels you alternate numbers and letters: 1, A, 2, B. A wrong tap costs a heart.';
 
   @override
   String get outOfHearts => 'Out of hearts';
@@ -227,6 +305,53 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get miniSudokuHint =>
       'Tap a square, then a number. Each number fits once per row, column and box.';
+
+  @override
+  String get simonHint =>
+      'Watch the buttons light up, then tap them in the same order.';
+
+  @override
+  String get simonWatch => 'Watch closely…';
+
+  @override
+  String get simonYourTurn => 'Your turn!';
+
+  @override
+  String simonRound(int current, int total) {
+    return 'Round $current of $total';
+  }
+
+  @override
+  String get wordScrambleHint =>
+      'Tap the letters in order. Tap a letter in the answer to put it back.';
+
+  @override
+  String wordOf(int current, int total) {
+    return 'Word $current of $total';
+  }
+
+  @override
+  String get crackCodeHint =>
+      'Green dot: right digit, right spot. Yellow dot: right digit, wrong spot.';
+
+  @override
+  String crackGuessOf(int current, int total) {
+    return 'Guess $current of $total';
+  }
+
+  @override
+  String crackCodeWas(String code) {
+    return 'The code was $code.';
+  }
+
+  @override
+  String get trailHint =>
+      'Tap the circles in order. The line follows your progress.';
+
+  @override
+  String trailNext(String label) {
+    return 'Next: $label';
+  }
 
   @override
   String get notEnoughLetters => 'Not enough letters';
