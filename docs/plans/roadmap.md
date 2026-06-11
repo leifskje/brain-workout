@@ -38,8 +38,7 @@ Lower priority / parked:
   completed level for variety.
 - [x] **Total stars on each game card** ("★ 24") — gentle collection feeling,
   data already in ProgressStore.
-- [ ] **Real Ko-fi URL** — `home_screen.dart` still has the placeholder
-  (needs the actual account URL).
+- [x] **Real Ko-fi URL** — `ko-fi.com/loffen` (account connected to Stripe).
 
 ## Bigger items
 

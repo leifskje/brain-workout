@@ -9,8 +9,7 @@ import '../services/progress_store.dart';
 import 'coming_soon_screen.dart';
 import 'level_select_screen.dart';
 
-// TODO: replace with your real Ko-fi / Buy Me a Coffee page URL.
-const String _supportUrl = 'https://ko-fi.com/yourname';
+const String _supportUrl = 'https://ko-fi.com/loffen';
 
 /// Startup screen: pick a brain-training game to play.
 class HomeScreen extends StatefulWidget {
