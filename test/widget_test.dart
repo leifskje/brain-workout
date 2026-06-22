@@ -17,6 +17,8 @@ import 'package:brain_workout/games/snake_arrows/snake_arrows_models.dart';
 import 'package:brain_workout/games/trail/trail_models.dart';
 import 'package:brain_workout/games/trail/trail_screen.dart';
 import 'package:brain_workout/games/what_next/what_next_models.dart';
+import 'package:brain_workout/games/merge/merge_models.dart';
+import 'package:brain_workout/games/merge/merge_screen.dart';
 import 'package:brain_workout/games/mini_sudoku/mini_sudoku_models.dart';
 import 'package:brain_workout/games/mini_sudoku/mini_sudoku_screen.dart';
 import 'package:brain_workout/games/word_scramble/word_scramble_models.dart';
@@ -619,6 +621,123 @@ void main() {
     await tester.pump(const Duration(milliseconds: 400));
     await tester.pumpAndSettle();
     expect(find.text('Well done!'), findsOneWidget);
+  });
+
+  test('Merge: collapseLine slides and merges once per move', () {
+    expect(collapseLine([2, 2, 0, 0]).line, [4, 0, 0, 0]);
+    expect(collapseLine([2, 2, 2, 0]).line, [4, 2, 0, 0]);
+    expect(collapseLine([2, 2, 2, 2]).line, [4, 4, 0, 0]);
+    expect(collapseLine([4, 0, 0, 0]).line, [4, 0, 0, 0]);
+    expect(collapseLine([2, 4, 0, 0]).line, [2, 4, 0, 0]);
+    expect(collapseLine([0, 0, 2, 2]).line, [4, 0, 0, 0]);
+    expect(collapseLine([2, 2, 0, 0]).gained, 4);
+    expect(collapseLine([2, 4, 0, 0]).gained, 0);
+  });
+
+  test('Merge: generation, moves, win and stuck detection', () {
+    for (var level = 1; level <= 30; level++) {
+      final cfg = mergeConfigForLevel(level);
+      final game = MergeGame.generate(level);
+      expect(game.size, cfg.size);
+      expect(game.target, 1 << (5 + level - 1).clamp(5, 11));
+
+      // Exactly two opening tiles, each a 2 or a 4.
+      final tiles = [
+        for (final row in game.grid)
+          for (final v in row)
+            if (v != 0) v
+      ];
+      expect(tiles.length, 2);
+      for (final v in tiles) {
+        expect(v == 2 || v == 4, isTrue);
+      }
+      expect(game.reachedTarget, isFalse);
+      expect(game.hasMoves, isTrue);
+
+      // Deterministic opening.
+      expect(MergeGame.generate(level).grid.toString(), game.grid.toString());
+    }
+
+    // A real move merges, scores, spawns, and can reach the target.
+    final g = MergeGame.fromGrid([
+      [2, 2, 0, 0],
+      [0, 0, 0, 0],
+      [0, 0, 0, 0],
+      [0, 0, 0, 0],
+    ], target: 4);
+    expect(g.move(MergeDirection.left), isTrue);
+    expect(g.grid[0][0], 4);
+    expect(g.score, 4);
+    expect(g.reachedTarget, isTrue);
+    // The merge freed cells, so a tile spawned: 1 (merged) + 1 (spawn) = 2.
+    final count = [
+      for (final row in g.grid)
+        for (final v in row)
+          if (v != 0) v
+    ].length;
+    expect(count, 2);
+
+    // A move that changes nothing is a no-op (no spawn).
+    final noop = MergeGame.fromGrid([
+      [2, 0, 0, 0],
+      [0, 0, 0, 0],
+      [0, 0, 0, 0],
+      [0, 0, 0, 0],
+    ]);
+    expect(noop.move(MergeDirection.left), isFalse);
+    expect(noop.grid[0][0], 2);
+
+    // A full board with no equal neighbours has no moves.
+    final stuck = MergeGame.fromGrid([
+      [2, 4, 2, 4],
+      [4, 2, 4, 2],
+      [2, 4, 2, 4],
+      [4, 2, 4, 2],
+    ]);
+    expect(stuck.hasMoves, isFalse);
+  });
+
+  test('Merge: planSlides describes the tile motion', () {
+    // Two 2s in a row slide to column 0; the second merges into the first.
+    final slides = planSlides([
+      [2, 2, 0, 0],
+      [0, 0, 0, 0],
+      [0, 0, 0, 0],
+      [0, 0, 0, 0],
+    ], MergeDirection.left);
+    final top = slides.where((s) => s.fromRow == 0).toList();
+    expect(top.length, 2);
+    expect(top.every((s) => s.toRow == 0 && s.toCol == 0), isTrue);
+    expect(top.where((s) => s.merged).length, 1);
+
+    // A board already settled to the left doesn't change.
+    expect(
+        willChange([
+          [2, 0, 0, 0],
+          [0, 0, 0, 0],
+          [0, 0, 0, 0],
+          [0, 0, 0, 0],
+        ], MergeDirection.left),
+        isFalse);
+  });
+
+  testWidgets('Merge screen renders and the arrow pad responds',
+      (tester) async {
+    tester.view.physicalSize = const Size(1080, 2280);
+    tester.view.devicePixelRatio = 2.625;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(localizedApp(const MergeScreen(startLevel: 1)));
+    // Goal shown as a mini target tile (32 only appears there at level 1).
+    expect(find.text('32'), findsOneWidget);
+    expect(find.text('Score: 0'), findsOneWidget);
+
+    // Tapping an arrow slides the board (animates) without error.
+    await tester.tap(find.byKey(const ValueKey('merge_left')));
+    await tester.pump(); // start the slide
+    await tester.pump(const Duration(milliseconds: 200)); // finish it
+    await tester.pumpAndSettle(); // settle pops
+    expect(find.text('Level 1'), findsOneWidget);
   });
 
   testWidgets('How to play: shown once on first open, reopenable via ?',

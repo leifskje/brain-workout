@@ -46,6 +46,8 @@
   "gameCrackCodeSubtitle": "Gjett den hemmelige koden",
   "gameTrailTitle": "Følg sporet",
   "gameTrailSubtitle": "Trykk på sirklene i rekkefølge",
+  "gameMergeTitle": "2048",
+  "gameMergeSubtitle": "Slå sammen brikker til målet",
 
   "comingSoonTitle": "{game} kommer snart!",
   "comingSoonBody": "Vi jobber fortsatt med dette spillet. Kom tilbake senere.",
@@ -76,6 +78,7 @@
   "helpWordScramble": "Bokstavene i et kjent ord er stokket om. Trykk på dem i riktig rekkefølge for å stave ordet. Trykk på en bokstav i svaret for å legge den tilbake.",
   "helpCrackCode": "Finn den hemmelige koden! Etter hvert forsøk får du hint: en grønn prikk betyr riktig tall på riktig plass, en gul prikk betyr riktig tall på feil plass. Knekk koden før forsøkene er brukt opp.",
   "helpTrail": "Trykk på sirklene i rekkefølge: 1, 2, 3 … På høyere nivåer veksler du mellom tall og bokstaver: 1, A, 2, B. Feil trykk koster et hjerte.",
+  "helpMerge": "Sveip på brettet (eller bruk pilene) for å skyve alle brikkene én vei. Når to brikker med samme tall møtes, slås de sammen til én med dobbelt verdi. Nå målbrikken for å vinne.",
 
   "outOfHearts": "Tomt for hjerter",
   "outOfHeartsBody": "Ingen hjerter igjen. Vil du prøve nivået på nytt?",
@@ -104,6 +107,12 @@
   "crackCodeWas": "Koden var {code}.",
   "trailHint": "Trykk på sirklene i rekkefølge. Linjen følger fremgangen din.",
   "trailNext": "Neste: {label}",
+  "mergeHint": "Trykk på en pil for å skyve alle brikkene den veien. Like tall slås sammen.",
+  "mergeGoalLabel": "Lag:",
+  "mergeTarget": "Mål: {value}",
+  "mergeScore": "Poeng: {value}",
+  "noMoves": "Ingen flere trekk",
+  "noMovesBody": "Brettet er fullt. Vil du prøve nivået på nytt?",
 
   "notEnoughLetters": "For få bokstaver",
   "notInWordList": "Ordet er ikke i ordlisten",

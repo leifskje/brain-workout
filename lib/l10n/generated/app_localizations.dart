@@ -356,6 +356,18 @@ abstract class AppLocalizations {
   /// **'Tap the circles in order'**
   String get gameTrailSubtitle;
 
+  /// No description provided for @gameMergeTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'2048'**
+  String get gameMergeTitle;
+
+  /// No description provided for @gameMergeSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Merge tiles to the target'**
+  String get gameMergeSubtitle;
+
   /// No description provided for @comingSoonTitle.
   ///
   /// In en, this message translates to:
@@ -512,6 +524,12 @@ abstract class AppLocalizations {
   /// **'Tap the circles in order: 1, 2, 3 … On higher levels you alternate numbers and letters: 1, A, 2, B. A wrong tap costs a heart.'**
   String get helpTrail;
 
+  /// No description provided for @helpMerge.
+  ///
+  /// In en, this message translates to:
+  /// **'Swipe the board (or use the arrows) to slide all the tiles one way. When two tiles with the same number touch, they merge into one with double the value. Reach the target tile to win.'**
+  String get helpMerge;
+
   /// No description provided for @outOfHearts.
   ///
   /// In en, this message translates to:
@@ -661,6 +679,42 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Next: {label}'**
   String trailNext(String label);
+
+  /// No description provided for @mergeHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap an arrow to push every tile that way. Matching numbers merge.'**
+  String get mergeHint;
+
+  /// No description provided for @mergeGoalLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Make:'**
+  String get mergeGoalLabel;
+
+  /// No description provided for @mergeTarget.
+  ///
+  /// In en, this message translates to:
+  /// **'Target: {value}'**
+  String mergeTarget(int value);
+
+  /// No description provided for @mergeScore.
+  ///
+  /// In en, this message translates to:
+  /// **'Score: {value}'**
+  String mergeScore(int value);
+
+  /// No description provided for @noMoves.
+  ///
+  /// In en, this message translates to:
+  /// **'No more moves'**
+  String get noMoves;
+
+  /// No description provided for @noMovesBody.
+  ///
+  /// In en, this message translates to:
+  /// **'The board is full. Want to try this level again?'**
+  String get noMovesBody;
 
   /// No description provided for @notEnoughLetters.
   ///

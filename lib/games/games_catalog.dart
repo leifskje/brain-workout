@@ -4,6 +4,7 @@ import '../models/game_definition.dart';
 import 'arrow_escape/arrow_escape_screen.dart';
 import 'crack_code/crack_code_screen.dart';
 import 'memory_match/memory_match_screen.dart';
+import 'merge/merge_screen.dart';
 import 'mini_sudoku/mini_sudoku_screen.dart';
 import 'number_cross/number_cross_screen.dart';
 import 'simon/simon_screen.dart';
@@ -72,6 +73,15 @@ final List<GameDefinition> gamesCatalog = [
     color: const Color(0xFF5C6BC0),
     category: GameCategory.numbers,
     levelBuilder: (level) => MiniSudokuScreen(startLevel: level),
+  ),
+  GameDefinition(
+    id: 'merge',
+    title: (t) => t.gameMergeTitle,
+    subtitle: (t) => t.gameMergeSubtitle,
+    icon: Icons.apps_rounded,
+    color: const Color(0xFFEDB22E),
+    category: GameCategory.numbers,
+    levelBuilder: (level) => MergeScreen(startLevel: level),
   ),
   GameDefinition(
     id: 'memory_match',

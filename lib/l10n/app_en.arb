@@ -52,6 +52,8 @@
   "gameCrackCodeSubtitle": "Guess the secret code",
   "gameTrailTitle": "Follow the Trail",
   "gameTrailSubtitle": "Tap the circles in order",
+  "gameMergeTitle": "2048",
+  "gameMergeSubtitle": "Merge tiles to the target",
 
   "comingSoonTitle": "{game} is coming soon!",
   "@comingSoonTitle": {"placeholders": {"game": {"type": "String"}}},
@@ -85,6 +87,7 @@
   "helpWordScramble": "The letters of a familiar word have been shuffled. Tap them in the right order to spell the word. Tap a letter in your answer to put it back.",
   "helpCrackCode": "Find the secret code! After each guess you get clues: a green dot means a correct digit in the correct spot, a yellow dot means a correct digit in the wrong spot. Crack the code before your guesses run out.",
   "helpTrail": "Tap the circles in order: 1, 2, 3 … On higher levels you alternate numbers and letters: 1, A, 2, B. A wrong tap costs a heart.",
+  "helpMerge": "Swipe the board (or use the arrows) to slide all the tiles one way. When two tiles with the same number touch, they merge into one with double the value. Reach the target tile to win.",
 
   "outOfHearts": "Out of hearts",
   "outOfHeartsBody": "No hearts left. Want to try this level again?",
@@ -122,6 +125,14 @@
   "trailHint": "Tap the circles in order. The line follows your progress.",
   "trailNext": "Next: {label}",
   "@trailNext": {"placeholders": {"label": {"type": "String"}}},
+  "mergeHint": "Tap an arrow to push every tile that way. Matching numbers merge.",
+  "mergeGoalLabel": "Make:",
+  "mergeTarget": "Target: {value}",
+  "@mergeTarget": {"placeholders": {"value": {"type": "int"}}},
+  "mergeScore": "Score: {value}",
+  "@mergeScore": {"placeholders": {"value": {"type": "int"}}},
+  "noMoves": "No more moves",
+  "noMovesBody": "The board is full. Want to try this level again?",
 
   "notEnoughLetters": "Not enough letters",
   "notInWordList": "Not in word list",

@@ -156,6 +156,12 @@ class AppLocalizationsNb extends AppLocalizations {
   String get gameTrailSubtitle => 'Trykk på sirklene i rekkefølge';
 
   @override
+  String get gameMergeTitle => '2048';
+
+  @override
+  String get gameMergeSubtitle => 'Slå sammen brikker til målet';
+
+  @override
   String comingSoonTitle(String game) {
     return '$game kommer snart!';
   }
@@ -251,6 +257,10 @@ class AppLocalizationsNb extends AppLocalizations {
   @override
   String get helpTrail =>
       'Trykk på sirklene i rekkefølge: 1, 2, 3 … På høyere nivåer veksler du mellom tall og bokstaver: 1, A, 2, B. Feil trykk koster et hjerte.';
+
+  @override
+  String get helpMerge =>
+      'Sveip på brettet (eller bruk pilene) for å skyve alle brikkene én vei. Når to brikker med samme tall møtes, slås de sammen til én med dobbelt verdi. Nå målbrikken for å vinne.';
 
   @override
   String get outOfHearts => 'Tomt for hjerter';
@@ -353,6 +363,29 @@ class AppLocalizationsNb extends AppLocalizations {
   String trailNext(String label) {
     return 'Neste: $label';
   }
+
+  @override
+  String get mergeHint =>
+      'Trykk på en pil for å skyve alle brikkene den veien. Like tall slås sammen.';
+
+  @override
+  String get mergeGoalLabel => 'Lag:';
+
+  @override
+  String mergeTarget(int value) {
+    return 'Mål: $value';
+  }
+
+  @override
+  String mergeScore(int value) {
+    return 'Poeng: $value';
+  }
+
+  @override
+  String get noMoves => 'Ingen flere trekk';
+
+  @override
+  String get noMovesBody => 'Brettet er fullt. Vil du prøve nivået på nytt?';
 
   @override
   String get notEnoughLetters => 'For få bokstaver';

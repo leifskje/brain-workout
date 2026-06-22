@@ -19,6 +19,9 @@ they ship; add notes/links to per-game plan docs as they get designed.
 - [x] **Follow the Trail** — shipped; see `docs/plans/trail.md`. Classic
   trail-making: tap 1, 2, 3 … / 1, A, 2, B in order.
 
+- [x] **Merge / 2048** — shipped; see `docs/plans/merge.md`. Slide-and-merge
+  to a per-level target tile; swipe + arrow pad; no art.
+
 Lower priority / parked:
 
 - [ ] Tower of Hanoi — simple but gets samey.

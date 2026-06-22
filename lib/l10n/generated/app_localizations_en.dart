@@ -156,6 +156,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get gameTrailSubtitle => 'Tap the circles in order';
 
   @override
+  String get gameMergeTitle => '2048';
+
+  @override
+  String get gameMergeSubtitle => 'Merge tiles to the target';
+
+  @override
   String comingSoonTitle(String game) {
     return '$game is coming soon!';
   }
@@ -251,6 +257,10 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get helpTrail =>
       'Tap the circles in order: 1, 2, 3 … On higher levels you alternate numbers and letters: 1, A, 2, B. A wrong tap costs a heart.';
+
+  @override
+  String get helpMerge =>
+      'Swipe the board (or use the arrows) to slide all the tiles one way. When two tiles with the same number touch, they merge into one with double the value. Reach the target tile to win.';
 
   @override
   String get outOfHearts => 'Out of hearts';
@@ -352,6 +362,29 @@ class AppLocalizationsEn extends AppLocalizations {
   String trailNext(String label) {
     return 'Next: $label';
   }
+
+  @override
+  String get mergeHint =>
+      'Tap an arrow to push every tile that way. Matching numbers merge.';
+
+  @override
+  String get mergeGoalLabel => 'Make:';
+
+  @override
+  String mergeTarget(int value) {
+    return 'Target: $value';
+  }
+
+  @override
+  String mergeScore(int value) {
+    return 'Score: $value';
+  }
+
+  @override
+  String get noMoves => 'No more moves';
+
+  @override
+  String get noMovesBody => 'The board is full. Want to try this level again?';
 
   @override
   String get notEnoughLetters => 'Not enough letters';
