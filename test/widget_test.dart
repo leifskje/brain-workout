@@ -14,6 +14,7 @@ import 'package:brain_workout/games/number_cross/number_cross_screen.dart';
 import 'package:brain_workout/games/simon/simon_models.dart';
 import 'package:brain_workout/games/simon/simon_screen.dart';
 import 'package:brain_workout/games/snake_arrows/snake_arrows_models.dart';
+import 'package:brain_workout/games/snake_arrows/snake_arrows_screen.dart';
 import 'package:brain_workout/games/trail/trail_models.dart';
 import 'package:brain_workout/games/trail/trail_screen.dart';
 import 'package:brain_workout/games/what_next/what_next_models.dart';
@@ -162,6 +163,37 @@ void main() {
       }
       expect(board.isSolved, isTrue);
     }
+  });
+
+  testWidgets('Arrow Maze: tapping a clear arrow slithers it off the board',
+      (tester) async {
+    tester.view.physicalSize = const Size(1080, 2280);
+    tester.view.devicePixelRatio = 2.625;
+    addTearDown(tester.view.reset);
+
+    await tester
+        .pumpWidget(localizedApp(const SnakeArrowsScreen(startLevel: 1)));
+    final board = SnakeBoard.generate(1); // same seed as the screen
+    expect(find.byIcon(Icons.favorite_border_rounded), findsNothing);
+
+    // The painter taps by position, so aim at the centre of a body cell.
+    final rect = tester.getRect(find.byKey(const ValueKey('arrow_maze_board')));
+    final cell = rect.width / board.cols;
+    final arrow = board.arrows.firstWhere(board.isPathClear);
+    final target = arrow.cells.first;
+    await tester.tapAt(rect.topLeft +
+        Offset((target.col + 0.5) * cell, (target.row + 0.5) * cell));
+
+    // Pump mid-flight as well as after: the escape branch of the painter
+    // samples the body along its rail and is a separate path from the resting
+    // one, so both need to render without throwing.
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 200));
+    await tester.pump(const Duration(milliseconds: 400));
+    await tester.pumpAndSettle();
+
+    // A clear path costs no heart — a blocked tap would have emptied one.
+    expect(find.byIcon(Icons.favorite_border_rounded), findsNothing);
   });
 
   test('Snake boards fill the grid densely on higher levels', () {
