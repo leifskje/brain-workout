@@ -76,6 +76,45 @@ A pre-commit hook (`.githooks/pre-commit`, enabled via `core.hooksPath`) runs
   already placed; the reverse of placement order is then a valid solution. Levels
   are seeded by level number → deterministic and retry-stable. Tests assert
   solvability for levels 1–30 (`test/widget_test.dart`).
+- **Solvable is not the same as hard, and board size is a poor difficulty proxy.**
+  Arrow Maze once capped every knob by level 17, so level 42 was config-identical
+  to level 17 and measured as the *easiest* board in the game: 14×20, but ~7.5
+  arrows ready to fire at every step, so the player never had to plan. What
+  matters is the **branching factor**. `SnakeBoard.generate` now builds several
+  seeded candidates, measures each with `measureDifficulty()`, and keeps the one
+  closest to `snakeTargetBranchingForLevel`. Tune with
+  `dart run tool/analyze_snake_difficulty.dart` — it prints the achievable spread,
+  so targets stay inside what the generator can actually produce, and **re-run it
+  after any generator change**: improving how bodies fill also made every board
+  denser and harder, which put the old easy end of the curve out of reach. Don't
+  chase difficulty with a bigger grid: 14×20 is ~23dp per cell on a phone and is
+  the legibility floor for this audience.
+- **Fill the board by placing bodies well, not by back-filling.** Snake bodies
+  grow into the *most constrained* free cell (Warnsdorff-style) so they consume
+  dead ends instead of stranding pockets, and heads are placed in the *emptiest*
+  neighbourhood first so no region gets walled off — an enclosed void can never
+  be filled, because every ray out of it is blocked. Together these took late
+  levels from ~72% to ~85% coverage while making them harder. Both back-fill
+  approaches were tried and rejected, and `_build` documents why: extra snakes
+  placed late are removed *first*, so each is a free opening move (fill bought
+  with easiness), and growing existing tails is legal in almost no cell, because
+  a snake may only grow where no later-firing snake's exit ray passes.
+- **Coverage alone doesn't describe how a board looks** — 86% full read as broken
+  when the missing 14% pooled into one corner. `largestEmptyFraction` scores the
+  biggest contiguous gap and is weighted heavier than total coverage.
+- **Generation only invalidates its lookup tables when a snake is committed.** A
+  failed attempt leaves the board untouched, so rebuilding the ray tables and
+  candidate list every attempt (most of which fail on a too-short body) cost ~50x
+  for identical output. That headroom is what affords a 768-candidate pool, which
+  is what lets a board hit difficulty *and* coverage instead of trading them.
+  Generating a level takes ~400ms and that is a deliberate choice: it happens once
+  per level and nobody notices, whereas a patchy or flat board is obvious.
+- **Difficulty and coverage are a priority order, not a weighted blend.** Any board
+  within `onTargetTolerance` of the branching target counts as equally correct, and
+  coverage decides between them. Scored as one sum, a wide pool spent itself buying
+  branching precision from 0.1 to 0.0 — imperceptible — while giving up visible
+  coverage. Don't tighten the tolerance either: at 0.1 it rejected perfectly
+  playable boards and the fallback was worse on every axis.
 - **Create `AnimationController`s in `initState`, never as lazy `late final`
   fields.** A lazy controller can stay unconstructed during normal play and then
   get built inside `dispose()`, which performs a `TickerMode` ancestor lookup on a

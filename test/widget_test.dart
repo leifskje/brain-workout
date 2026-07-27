@@ -165,6 +165,50 @@ void main() {
     }
   });
 
+  test('Snake difficulty rises with level and stays on target', () {
+    // Guards the generator's difficulty gate. Size and density are poor proxies
+    // — level 42 once measured as the *easiest* board in the game, at 14x20 with
+    // 7.5 arrows ready to fire at every step — so assert on branching factor,
+    // which is what the gate targets.
+    double branchingAt(int level) =>
+        SnakeBoard.generate(level).measureDifficulty().meanBranching;
+
+    // Compare distant levels: adjacent ones legitimately vary, and asserting on
+    // a 0.1 gap would just be flaky.
+    expect(branchingAt(4) - branchingAt(42), greaterThan(0.5),
+        reason: 'late levels must force real planning, not just be big');
+    expect(branchingAt(42), lessThan(3.0),
+        reason: 'late levels should rarely offer an obvious move');
+
+    // The target curve itself must keep descending.
+    for (var level = 2; level <= 60; level++) {
+      expect(snakeTargetBranchingForLevel(level),
+          lessThanOrEqualTo(snakeTargetBranchingForLevel(level - 1)),
+          reason: 'difficulty target must not ease off at level $level');
+    }
+
+    for (final level in [1, 10, 20, 30, 40]) {
+      final board = SnakeBoard.generate(level);
+      final d = board.measureDifficulty();
+      expect(d.solvableGreedily, isTrue, reason: 'level $level got stuck');
+      // The generator can't always hit the target; it must land near it.
+      expect((d.meanBranching - snakeTargetBranchingForLevel(level)).abs(),
+          lessThan(0.8),
+          reason: 'level $level drifted off its difficulty target');
+      // A patchy board reads as unfinished even when it plays well — and where
+      // the gaps sit matters more than how many there are, so bound both.
+      expect(board.fillFraction, greaterThan(0.65),
+          reason: 'level $level left too much of the grid bare');
+      expect(board.largestEmptyFraction, lessThan(0.2),
+          reason: 'level $level pooled its empty cells into one visible void');
+    }
+
+    // Late levels also allow less margin for error and no trivial filler.
+    expect(snakeConfigForLevel(42).hearts, lessThan(snakeConfigForLevel(1).hearts));
+    expect(snakeConfigForLevel(42).minLength,
+        greaterThan(snakeConfigForLevel(1).minLength));
+  });
+
   testWidgets('Arrow Maze: tapping a clear arrow slithers it off the board',
       (tester) async {
     tester.view.physicalSize = const Size(1080, 2280);
