@@ -37,6 +37,45 @@ Claude Code — that file is gitignored and machine-local).
 
 ## Run
 
+### From VS Code (the play button)
+
+`.vscode/launch.json` is checked in, so with any Dart file open press **F5** —
+or pick a config in the **Run and Debug** panel:
+
+| Config | Device | Notes |
+|---|---|---|
+| Brain Workout (Android) | `android` | **Default on F5.** Boots the emulator itself |
+| Brain Workout (Windows desktop) | `windows` | No emulator, starts in seconds |
+| Brain Workout (Chrome) | `chrome` | Works on any machine, incl. Windows ARM |
+| Brain Workout (pick device) | — | Prompts for the device |
+| Brain Workout (Android, profile mode) | `android` | Release-ish timings; no hot reload |
+
+F5 needs no setup: the Android configs run
+[`tool/boot_emulator.ps1`](tool/boot_emulator.ps1) as a `preLaunchTask`, which
+starts `pixel_api35` and waits for `sys.boot_completed`. If the emulator is
+already up, or a phone is attached over USB, it exits in well under a second.
+
+`.vscode/tasks.json` adds tasks (**Ctrl+Shift+P → Tasks: Run Task**): *Boot
+Android emulator* — also the default build task, **Ctrl+Shift+B**, for booting
+the emulator ahead of time — plus *Analyze*, *Test*, and *Regenerate
+localizations*.
+
+Breakpoints work in the editor gutter, and
+**Ctrl+Shift+P → Flutter: Open DevTools** opens the widget inspector.
+
+#### Getting new code onto the running device
+
+| | How | Keeps app state? | Use for |
+|---|---|---|---|
+| **Hot reload** | **Ctrl+S** (or ⚡ in the debug toolbar / Ctrl+F5) | Yes — you stay on the same screen | Almost everything: widgets, painters, layout, logic |
+| **Hot restart** | ⟳ in the debug toolbar (Ctrl+Shift+F5) | No — restarts at the home screen | `main()`, `initState`, globals, enum/type changes |
+| **Full rebuild** | Stop (■) then F5 | No | `pubspec.yaml`, new assets, `.arb` files, anything under `android/` |
+
+Hot reload only fires on a *manual* save (`dart.flutterHotReloadOnSave` defaults
+to `manual`). If you ever turn on `files.autoSave`, set that to `all` too.
+
+### From the terminal
+
 ```powershell
 flutter emulators --launch pixel_api35   # or any AVD / a phone over USB
 flutter run                              # Android

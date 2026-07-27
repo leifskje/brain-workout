@@ -1,0 +1,50 @@
+{
+  // Press F5 (or the ▷ button) to run the first config below — Android on the
+  // emulator, which boots itself via the preLaunchTask if it isn't up yet.
+  // Use the dropdown in the Run and Debug panel to pick another config.
+  "version": "0.2.0",
+  "configurations": [
+    {
+      // Default. The preLaunchTask boots pixel_api35 and waits for it; if a
+      // phone is on USB or the emulator is already running it's a no-op.
+      "name": "Brain Workout (Android)",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main.dart",
+      "deviceId": "android",
+      "preLaunchTask": "Boot Android emulator"
+    },
+    {
+      // No emulator, boots in a few seconds — handy for pure UI/layout work.
+      "name": "Brain Workout (Windows desktop)",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main.dart",
+      "deviceId": "windows"
+    },
+    {
+      "name": "Brain Workout (Chrome)",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main.dart",
+      "deviceId": "chrome"
+    },
+    {
+      // Fallback: no deviceId, so VS Code asks which device to use.
+      "name": "Brain Workout (pick device)",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main.dart"
+    },
+    {
+      // Release-ish timings on a real device; no hot reload in profile mode.
+      "name": "Brain Workout (Android, profile mode)",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main.dart",
+      "deviceId": "android",
+      "flutterMode": "profile",
+      "preLaunchTask": "Boot Android emulator"
+    }
+  ]
+}

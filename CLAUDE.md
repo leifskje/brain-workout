@@ -36,6 +36,15 @@ is provided via `.claude/settings.local.json`.
 - Test: `flutter test`
 - Build debug APK: `flutter build apk --debug`
 
+The owner runs the app from VS Code's play button (F5), not the terminal:
+`.vscode/launch.json` holds the debug configs (Android on the emulator is the
+F5 default, plus Windows desktop / Chrome / profile mode) and `.vscode/tasks.json`
+wraps analyze / test / gen-l10n. The Android configs boot the AVD themselves via
+`tool/boot_emulator.ps1` as a `preLaunchTask` (idempotent — it no-ops when a
+device is already attached). All checked in; keep them in sync with the command
+list above. Agents still use `flutter test` / `flutter analyze` directly and do
+**not** launch the app (see the top section).
+
 A pre-commit hook (`.githooks/pre-commit`, enabled via `core.hooksPath`) runs
 `flutter analyze` before each commit. Bypass with `git commit --no-verify`.
 
