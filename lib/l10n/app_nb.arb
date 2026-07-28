@@ -140,5 +140,12 @@
   "creditsDwylName": "english-words (engelsk)",
   "creditsDwylBody": "Fra listen dwyl/english-words, frigitt til offentlig eiendom.",
   "creditsDwylChanges": "Tilpasset denne appen: filtrert til ord på 3–8 bokstaver.",
-  "creditsLicenceLink": "Les lisensen CC BY 4.0"
+  "creditsLicenceLink": "Les lisensen CC BY 4.0",
+  "creditsShareAlikeLink": "Les lisensen CC BY-SA 4.0",
+  "creditsScowlName": "SCOWL (engelsk ordvanskelighet)",
+  "creditsScowlBody": "Vanskelighetsnivåene for engelske ord kommer fra SCOWL, Spell Checker Oriented Word List, som fritt kan brukes, kopieres, endres og distribueres til alle formål.",
+  "creditsScowlChanges": "Tilpasset denne appen: hvert ord merket med den minste SCOWL-størrelsen det finnes i, som et mål på hvor vanlig det er.",
+  "creditsFreqName": "Norske ordfrekvenser",
+  "creditsFreqBody": "Vanskelighetsnivået for norske ord kommer fra FrequencyWords-listene (Hermit Dave, laget fra OpenSubtitles-data), brukt under lisensen Creative Commons Navngivelse-DelPåSammeVilkår 4.0. På grunn av del-på-samme-vilkår er den norske ordlisten denne appen bruker også tilgjengelig under CC BY-SA 4.0.",
+  "creditsFreqChanges": "Tilpasset denne appen: frekvensrangeringer redusert til fire vanskelighetsnivåer og koblet mot ordlisten fra Norsk ordbank."
 }

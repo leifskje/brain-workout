@@ -14,10 +14,38 @@ import 'package:flutter/services.dart' show rootBundle;
 /// This list is far larger and deliberately exhaustive — inflections, archaisms
 /// and obscurities included — because its only job is answering "is that a
 /// word?", never "is that a good puzzle?".
-class Dictionary {
-  Dictionary._(this._words);
+/// How common a word is, used to pick puzzle words that are hard but fair.
+///
+/// Sourced from SCOWL's size tiers (English) and corpus frequency rank
+/// (Norwegian) — see `lib/screens/credits_screen.dart` for attribution.
+enum WordTier {
+  /// Everyday vocabulary: ABDUCT, ANGREP.
+  common,
 
-  final Set<String> _words;
+  /// Ordinary but less frequent: ABSEIL, AKSENT.
+  normal,
+
+  /// Rare and real — the hard end of a fair puzzle: ABBACY, ADELIG.
+  lessCommon,
+
+  /// Obscure to the point of being unfair: AALIIS, ABRODD. Valid for *checking*
+  /// a word, never for setting one. Puzzle code must not draw from this tier.
+  junk;
+
+  static WordTier fromCode(String code) => switch (code) {
+        '1' => WordTier.common,
+        '2' => WordTier.normal,
+        '3' => WordTier.lessCommon,
+        _ => WordTier.junk,
+      };
+}
+
+class Dictionary {
+  Dictionary._(this._tiers);
+
+  final Map<String, WordTier> _tiers;
+
+  Iterable<String> get words => _tiers.keys;
 
   static final Map<String, Dictionary> _cache = {};
   static final Map<String, Future<Dictionary>> _loading = {};
@@ -38,11 +66,21 @@ class Dictionary {
     } on Exception {
       text = await rootBundle.loadString('assets/words/en_all.txt');
     }
-    final words = <String>{
-      for (final line in const LineSplitter().convert(text))
-        if (line.trim().isNotEmpty) line.trim().toUpperCase(),
-    };
-    final dict = Dictionary._(words);
+    // Each line is WORD<TAB>tier. A line without a tier still counts as a valid
+    // word (falling back to junk), so a malformed row can never make a real word
+    // look unreal and cost the player a heart.
+    final tiers = <String, WordTier>{};
+    for (final line in const LineSplitter().convert(text)) {
+      if (line.trim().isEmpty) continue;
+      final tab = line.indexOf('\t');
+      if (tab < 0) {
+        tiers[line.trim().toUpperCase()] = WordTier.junk;
+      } else {
+        tiers[line.substring(0, tab).trim().toUpperCase()] =
+            WordTier.fromCode(line.substring(tab + 1).trim());
+      }
+    }
+    final dict = Dictionary._(tiers);
     _cache[language] = dict;
     _loading.remove(language);
     return dict;
@@ -52,7 +90,18 @@ class Dictionary {
   /// the UI treat a not-yet-loaded dictionary as "can't tell" rather than block.
   static Dictionary? loaded(String language) => _cache[language];
 
-  int get count => _words.length;
+  int get count => _tiers.length;
 
-  bool contains(String word) => _words.contains(word.toUpperCase());
+  bool contains(String word) => _tiers.containsKey(word.toUpperCase());
+
+  /// How common [word] is, or null if it isn't a word at all.
+  WordTier? tierOf(String word) => _tiers[word.toUpperCase()];
+
+  /// Words of [length] within [tiers], for choosing puzzle words. Never returns
+  /// [WordTier.junk] entries unless explicitly asked for them.
+  List<String> wordsOfLength(int length, Set<WordTier> tiers) => [
+        for (final entry in _tiers.entries)
+          if (entry.key.length == length && tiers.contains(entry.value))
+            entry.key,
+      ];
 }

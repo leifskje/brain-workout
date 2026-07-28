@@ -97,6 +97,15 @@ void main() {
     // The public-domain English list is credited alongside it.
     expect(find.textContaining('dwyl'), findsOneWidget);
 
+    // Share-alike is a stronger obligation than plain CC BY: the Norwegian list
+    // we ship is itself CC BY-SA because it derives from that frequency data, and
+    // the screen has to say so.
+    await tester.scrollUntilVisible(find.textContaining('ShareAlike'), 200,
+        scrollable: find.byType(Scrollable).first);
+    expect(find.textContaining('ShareAlike'), findsOneWidget,
+        reason: 'CC BY-SA requires identifying the share-alike licence');
+    expect(find.textContaining('available under CC BY-SA'), findsOneWidget,
+        reason: 'share-alike obliges us to pass the same licence on');
   });
 
   testWidgets('Language menu switches the app to Norwegian', (tester) async {

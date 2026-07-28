@@ -163,5 +163,12 @@
   "creditsDwylName": "english-words (English)",
   "creditsDwylBody": "From the dwyl/english-words list, released into the public domain.",
   "creditsDwylChanges": "Adapted for this app: filtered to words of 3–8 letters.",
-  "creditsLicenceLink": "Read the CC BY 4.0 licence"
+  "creditsLicenceLink": "Read the CC BY 4.0 licence",
+  "creditsShareAlikeLink": "Read the CC BY-SA 4.0 licence",
+  "creditsScowlName": "SCOWL (English word difficulty)",
+  "creditsScowlBody": "Word difficulty tiers come from SCOWL, the Spell Checker Oriented Word List, which may be used, copied, modified and distributed for any purpose.",
+  "creditsScowlChanges": "Adapted for this app: each word tagged with the smallest SCOWL size containing it, as a measure of how common it is.",
+  "creditsFreqName": "Norwegian word frequencies",
+  "creditsFreqBody": "Norwegian word difficulty comes from the FrequencyWords lists (Hermit Dave, built from OpenSubtitles data), used under the Creative Commons Attribution-ShareAlike 4.0 licence. Because of the share-alike term, the Norwegian word list this app ships is itself available under CC BY-SA 4.0.",
+  "creditsFreqChanges": "Adapted for this app: frequency ranks reduced to four difficulty tiers and matched against the Norsk ordbank word list."
 }

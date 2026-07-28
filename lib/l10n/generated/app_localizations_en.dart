@@ -483,4 +483,29 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get creditsLicenceLink => 'Read the CC BY 4.0 licence';
+
+  @override
+  String get creditsShareAlikeLink => 'Read the CC BY-SA 4.0 licence';
+
+  @override
+  String get creditsScowlName => 'SCOWL (English word difficulty)';
+
+  @override
+  String get creditsScowlBody =>
+      'Word difficulty tiers come from SCOWL, the Spell Checker Oriented Word List, which may be used, copied, modified and distributed for any purpose.';
+
+  @override
+  String get creditsScowlChanges =>
+      'Adapted for this app: each word tagged with the smallest SCOWL size containing it, as a measure of how common it is.';
+
+  @override
+  String get creditsFreqName => 'Norwegian word frequencies';
+
+  @override
+  String get creditsFreqBody =>
+      'Norwegian word difficulty comes from the FrequencyWords lists (Hermit Dave, built from OpenSubtitles data), used under the Creative Commons Attribution-ShareAlike 4.0 licence. Because of the share-alike term, the Norwegian word list this app ships is itself available under CC BY-SA 4.0.';
+
+  @override
+  String get creditsFreqChanges =>
+      'Adapted for this app: frequency ranks reduced to four difficulty tiers and matched against the Norsk ordbank word list.';
 }

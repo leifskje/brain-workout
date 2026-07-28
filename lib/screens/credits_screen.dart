@@ -17,6 +17,8 @@ class CreditsScreen extends StatelessWidget {
   const CreditsScreen({super.key});
 
   static const _licenceUrl = 'https://creativecommons.org/licenses/by/4.0/';
+  static const _shareAlikeUrl =
+      'https://creativecommons.org/licenses/by-sa/4.0/';
 
   @override
   Widget build(BuildContext context) {
@@ -48,6 +50,23 @@ class CreditsScreen extends StatelessWidget {
             name: t.creditsDwylName,
             body: t.creditsDwylBody,
             changes: t.creditsDwylChanges,
+          ),
+          const SizedBox(height: 20),
+          _Credit(
+            name: t.creditsScowlName,
+            body: t.creditsScowlBody,
+            changes: t.creditsScowlChanges,
+          ),
+          const SizedBox(height: 20),
+          // Share-alike, unlike the others: the Norwegian list we ship is itself
+          // CC BY-SA because it is derived from this data. The body text says so
+          // — that statement is the obligation, so don't trim it.
+          _Credit(
+            name: t.creditsFreqName,
+            body: t.creditsFreqBody,
+            changes: t.creditsFreqChanges,
+            linkLabel: t.creditsShareAlikeLink,
+            url: _shareAlikeUrl,
           ),
         ],
       ),

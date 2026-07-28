@@ -484,4 +484,29 @@ class AppLocalizationsNb extends AppLocalizations {
 
   @override
   String get creditsLicenceLink => 'Les lisensen CC BY 4.0';
+
+  @override
+  String get creditsShareAlikeLink => 'Les lisensen CC BY-SA 4.0';
+
+  @override
+  String get creditsScowlName => 'SCOWL (engelsk ordvanskelighet)';
+
+  @override
+  String get creditsScowlBody =>
+      'Vanskelighetsnivåene for engelske ord kommer fra SCOWL, Spell Checker Oriented Word List, som fritt kan brukes, kopieres, endres og distribueres til alle formål.';
+
+  @override
+  String get creditsScowlChanges =>
+      'Tilpasset denne appen: hvert ord merket med den minste SCOWL-størrelsen det finnes i, som et mål på hvor vanlig det er.';
+
+  @override
+  String get creditsFreqName => 'Norske ordfrekvenser';
+
+  @override
+  String get creditsFreqBody =>
+      'Vanskelighetsnivået for norske ord kommer fra FrequencyWords-listene (Hermit Dave, laget fra OpenSubtitles-data), brukt under lisensen Creative Commons Navngivelse-DelPåSammeVilkår 4.0. På grunn av del-på-samme-vilkår er den norske ordlisten denne appen bruker også tilgjengelig under CC BY-SA 4.0.';
+
+  @override
+  String get creditsFreqChanges =>
+      'Tilpasset denne appen: frekvensrangeringer redusert til fire vanskelighetsnivåer og koblet mot ordlisten fra Norsk ordbank.';
 }

@@ -877,6 +877,48 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Read the CC BY 4.0 licence'**
   String get creditsLicenceLink;
+
+  /// No description provided for @creditsShareAlikeLink.
+  ///
+  /// In en, this message translates to:
+  /// **'Read the CC BY-SA 4.0 licence'**
+  String get creditsShareAlikeLink;
+
+  /// No description provided for @creditsScowlName.
+  ///
+  /// In en, this message translates to:
+  /// **'SCOWL (English word difficulty)'**
+  String get creditsScowlName;
+
+  /// No description provided for @creditsScowlBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Word difficulty tiers come from SCOWL, the Spell Checker Oriented Word List, which may be used, copied, modified and distributed for any purpose.'**
+  String get creditsScowlBody;
+
+  /// No description provided for @creditsScowlChanges.
+  ///
+  /// In en, this message translates to:
+  /// **'Adapted for this app: each word tagged with the smallest SCOWL size containing it, as a measure of how common it is.'**
+  String get creditsScowlChanges;
+
+  /// No description provided for @creditsFreqName.
+  ///
+  /// In en, this message translates to:
+  /// **'Norwegian word frequencies'**
+  String get creditsFreqName;
+
+  /// No description provided for @creditsFreqBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Norwegian word difficulty comes from the FrequencyWords lists (Hermit Dave, built from OpenSubtitles data), used under the Creative Commons Attribution-ShareAlike 4.0 licence. Because of the share-alike term, the Norwegian word list this app ships is itself available under CC BY-SA 4.0.'**
+  String get creditsFreqBody;
+
+  /// No description provided for @creditsFreqChanges.
+  ///
+  /// In en, this message translates to:
+  /// **'Adapted for this app: frequency ranks reduced to four difficulty tiers and matched against the Norsk ordbank word list.'**
+  String get creditsFreqChanges;
 }
 
 class _AppLocalizationsDelegate
