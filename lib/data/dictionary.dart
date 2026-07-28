@@ -2,6 +2,8 @@ import 'dart:convert';
 
 import 'package:flutter/services.dart' show rootBundle;
 
+import 'word_tier.dart';
+
 /// The full 3-8 letter word list for a language, used to tell a *near miss*
 /// from a mistake.
 ///
@@ -14,32 +16,6 @@ import 'package:flutter/services.dart' show rootBundle;
 /// This list is far larger and deliberately exhaustive — inflections, archaisms
 /// and obscurities included — because its only job is answering "is that a
 /// word?", never "is that a good puzzle?".
-/// How common a word is, used to pick puzzle words that are hard but fair.
-///
-/// Sourced from SCOWL's size tiers (English) and corpus frequency rank
-/// (Norwegian) — see `lib/screens/credits_screen.dart` for attribution.
-enum WordTier {
-  /// Everyday vocabulary: ABDUCT, ANGREP.
-  common,
-
-  /// Ordinary but less frequent: ABSEIL, AKSENT.
-  normal,
-
-  /// Rare and real — the hard end of a fair puzzle: ABBACY, ADELIG.
-  lessCommon,
-
-  /// Obscure to the point of being unfair: AALIIS, ABRODD. Valid for *checking*
-  /// a word, never for setting one. Puzzle code must not draw from this tier.
-  junk;
-
-  static WordTier fromCode(String code) => switch (code) {
-        '1' => WordTier.common,
-        '2' => WordTier.normal,
-        '3' => WordTier.lessCommon,
-        _ => WordTier.junk,
-      };
-}
-
 class Dictionary {
   Dictionary._(this._tiers);
 

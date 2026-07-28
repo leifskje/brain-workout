@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:brain_workout/data/dictionary.dart';
 import 'package:brain_workout/data/word_pool.dart';
+import 'package:brain_workout/data/word_tier.dart';
 import 'package:brain_workout/games/arrow_escape/arrow_escape_models.dart';
 import 'package:brain_workout/games/crack_code/crack_code_models.dart';
 import 'package:brain_workout/games/crack_code/crack_code_screen.dart';
@@ -742,6 +743,53 @@ void main() {
         expect(entry.value.length, 1,
             reason: '$lang "${entry.key}" is in more than one category');
       }
+    }
+  });
+
+  test('Word Scramble difficulty climbs into rarer, longer words', () {
+    // Levels used to be identical from 10 onwards. Early levels draw the curated
+    // pool so a category can be shown; later ones reach into the dictionary,
+    // where having no category is itself part of the difficulty.
+    final early = wordScrambleConfigForLevel(10);
+    final mid = wordScrambleConfigForLevel(20);
+    final late = wordScrambleConfigForLevel(40);
+
+    expect(early.fromPool, isTrue);
+    expect(mid.fromPool, isFalse,
+        reason: 'the pool has only 11 English 8-letter words; it runs out');
+    expect(late.minLen, greaterThan(mid.minLen));
+    expect(late.words, greaterThan(mid.words));
+    expect(late.tiers, contains(WordTier.lessCommon),
+        reason: 'late levels should reach rarer vocabulary');
+
+    // Junk is never a puzzle source, at any level.
+    for (var level = 1; level <= 60; level++) {
+      expect(wordScrambleConfigForLevel(level).tiers,
+          isNot(contains(WordTier.junk)),
+          reason: 'level $level would serve unfair words');
+    }
+
+    // Pool levels always carry a category; the fallback must not crash without a
+    // dictionary, it just serves pool words instead.
+    expect(generateScrambleRound(3, 'en').every((w) => w.category != null),
+        isTrue);
+    expect(generateScrambleRound(40, 'en'), isNotEmpty);
+  });
+
+  test('Offensive words can be checked but never set as puzzles', () {
+    // The dictionary is exhaustive, so it contains crude words — CRAPPERS turned
+    // up in a level-25 round. They must stay valid for the near-miss check while
+    // being excluded from every puzzle tier.
+    final tiers = <String, String>{};
+    for (final line in File('assets/words/en_all.txt').readAsLinesSync()) {
+      final parts = line.split('\t');
+      if (parts.length == 2) tiers[parts[0]] = parts[1];
+    }
+    for (final word in ['CRAP', 'CRAPPERS', 'BULLSHIT', 'BUGGER', 'TURD']) {
+      expect(tiers[word], isNotNull,
+          reason: '$word should still be a recognised word');
+      expect(tiers[word], '4',
+          reason: '$word must not be available as a puzzle answer');
     }
   });
 

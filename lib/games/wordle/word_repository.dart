@@ -4,6 +4,7 @@ import 'dart:math';
 import 'package:flutter/services.dart' show rootBundle;
 
 import '../../data/dictionary.dart';
+import '../../data/word_tier.dart';
 import 'wordle_models.dart';
 
 /// Loads and serves a language's word list (bundled asset). Caches per language

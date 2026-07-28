@@ -46,6 +46,14 @@ class _WordScrambleScreenState extends State<WordScrambleScreen> {
   /// Kept on screen rather than flashed, so there is time to read it.
   String? _nearMissWord;
 
+  /// Whether "new word" was used this level. Swapping is free of hearts but caps
+  /// the level at 2 stars: a comfort for someone stuck, not a route to 3 stars.
+  bool _usedNewWord = false;
+
+  /// How many times the current word has been swapped, so repeated presses keep
+  /// moving through the candidates instead of cycling between two words.
+  int _swaps = 0;
+
   ScrambleWord get _word => _round![_wordIndex];
 
   @override
@@ -57,7 +65,17 @@ class _WordScrambleScreenState extends State<WordScrambleScreen> {
     // Warm the near-miss dictionary. Nothing waits on it: until it arrives a
     // wrong answer is simply treated as a mistake, which is the old behaviour.
     Dictionary.forLanguage(_language).then((_) {
-      if (mounted) setState(() {});
+      if (!mounted) return;
+      // Later levels draw their words from the dictionary. If it wasn't ready
+      // when the level loaded we fell back to the curated pool, so rebuild once
+      // it arrives — but only before the player has touched anything.
+      final needsDictionary = !wordScrambleConfigForLevel(_level).fromPool;
+      final untouched = _wordIndex == 0 && !_slots.any((s) => s != null);
+      if (needsDictionary && untouched && !_usedNewWord) {
+        _loadLevel(_level);
+      } else {
+        setState(() {});
+      }
     });
     _loadLevel(widget.startLevel);
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -70,14 +88,47 @@ class _WordScrambleScreenState extends State<WordScrambleScreen> {
     });
   }
 
+  /// Feeds dictionary words to the generator for the levels that need them.
+  /// Null until the asset has loaded, which the generator treats as "use the
+  /// curated pool" rather than failing.
+  DictionaryWords? get _dictionaryWords {
+    final dictionary = Dictionary.loaded(_language);
+    if (dictionary == null) return null;
+    return dictionary.wordsOfLength;
+  }
+
   void _loadLevel(int level) {
     ProgressStore.instance.recordReached(_gameId, level);
     setState(() {
       _level = level;
-      _round = generateScrambleRound(level, _language);
+      _round = generateScrambleRound(level, _language,
+          dictionaryWords: _dictionaryWords);
       _wordIndex = 0;
       _hearts = wordScrambleConfigForLevel(level).hearts;
       _busy = false;
+      _usedNewWord = false;
+      _swaps = 0;
+      _resetSlots();
+    });
+  }
+
+  /// Swap the current word for another of the same difficulty. Free, but the
+  /// level can no longer earn 3 stars — someone who cannot proceed would
+  /// otherwise just close the app, which is worse than a soft way out.
+  void _newWord() {
+    if (_busy) return;
+    HapticFeedback.selectionClick();
+    setState(() {
+      _swaps++;
+      _usedNewWord = true;
+      _nearMissWord = null;
+      _round![_wordIndex] = swapScrambleWord(
+        _level,
+        _language,
+        _wordIndex,
+        _swaps,
+        dictionaryWords: _dictionaryWords,
+      );
       _resetSlots();
     });
   }
@@ -183,7 +234,9 @@ class _WordScrambleScreenState extends State<WordScrambleScreen> {
     if (!mounted) return;
     HapticFeedback.heavyImpact();
     final lost = wordScrambleConfigForLevel(_level).hearts - _hearts;
-    final stars = lost == 0 ? 3 : (lost <= 2 ? 2 : 1);
+    var stars = lost == 0 ? 3 : (lost <= 2 ? 2 : 1);
+    // Swapping a word forfeits the perfect score.
+    if (_usedNewWord && stars == 3) stars = 2;
     ProgressStore.instance
       ..registerPlay(_gameId)
       ..recordStars(_gameId, _level, stars);
@@ -259,12 +312,30 @@ class _WordScrambleScreenState extends State<WordScrambleScreen> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     // Above the answer, so it is read before the letters are
-                    // tapped rather than after getting it wrong.
-                    CategoryChip(category: _word.category, accent: _accent),
-                    const SizedBox(height: 28),
+                    // tapped rather than after getting it wrong. Dictionary
+                    // levels have no category — losing the hint is part of why
+                    // they are harder.
+                    if (_word.category != null) ...[
+                      CategoryChip(
+                          category: _word.category!, accent: _accent),
+                      const SizedBox(height: 28),
+                    ],
                     _buildSlots(),
                     const SizedBox(height: 36),
                     _buildLetters(),
+                    const SizedBox(height: 24),
+                    TextButton.icon(
+                      onPressed: _busy ? null : _newWord,
+                      icon: const Icon(Icons.refresh_rounded, size: 24),
+                      label: Text(AppLocalizations.of(context).newWord,
+                          style: const TextStyle(fontSize: 17)),
+                      style: TextButton.styleFrom(
+                        foregroundColor: _accent,
+                        // Generous target, per the app's UX rules.
+                        minimumSize: const Size(0, 52),
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                      ),
+                    ),
                   ],
                 ),
               ),
