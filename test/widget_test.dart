@@ -96,6 +96,7 @@ void main() {
         reason: 'CC BY requires stating that the data was modified');
     // The public-domain English list is credited alongside it.
     expect(find.textContaining('dwyl'), findsOneWidget);
+
   });
 
   testWidgets('Language menu switches the app to Norwegian', (tester) async {
@@ -160,6 +161,52 @@ void main() {
     store.recordStars('g', 1, 3); // best kept
     store.recordStars('g', 2, 1);
     expect(store.totalStars('g'), 4);
+  });
+
+  test('Difficulty keeps climbing past the early levels', () {
+    // Every game used to plateau — 11 of 12 were identical from level 20 on, and
+    // seven from level 12, which made every higher level number decorative.
+    // These assert the curve still moves where it was uncapped; run
+    // `dart run tool/analyze_level_curves.dart` to see all of them at once.
+    expect(simonConfigForLevel(30).targetLength,
+        greaterThan(simonConfigForLevel(20).targetLength));
+    expect(trailConfigForLevel(40).count,
+        greaterThan(trailConfigForLevel(20).count));
+    expect(crackCodeConfigForLevel(30).length,
+        greaterThan(crackCodeConfigForLevel(15).length));
+    expect(miniSudokuConfigForLevel(16).blanks,
+        greaterThan(miniSudokuConfigForLevel(13).blanks));
+    expect(configForLevel(21).rows, greaterThan(configForLevel(13).rows));
+    expect(configForLevel(21).arrowCount,
+        greaterThan(configForLevel(13).arrowCount));
+  });
+
+  test('Arrow Escape stays solvable at the new high levels', () {
+    // The grid now grows to 9x9 at 68% density instead of stopping at 7x7/60%,
+    // so generation has to still succeed and stay clearable well past level 30.
+    for (final level in [21, 30, 40, 60]) {
+      final board = ArrowBoard.generate(level);
+      expect(board.pieces, isNotEmpty, reason: 'level $level produced no arrows');
+      for (final piece in board.pieces.reversed) {
+        expect(board.isPathClear(piece), isTrue,
+            reason: 'level $level not solvable at piece ${piece.id}');
+        piece.escaped = true;
+      }
+      expect(board.isSolved, isTrue);
+    }
+  });
+
+  test('Mini Sudoku stays uniquely solvable at the hardest levels', () {
+    // blanks is only a target; the generator stops digging when uniqueness would
+    // be lost. Assert it really does dig deeper now, and that what it produces is
+    // still a valid puzzle.
+    for (final level in [16, 30, 50]) {
+      final board = MiniSudokuBoard.generate(level);
+      final blanks = board.cells.expand((r) => r).where((c) => !c.given).length;
+      expect(blanks, greaterThan(45),
+          reason: 'level $level dug only $blanks blanks');
+      expect(board.isSolved, isFalse);
+    }
   });
 
   test('Generated levels are always solvable', () {
@@ -664,9 +711,10 @@ void main() {
     // check would reject, and in exactly one category — a word in two
     // categories would make the hint ambiguous, which defeats the point.
     for (final lang in categorisedWords.keys) {
+      // Lines are WORD<TAB>tier.
       final dict = File('assets/words/${lang}_all.txt')
           .readAsLinesSync()
-          .map((l) => l.trim().toUpperCase())
+          .map((l) => l.split('	').first.trim().toUpperCase())
           .where((l) => l.isNotEmpty)
           .toSet();
       final categories = <String, Set<WordCategory>>{};
@@ -732,7 +780,7 @@ void main() {
     // candidate level instead made this test take minutes.
     final bySignature = <String, List<String>>{};
     for (final line in File('assets/words/en_all.txt').readAsLinesSync()) {
-      final w = line.trim().toUpperCase();
+      final w = line.split('	').first.trim().toUpperCase();
       if (w.isNotEmpty) {
         bySignature.putIfAbsent(signature(w), () => []).add(w);
       }

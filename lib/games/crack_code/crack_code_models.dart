@@ -29,7 +29,19 @@ CrackCodeConfig crackCodeConfigForLevel(int level) {
   if (level < 12) {
     return const CrackCodeConfig(length: 4, symbols: 7, maxGuesses: 9);
   }
-  return const CrackCodeConfig(length: 5, symbols: 8, maxGuesses: 10);
+  // Kept climbing past here rather than stopping at 5/8/10, which used to be
+  // every level from 12 upwards. Guesses grow alongside length and symbols so
+  // the harder codes stay deducible rather than becoming a lottery.
+  if (level < 18) {
+    return const CrackCodeConfig(length: 5, symbols: 8, maxGuesses: 10);
+  }
+  if (level < 26) {
+    return const CrackCodeConfig(length: 5, symbols: 9, maxGuesses: 10);
+  }
+  if (level < 36) {
+    return const CrackCodeConfig(length: 6, symbols: 9, maxGuesses: 11);
+  }
+  return const CrackCodeConfig(length: 6, symbols: 10, maxGuesses: 12);
 }
 
 class CrackCodeGame {

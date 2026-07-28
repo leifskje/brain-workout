@@ -35,7 +35,10 @@ MiniSudokuConfig miniSudokuConfigForLevel(int level) {
       size: 9,
       boxRows: 3,
       boxCols: 3,
-      blanks: (26 + 2 * level).clamp(26, 52)); // of 81
+      // Target only: the generator stops digging when removing more would cost
+      // uniqueness, so a high target is safe and simply means "as hard as this
+      // grid allows". The old ceiling of 52 was reached at level 13.
+      blanks: (26 + 2 * level).clamp(26, 58)); // of 81
 }
 
 class SudokuCell {

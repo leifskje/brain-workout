@@ -14,7 +14,7 @@ void main() {
     final entries = categorisedWords[lang]!;
     final dict = File('assets/words/${lang}_all.txt')
         .readAsLinesSync()
-        .map((l) => l.trim().toUpperCase())
+        .map((l) => l.split('	').first.trim().toUpperCase())
         .where((l) => l.isNotEmpty)
         .toSet();
 

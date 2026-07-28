@@ -20,7 +20,9 @@ class TrailConfig {
 
 TrailConfig trailConfigForLevel(int level) {
   return TrailConfig(
-    count: (6 + level ~/ 2).clamp(6, 16),
+    // More nodes means more crowding and a longer sequence to hold — the old
+    // ceiling of 16 arrived at level 20 and left every later level identical.
+    count: (6 + level ~/ 2).clamp(6, 30),
     alternating: level >= 6,
     hearts: 3,
   );

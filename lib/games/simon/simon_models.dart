@@ -23,9 +23,12 @@ class SimonConfig {
 SimonConfig simonConfigForLevel(int level) {
   return SimonConfig(
     buttons: 4,
-    targetLength: (3 + level ~/ 2).clamp(3, 12),
-    // Playback speeds up gently on higher levels.
-    flashMs: (650 - level * 12).clamp(420, 650),
+    // Sequence length is the whole difficulty of Simon, so it keeps climbing.
+    // The old ceiling of 12 was reached at level 18 and never moved again.
+    targetLength: (3 + level ~/ 2).clamp(3, 20),
+    // Playback speeds up gently on higher levels. 300ms is about the floor at
+    // which a flash is still clearly *seen* rather than guessed at.
+    flashMs: (650 - level * 12).clamp(300, 650),
     hearts: 3,
   );
 }

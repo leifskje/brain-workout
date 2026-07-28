@@ -48,9 +48,12 @@ class ArrowLevelConfig {
 
 /// Grows the board size and arrow density as the level increases.
 ArrowLevelConfig configForLevel(int level) {
-  final size = (4 + (level - 1) ~/ 4).clamp(4, 7);
+  // Grid and density both used to stop at level 13. Single-cell arrows stay
+  // legible far longer than Arrow Maze's snakes — a 9x9 board is ~40dp per cell
+  // on a phone against Arrow Maze's 23dp — so there is room to keep growing.
+  final size = (4 + (level - 1) ~/ 4).clamp(4, 9);
   final maxCells = size * size;
-  final density = (0.35 + (level - 1) * 0.02).clamp(0.35, 0.6);
+  final density = (0.35 + (level - 1) * 0.02).clamp(0.35, 0.68);
   final count = (maxCells * density).round().clamp(4, maxCells - 2);
   return ArrowLevelConfig(
     rows: size,
