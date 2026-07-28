@@ -746,6 +746,50 @@ void main() {
     }
   });
 
+  test('Word Search difficulty climbs past the early levels', () {
+    // Was identical from level 10 on. Difficulty now comes from reverse
+    // placement and from hiding the word list, not from an ever-bigger grid —
+    // letters need more room than arrows and the app enlarges all text.
+    final early = wordSearchConfigForLevel(5);
+    final mid = wordSearchConfigForLevel(16);
+    final late = wordSearchConfigForLevel(40);
+
+    bool hasReverse(WordSearchConfig c) =>
+        c.directions.any((d) => d.$2 < 0 || (d.$2 == 0 && d.$1 < 0));
+    expect(hasReverse(early), isFalse,
+        reason: 'early levels must read forwards only');
+    expect(hasReverse(mid), isTrue);
+    expect(late.words, greaterThan(early.words));
+    expect(late.size, greaterThan(early.size));
+    expect(late.size, lessThanOrEqualTo(11), reason: 'letters must stay legible');
+    expect(early.showWordList, isTrue);
+    expect(late.showWordList, isFalse,
+        reason: 'the hardest levels give only the category');
+  });
+
+  test('Themed Word Search boards are single-category and complete', () {
+    for (final lang in ['en', 'nb']) {
+      for (final level in [12, 16, 20, 26, 40]) {
+        final cfg = wordSearchConfigForLevel(level);
+        final board = WordSearchBoard.generate(level, lang);
+
+        expect(board.words.length, cfg.words,
+            reason: '$lang level $level placed too few words');
+        expect(board.category, isNotNull,
+            reason: '$lang level $level is themed, so it needs a category');
+        // Hiding the word list is only fair if the category really does describe
+        // every word on the board.
+        final inCategory =
+            wordPoolByCategory(lang)[board.category!]!.toSet();
+        for (final w in board.words) {
+          expect(inCategory.contains(w.word), isTrue,
+              reason: '$lang level $level: ${w.word} is not '
+                  '${board.category!.name}');
+        }
+      }
+    }
+  });
+
   test('Word Scramble difficulty climbs into rarer, longer words', () {
     // Levels used to be identical from 10 onwards. Early levels draw the curated
     // pool so a category can be shown; later ones reach into the dictionary,

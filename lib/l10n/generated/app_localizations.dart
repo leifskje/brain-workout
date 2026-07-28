@@ -479,7 +479,7 @@ abstract class AppLocalizations {
   /// No description provided for @helpWordSearch.
   ///
   /// In en, this message translates to:
-  /// **'All the words below the grid are hidden among the letters. Drag your finger across a word to mark it — forwards or backwards. Find them all to win.'**
+  /// **'All the words below the grid are hidden among the letters. Drag your finger across a word to mark it — forwards or backwards. Find them all to win. From level 10 every word belongs to the same category, and on the hardest levels the list is hidden: you get only the category and how many words to find.'**
   String get helpWordSearch;
 
   /// No description provided for @helpMiniSudoku.
@@ -601,6 +601,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Drag across the letters to mark a word.'**
   String get wordSearchHint;
+
+  /// No description provided for @wordSearchTheme.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} hidden words to find. Category: {category}'**
+  String wordSearchTheme(int count, String category);
 
   /// No description provided for @wordsFound.
   ///

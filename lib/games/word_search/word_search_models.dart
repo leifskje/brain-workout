@@ -2,10 +2,16 @@ import 'dart:math';
 
 import '../../data/word_pool.dart';
 
-/// Word Search — find hidden words in a letter grid. Words are placed
-/// forward-only (right, down, and diagonals at higher levels) so nothing has
-/// to be read backwards; remaining cells are filled with random letters.
-/// Placement-by-construction means every target word is guaranteed findable.
+/// Word Search — find hidden words in a letter grid. Early levels place words
+/// forward-only (right, down, then diagonals); later ones add the reverse
+/// directions, so a word may read right-to-left or bottom-to-top. Remaining
+/// cells are filled with random letters, and placement-by-construction means
+/// every target word is guaranteed findable.
+///
+/// From level 10 boards are *themed* — every word from one category, which is
+/// shown — and from level 24 the word list is hidden, leaving only the category
+/// and a count. That is the hardest thing this game does, and it is only fair
+/// because the board is themed.
 ///
 /// Pure Dart (no Flutter imports) so it stays unit-testable.
 
@@ -28,46 +34,118 @@ class WordSearchConfig {
     required this.words,
     required this.directions,
     required this.allowCrossings,
+    required this.themed,
+    required this.showWordList,
   });
 
   final int size;
   final int words;
 
-  /// Allowed placement directions as (dRow, dCol) — forward-reading only, so
-  /// no word has to be read backwards.
+  /// Allowed placement directions as (dRow, dCol). Early levels are
+  /// forward-reading only; later ones add the reverse directions, which is a
+  /// large step up because a word can then run right-to-left or bottom-to-top.
   final List<(int, int)> directions;
 
   /// Whether words may cross / share letters. Off on lower levels — fully
   /// separate words are much easier to spot — and on from level 8 as a
   /// deliberate difficulty step.
   final bool allowCrossings;
+
+  /// Whether every word comes from one category, which is then shown. Themed
+  /// boards read as more deliberate than a random mix, and they are what makes
+  /// hiding the word list playable.
+  final bool themed;
+
+  /// Whether the words are listed. When false, the player gets only the category
+  /// and a count — a large difficulty jump, and the reason [themed] exists.
+  final bool showWordList;
 }
 
+/// The difficulty curve.
+///
+/// Grid size stops at 11x11 on purpose. Letters need more room than Arrow Maze's
+/// arrows, and the app enlarges all text globally, so a 12-wide grid crowds the
+/// cells on a phone. Later levels get harder through reverse placement and
+/// through hiding the word list instead — both cheaper on screen space and
+/// harder than a few more cells.
 WordSearchConfig wordSearchConfigForLevel(int level) {
   const right = (0, 1), down = (1, 0), downRight = (1, 1), upRight = (-1, 1);
+  const left = (0, -1), up = (-1, 0), upLeft = (-1, -1), downLeft = (1, -1);
+  const forward = [right, down, downRight, upRight];
+  const every = [right, down, downRight, upRight, left, up, upLeft, downLeft];
+
   if (level < 3) {
     return const WordSearchConfig(
-        size: 6, words: 4, directions: [right, down], allowCrossings: false);
+        size: 6,
+        words: 4,
+        directions: [right, down],
+        allowCrossings: false,
+        themed: false,
+        showWordList: true);
   }
   if (level < 6) {
     return const WordSearchConfig(
         size: 7,
         words: 5,
         directions: [right, down, downRight],
-        allowCrossings: false);
+        allowCrossings: false,
+        themed: false,
+        showWordList: true);
   }
   if (level < 10) {
     return WordSearchConfig(
         size: 8,
         words: 6,
         directions: const [right, down, downRight],
-        allowCrossings: level >= 8);
+        allowCrossings: level >= 8,
+        themed: false,
+        showWordList: true);
+  }
+  if (level < 14) {
+    return const WordSearchConfig(
+        size: 9,
+        words: 7,
+        directions: forward,
+        allowCrossings: true,
+        themed: true,
+        showWordList: true);
+  }
+  if (level < 18) {
+    // Reverse placement arrives: words may now read backwards.
+    return const WordSearchConfig(
+        size: 10,
+        words: 8,
+        directions: [right, down, downRight, upRight, left, up],
+        allowCrossings: true,
+        themed: true,
+        showWordList: true);
+  }
+  if (level < 24) {
+    return const WordSearchConfig(
+        size: 10,
+        words: 9,
+        directions: every,
+        allowCrossings: true,
+        themed: true,
+        showWordList: true);
+  }
+  if (level < 30) {
+    // The word list disappears: you get the category and a count.
+    return const WordSearchConfig(
+        size: 11,
+        words: 9,
+        directions: every,
+        allowCrossings: true,
+        themed: true,
+        showWordList: false);
   }
   return const WordSearchConfig(
-      size: 9,
-      words: 7,
-      directions: [right, down, downRight, upRight],
-      allowCrossings: true);
+      size: 11,
+      words: 10,
+      directions: every,
+      allowCrossings: true,
+      themed: true,
+      showWordList: false);
 }
 
 /// One placed target word and whether the player has found it yet.
@@ -88,10 +166,14 @@ class PlacedWord {
 }
 
 class WordSearchBoard {
-  WordSearchBoard({required this.grid, required this.words});
+  WordSearchBoard({required this.grid, required this.words, this.category});
 
   final List<List<String>> grid; // size x size of single letters
   final List<PlacedWord> words;
+
+  /// Set on themed boards, where every word shares a category and the category
+  /// is shown to the player. Null on the early mixed boards.
+  final WordCategory? category;
 
   int get size => grid.length;
   bool get isSolved => words.every((w) => w.found);
@@ -118,13 +200,32 @@ class WordSearchBoard {
   /// filler letters, so all of them are guaranteed findable.
   static WordSearchBoard generate(int level, String language) {
     final cfg = wordSearchConfigForLevel(level);
-    final pool = wordPoolFor(language);
     final alphabet = _fillAlphabet[language] ?? _fillAlphabet['en']!;
     final salt = _languageSalt[language] ?? 0;
     final rng = Random(level * 6151 + salt * 977 + 13);
 
+    // Themed levels draw every word from one category, which is then shown. A
+    // category is only usable if it has enough words that fit the grid — the
+    // longest words are the scarcest — so unusable ones are skipped rather than
+    // silently producing a board with too few words.
+    WordCategory? category;
+    var pool = wordPoolFor(language);
+    if (cfg.themed) {
+      final grouped = wordPoolByCategory(language);
+      final usable = [
+        for (final entry in grouped.entries)
+          if (entry.value.where((w) => w.length <= cfg.size).length >=
+              cfg.words)
+            entry.key,
+      ]..sort((a, b) => a.index.compareTo(b.index)); // stable order to seed from
+      if (usable.isNotEmpty) {
+        category = usable[rng.nextInt(usable.length)];
+        pool = grouped[category]!;
+      }
+    }
+
     for (var attempt = 0; attempt < 200; attempt++) {
-      final board = _tryGenerate(cfg, pool, alphabet, rng);
+      final board = _tryGenerate(cfg, pool, alphabet, rng, category);
       if (board != null) return board;
     }
     // Practically unreachable: placement of a handful of short words on the
@@ -134,14 +235,17 @@ class WordSearchBoard {
             size: cfg.size,
             words: 3,
             directions: cfg.directions,
-            allowCrossings: cfg.allowCrossings),
+            allowCrossings: cfg.allowCrossings,
+            themed: cfg.themed,
+            showWordList: cfg.showWordList),
         pool,
         alphabet,
-        rng)!;
+        rng,
+        category)!;
   }
 
   static WordSearchBoard? _tryGenerate(WordSearchConfig cfg,
-      List<String> pool, String alphabet, Random rng) {
+      List<String> pool, String alphabet, Random rng, WordCategory? category) {
     final size = cfg.size;
     final grid = List.generate(size, (_) => List<String?>.filled(size, null));
     final candidates = [...pool.where((w) => w.length <= size)]..shuffle(rng);
@@ -222,6 +326,6 @@ class WordSearchBoard {
     ];
     // Show the word list alphabetically so it reads calmly.
     placed.sort((a, b) => a.word.compareTo(b.word));
-    return WordSearchBoard(grid: filled, words: placed);
+    return WordSearchBoard(grid: filled, words: placed, category: category);
   }
 }

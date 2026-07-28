@@ -228,7 +228,7 @@ class AppLocalizationsNb extends AppLocalizations {
 
   @override
   String get helpWordSearch =>
-      'Alle ordene under rutenettet er gjemt blant bokstavene. Dra fingeren over et ord for å markere det — forlengs eller baklengs. Finn alle for å vinne.';
+      'Alle ordene under rutenettet er gjemt blant bokstavene. Dra fingeren over et ord for å markere det — forlengs eller baklengs. Finn alle for å vinne. Fra nivå 10 hører alle ordene til samme kategori, og på de vanskeligste nivåene er listen skjult: du får bare kategorien og hvor mange ord du skal finne.';
 
   @override
   String get helpMiniSudoku =>
@@ -307,6 +307,11 @@ class AppLocalizationsNb extends AppLocalizations {
 
   @override
   String get wordSearchHint => 'Dra over bokstavene for å markere et ord.';
+
+  @override
+  String wordSearchTheme(int count, String category) {
+    return '$count skjulte ord å finne. Kategori: $category';
+  }
 
   @override
   String wordsFound(int found, int total) {

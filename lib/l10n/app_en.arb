@@ -79,7 +79,7 @@
   "helpArrowMaze": "The long arrows slide off the board head-first. Tap one to send it out — the path in front of its head must be clear. Clear the whole board to win.",
   "helpWord": "Guess the hidden five-letter word in six tries. Green means the right letter in the right spot, yellow means the letter is somewhere else in the word, grey means it is not in the word.",
   "helpNumberCross": "Place the numbers from the tray into the empty squares so every equation is correct — across and down. Tap a number and then a square, or drag it in. Tap a placed number to take it back.",
-  "helpWordSearch": "All the words below the grid are hidden among the letters. Drag your finger across a word to mark it — forwards or backwards. Find them all to win.",
+  "helpWordSearch": "All the words below the grid are hidden among the letters. Drag your finger across a word to mark it — forwards or backwards. Find them all to win. From level 10 every word belongs to the same category, and on the hardest levels the list is hidden: you get only the category and how many words to find.",
   "helpMiniSudoku": "Fill the empty squares so every row, column and box contains each number exactly once. Tap a square, then tap a number. Clashing numbers turn red so you can fix them.",
   "helpMemoryMatch": "All the cards lie face down, and every picture has a twin. Flip two cards at a time and remember what you see. Find all the pairs to win.",
   "helpSimon": "Watch the buttons light up, one after another. Then tap the same buttons in the same order. The sequence grows one step each round — keep up to the end!",
@@ -106,6 +106,8 @@
   "whichComesNext": "Which comes next?",
 
   "wordSearchHint": "Drag across the letters to mark a word.",
+  "wordSearchTheme": "{count} hidden words to find. Category: {category}",
+  "@wordSearchTheme": {"placeholders": {"count": {"type": "int"}, "category": {"type": "String"}}},
   "wordsFound": "Found {found} of {total}",
   "@wordsFound": {"placeholders": {"found": {"type": "int"}, "total": {"type": "int"}}},
   "miniSudokuHint": "Tap a square, then a number. Each number fits once per row, column and box.",

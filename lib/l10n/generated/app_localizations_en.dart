@@ -228,7 +228,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get helpWordSearch =>
-      'All the words below the grid are hidden among the letters. Drag your finger across a word to mark it — forwards or backwards. Find them all to win.';
+      'All the words below the grid are hidden among the letters. Drag your finger across a word to mark it — forwards or backwards. Find them all to win. From level 10 every word belongs to the same category, and on the hardest levels the list is hidden: you get only the category and how many words to find.';
 
   @override
   String get helpMiniSudoku =>
@@ -306,6 +306,11 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get wordSearchHint => 'Drag across the letters to mark a word.';
+
+  @override
+  String wordSearchTheme(int count, String category) {
+    return '$count hidden words to find. Category: $category';
+  }
 
   @override
   String wordsFound(int found, int total) {

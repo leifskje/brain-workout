@@ -70,12 +70,14 @@ final Map<String, String Function(int)> games = {
   },
   'Word Scramble': (l) {
     final c = wordScrambleConfigForLevel(l);
-    return 'len=${c.minLen}-${c.maxLen} words=${c.words} hearts=${c.hearts}';
+    return 'len=${c.minLen}-${c.maxLen} words=${c.words} hearts=${c.hearts} '
+        'pool=${c.fromPool} tiers=${c.tiers.map((t) => t.name).join("/")}';
   },
   'Word Search': (l) {
     final c = wordSearchConfigForLevel(l);
     return '${c.size}x${c.size} words=${c.words} '
-        'dirs=${c.directions.length} crossings=${c.allowCrossings}';
+        'dirs=${c.directions.length} crossings=${c.allowCrossings} '
+        'themed=${c.themed} list=${c.showWordList}';
   },
 };
 

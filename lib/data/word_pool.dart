@@ -956,8 +956,17 @@ const Map<String, List<PoolWord>> categorisedWords = {
   ],
 };
 
-/// Just the words, for callers that don't care about categories (Word Search).
+/// Just the words, for callers that don't care about categories.
 List<String> wordPoolFor(String language) => [
       for (final w in (categorisedWords[language] ?? categorisedWords['en']!))
         w.word,
     ];
+
+/// The pool grouped by category, for themed puzzles ("find the animals").
+Map<WordCategory, List<String>> wordPoolByCategory(String language) {
+  final grouped = <WordCategory, List<String>>{};
+  for (final entry in categorisedWords[language] ?? categorisedWords['en']!) {
+    grouped.putIfAbsent(entry.category, () => []).add(entry.word);
+  }
+  return grouped;
+}

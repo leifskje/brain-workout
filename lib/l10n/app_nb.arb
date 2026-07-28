@@ -70,7 +70,7 @@
   "helpArrowMaze": "De lange pilene glir ut av brettet med hodet først. Trykk på en for å sende den ut — banen foran hodet må være fri. Tøm hele brettet for å vinne.",
   "helpWord": "Gjett det skjulte ordet på fem bokstaver på seks forsøk. Grønn betyr riktig bokstav på riktig plass, gul betyr at bokstaven finnes et annet sted i ordet, grå betyr at den ikke er med.",
   "helpNumberCross": "Plasser tallene fra brettet i de tomme rutene slik at alle regnestykkene stemmer — både bortover og nedover. Trykk på et tall og så en rute, eller dra det inn. Trykk på et plassert tall for å ta det tilbake.",
-  "helpWordSearch": "Alle ordene under rutenettet er gjemt blant bokstavene. Dra fingeren over et ord for å markere det — forlengs eller baklengs. Finn alle for å vinne.",
+  "helpWordSearch": "Alle ordene under rutenettet er gjemt blant bokstavene. Dra fingeren over et ord for å markere det — forlengs eller baklengs. Finn alle for å vinne. Fra nivå 10 hører alle ordene til samme kategori, og på de vanskeligste nivåene er listen skjult: du får bare kategorien og hvor mange ord du skal finne.",
   "helpMiniSudoku": "Fyll de tomme rutene slik at hver rad, kolonne og boks inneholder hvert tall nøyaktig én gang. Trykk på en rute, og så på et tall. Tall som krasjer blir røde, så du kan rette dem.",
   "helpMemoryMatch": "Alle kortene ligger med bildesiden ned, og hvert bilde har en tvilling. Snu to kort om gangen og husk hva du ser. Finn alle parene for å vinne.",
   "helpSimon": "Se på knappene som lyser opp, én etter én. Trykk så på de samme knappene i samme rekkefølge. Rekken blir ett trinn lengre for hver runde — heng med til slutten!",
@@ -94,6 +94,7 @@
   "whichComesNext": "Hva kommer etterpå?",
 
   "wordSearchHint": "Dra over bokstavene for å markere et ord.",
+  "wordSearchTheme": "{count} skjulte ord å finne. Kategori: {category}",
   "wordsFound": "Funnet {found} av {total}",
   "miniSudokuHint": "Trykk på en rute og så et tall. Hvert tall passer bare én gang i hver rad, kolonne og boks.",
   "simonHint": "Se på knappene som lyser opp, og trykk dem i samme rekkefølge.",

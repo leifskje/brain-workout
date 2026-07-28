@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 
 import '../../l10n/generated/app_localizations.dart';
 import '../../services/progress_store.dart';
+import '../../widgets/category_chip.dart';
 import '../../widgets/game_header.dart';
 import '../../widgets/how_to_play.dart';
 import '../../widgets/win_dialog.dart';
@@ -165,7 +166,10 @@ class _WordSearchScreenState extends State<WordSearchScreen> {
                 child: Center(child: _buildGrid(board)),
               ),
             ),
-            _buildWordList(board),
+            if (wordSearchConfigForLevel(_level).showWordList)
+              _buildWordList(board)
+            else
+              _buildThemeOnly(board),
             Padding(
               padding: const EdgeInsets.fromLTRB(24, 6, 24, 14),
               child: Text(
@@ -278,6 +282,46 @@ class _WordSearchScreenState extends State<WordSearchScreen> {
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  /// Replaces the word list on the hardest levels: the player gets the category
+  /// and a count, and has to work out what to look for. Only fair because the
+  /// board is themed — without a category this would be guesswork.
+  Widget _buildThemeOnly(WordSearchBoard board) {
+    final t = AppLocalizations.of(context);
+    final category = board.category;
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      decoration: BoxDecoration(
+        color: _accent.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.lightbulb_outline_rounded, size: 24, color: _accent),
+          const SizedBox(width: 10),
+          // Flexible so a long category name wraps rather than overflowing —
+          // the app enlarges all text, so one line can't be assumed.
+          Flexible(
+            child: Text(
+              category == null
+                  ? t.wordsFound(board.foundCount, board.words.length)
+                  : t.wordSearchTheme(board.words.length,
+                      wordCategoryName(t, category)),
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.w600,
+                color: _accent,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
