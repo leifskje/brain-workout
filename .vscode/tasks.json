@@ -19,6 +19,23 @@
       "presentation": { "reveal": "silent", "panel": "shared", "clear": true }
     },
     {
+      // Run this when the debugger hangs or a launch never loads. Stopping a
+      // hung session in VS Code does not always kill the `flutter run` tree, and
+      // the orphan holds the VM service port so the next F5 cannot start.
+      "label": "Reset debug session",
+      "type": "shell",
+      "command": "pwsh",
+      "args": [
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        "${workspaceFolder}/tool/reset_debug.ps1"
+      ],
+      "problemMatcher": [],
+      "presentation": { "reveal": "always", "panel": "shared", "clear": true }
+    },
+    {
       "label": "Analyze",
       "type": "shell",
       "command": "flutter analyze",

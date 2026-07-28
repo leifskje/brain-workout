@@ -8,7 +8,13 @@
 
 param(
     [string]$Avd = 'pixel_api35',
-    [int]$TimeoutSeconds = 240
+    [int]$TimeoutSeconds = 240,
+    # Cold boot, skipping the quick-boot snapshot. `flutter emulators --launch`
+    # resumes from that snapshot, so a corrupted graphics state survives being
+    # killed and relaunched — the app then renders a blank screen with no Dart
+    # error, under either renderer, and logcat says "Width is zero". Reach for
+    # this when restarting the emulator normally has changed nothing.
+    [switch]$Cold
 )
 
 $ErrorActionPreference = 'Stop'
@@ -24,9 +30,22 @@ if (Test-EmulatorOnline) {
     exit 0
 }
 
-Write-Host "Booting $Avd ..."
-Start-Process -FilePath (Get-Command flutter).Source `
-    -ArgumentList 'emulators', '--launch', $Avd -WindowStyle Hidden
+if ($Cold) {
+    # Straight to the SDK emulator binary: the flutter wrapper gives no way to
+    # skip the snapshot.
+    $exe = Join-Path $env:LOCALAPPDATA 'Android\Sdk\emulator\emulator.exe'
+    if (-not (Test-Path $exe)) {
+        Write-Warning "emulator.exe not found at $exe"
+        exit 1
+    }
+    Write-Host "Cold-booting $Avd (ignoring the quick-boot snapshot) ..."
+    Start-Process -FilePath $exe `
+        -ArgumentList '-avd', $Avd, '-no-snapshot-load' -WindowStyle Normal
+} else {
+    Write-Host "Booting $Avd ..."
+    Start-Process -FilePath (Get-Command flutter).Source `
+        -ArgumentList 'emulators', '--launch', $Avd -WindowStyle Hidden
+}
 
 $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
 while ((Get-Date) -lt $deadline) {

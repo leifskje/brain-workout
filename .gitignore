@@ -44,5 +44,8 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 
+# Written by DevTools when it opens; local preferences, not project config.
+devtools_options.yaml
+
 # Claude Code — personal/machine-specific settings (keep shared settings.json tracked)
 .claude/settings.local.json

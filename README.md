@@ -56,6 +56,49 @@ shown in the status bar can't hijack the launch. They also run
 the extension only waits for the emulator to *connect* while the script waits for
 `sys.boot_completed`; it no-ops in ~0.5s when a device is already attached.
 
+#### When the debugger hangs
+
+Stopping a hung session with ■ does **not** reliably kill the `flutter run`
+process tree. The orphan keeps holding the VM service port and the device, so the
+next F5 hangs or never loads — and orphans accumulate. Two full sessions were once
+found alive six hours apart, fighting over one emulator.
+
+**Ctrl+Shift+P → Tasks: Run Task → Reset debug session**, or
+`pwsh -File tool/reset_debug.ps1`. It force-stops the app, kills the orphaned
+run/devtools processes, and stops the Gradle daemon. It deliberately leaves the
+emulator running (healthy, and ~17s to boot) and leaves VS Code's Dart language
+server and tooling daemon alone — killing those just costs you IntelliSense and a
+reindex. Note their executable lives under `C:\dev\flutter\...`, so anything
+matching on "flutter" would kill them by mistake.
+
+Flags: `-Deep` also runs `flutter clean` (for a corrupted build), `-Emulator`
+also shuts the AVD down.
+
+#### Blank screen on the emulator (Impeller)
+
+The app starts, the debugger attaches, logcat says `Fully drawn` with **no Dart
+error** — and the screen stays empty. That is Impeller, which is now the default
+renderer on Android and paints nothing on this x86_64 AVD. The tells in logcat:
+
+```
+I flutter : Using the Impeller rendering backend (OpenGLES)
+D FlutterRenderer: Width is zero. 0,0
+W HWUI    : Failed to initialize 101010-2 format
+```
+
+The Android debug configs therefore pass `--no-enable-impeller`, falling back to
+Skia. Note the flag is hidden from `flutter run --help` — it only appears under
+`flutter run --help --verbose`, so it looks unsupported when it isn't.
+
+This is a *debug-run* workaround only, and emulator-specific; real devices render
+Impeller fine. To turn it off app-wide instead (release builds included), add to
+`android/app/src/main/AndroidManifest.xml`:
+
+```xml
+<meta-data android:name="io.flutter.embedding.android.EnableImpeller"
+           android:value="false" />
+```
+
 Two traps worth knowing, both of which cost an evening:
 
 - **VS Code remembers the last-used configuration per workspace**, so F5 does not

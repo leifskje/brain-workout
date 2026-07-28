@@ -28,7 +28,13 @@
       "type": "dart",
       "program": "lib/main.dart",
       "emulatorId": "pixel_api35",
-      "preLaunchTask": "Boot Android emulator"
+      "preLaunchTask": "Boot Android emulator",
+      // Impeller renders a blank screen on this x86_64 emulator: the app starts,
+      // the VM service connects, logcat reports "Fully drawn" and no Dart error,
+      // but FlutterRenderer logs "Width is zero" and nothing is painted (with
+      // "HWUI: Failed to initialize 101010-2 format" alongside). Skia works.
+      // This is emulator-only — don't carry it into a release build.
+      "toolArgs": ["--no-enable-impeller"]
     },
     {
       // Release-ish timings; no hot reload in profile mode.
@@ -38,7 +44,8 @@
       "program": "lib/main.dart",
       "emulatorId": "pixel_api35",
       "flutterMode": "profile",
-      "preLaunchTask": "Boot Android emulator"
+      "preLaunchTask": "Boot Android emulator",
+      "toolArgs": ["--no-enable-impeller"]
     },
     {
       // Escape hatch: no device pinned, so VS Code asks. Use this for a physical
