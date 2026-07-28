@@ -71,6 +71,33 @@ void main() {
     expect(find.text('Continue'), findsNothing);
   });
 
+  testWidgets('Credits screen carries the CC BY attribution', (tester) async {
+    // Norsk ordbank is CC BY 4.0, which obliges the app itself to name the
+    // creator, identify the licence, and state that the data was changed. This
+    // is a licence check, not a cosmetic one — if it fails, don't ship.
+    tester.view.physicalSize = const Size(1080, 2280);
+    tester.view.devicePixelRatio = 2.625;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(const BrainWorkoutApp());
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byIcon(Icons.info_outline_rounded));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('Språkrådet'), findsOneWidget,
+        reason: 'CC BY requires naming the creator');
+    expect(find.textContaining('University of Bergen'), findsOneWidget);
+    expect(find.textContaining('Creative Commons'), findsOneWidget,
+        reason: 'CC BY requires identifying the licence');
+    // Specific to the Ordbank credit: both lists state their filtering, so a
+    // looser match would find two.
+    expect(find.textContaining('proper nouns removed'), findsOneWidget,
+        reason: 'CC BY requires stating that the data was modified');
+    // The public-domain English list is credited alongside it.
+    expect(find.textContaining('dwyl'), findsOneWidget);
+  });
+
   testWidgets('Language menu switches the app to Norwegian', (tester) async {
     tester.view.physicalSize = const Size(1080, 2280);
     tester.view.devicePixelRatio = 2.625;

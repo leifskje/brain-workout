@@ -153,5 +153,15 @@
   "categoryTravel": "Places and travel",
   "categoryPeople": "People",
   "scrambleNearMiss": "\"{word}\" is a word — but not this one. Try again.",
-  "@scrambleNearMiss": {"placeholders": {"word": {"type": "String"}}}
+  "@scrambleNearMiss": {"placeholders": {"word": {"type": "String"}}},
+  "credits": "About and credits",
+  "creditsIntro": "The word games use these openly licensed word lists.",
+  "creditsWordListsTitle": "Word lists",
+  "creditsOrdbankName": "Norsk ordbank (Norwegian)",
+  "creditsOrdbankBody": "© Språkrådet and the University of Bergen, via the National Library's Språkbanken. Used under the Creative Commons Attribution 4.0 licence.",
+  "creditsOrdbankChanges": "Adapted for this app: filtered to words of 3–8 letters, proper nouns removed, and split into base forms and full forms.",
+  "creditsDwylName": "english-words (English)",
+  "creditsDwylBody": "From the dwyl/english-words list, released into the public domain.",
+  "creditsDwylChanges": "Adapted for this app: filtered to words of 3–8 letters.",
+  "creditsLicenceLink": "Read the CC BY 4.0 licence"
 }

@@ -21,9 +21,14 @@ Guess a hidden 5-letter word in 6 tries; each guess colours letters
 
 1. **Word lists (assets/words/<lang>.txt)** — 5-letter words, UPPERCASE, one per
    line. English: filtered from dwyl/english-words (public domain). Norwegian:
-   ⚠️ still need a vetted, openly-licensed nb list (candidate: hunspell nb_NO
-   expanded, or an open Scrabble/ordliste). Two roles: *answers* (common subset,
-   ideally) and *allowed guesses* (full list). v1 may use one list for both.
+   ✅ resolved — **Norsk ordbank** (Språkrådet + University of Bergen, via
+   Språkbanken), **CC BY 4.0**, filtered to 5-letter *lemmas* so answers are base
+   forms rather than conjugations. This replaced a LibreOffice/GPL-derived list
+   that shipped while this step was still open; CC BY obliges the app to carry
+   attribution, which `lib/screens/credits_screen.dart` provides (naming the
+   creator, the licence, and the fact that the data was filtered) — don't remove
+   that route. Two roles: *answers* (`<lang>.txt`) and *allowed guesses*; the
+   3–8 letter `<lang>_all.txt` lists exist now and could serve the latter.
 2. **Engine (`wordle_models.dart`, pure Dart):** `LetterState`, and
    `scoreGuess(guess, target)` with correct **duplicate-letter** handling
    (count remaining occurrences after greens). ← unit-tested.
@@ -40,5 +45,5 @@ Guess a hidden 5-letter word in 6 tries; each guess colours letters
 ## Status
 
 - 🔨 Foundation: English word list + engine + tests.
-- 📝 Norwegian word list (source + vet).
+- ✅ Norwegian word list sourced and vetted (Norsk ordbank, CC BY 4.0).
 - 📝 UI + language toggle + integration.

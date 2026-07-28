@@ -130,5 +130,15 @@
   "categoryBody": "Kroppen",
   "categoryTravel": "Steder og reise",
   "categoryPeople": "Mennesker",
-  "scrambleNearMiss": "«{word}» er et ord — men ikke dette. Prøv igjen."
+  "scrambleNearMiss": "«{word}» er et ord — men ikke dette. Prøv igjen.",
+  "credits": "Om og takk til",
+  "creditsIntro": "Ordspillene bruker disse åpent lisensierte ordlistene.",
+  "creditsWordListsTitle": "Ordlister",
+  "creditsOrdbankName": "Norsk ordbank (norsk)",
+  "creditsOrdbankBody": "© Språkrådet og Universitetet i Bergen, via Språkbanken ved Nasjonalbiblioteket. Brukt under lisensen Creative Commons Navngivelse 4.0.",
+  "creditsOrdbankChanges": "Tilpasset denne appen: filtrert til ord på 3–8 bokstaver, egennavn fjernet, og delt i grunnformer og fullformer.",
+  "creditsDwylName": "english-words (engelsk)",
+  "creditsDwylBody": "Fra listen dwyl/english-words, frigitt til offentlig eiendom.",
+  "creditsDwylChanges": "Tilpasset denne appen: filtrert til ord på 3–8 bokstaver.",
+  "creditsLicenceLink": "Les lisensen CC BY 4.0"
 }

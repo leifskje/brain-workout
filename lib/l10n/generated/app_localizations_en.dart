@@ -448,4 +448,39 @@ class AppLocalizationsEn extends AppLocalizations {
   String scrambleNearMiss(String word) {
     return '\"$word\" is a word — but not this one. Try again.';
   }
+
+  @override
+  String get credits => 'About and credits';
+
+  @override
+  String get creditsIntro =>
+      'The word games use these openly licensed word lists.';
+
+  @override
+  String get creditsWordListsTitle => 'Word lists';
+
+  @override
+  String get creditsOrdbankName => 'Norsk ordbank (Norwegian)';
+
+  @override
+  String get creditsOrdbankBody =>
+      '© Språkrådet and the University of Bergen, via the National Library\'s Språkbanken. Used under the Creative Commons Attribution 4.0 licence.';
+
+  @override
+  String get creditsOrdbankChanges =>
+      'Adapted for this app: filtered to words of 3–8 letters, proper nouns removed, and split into base forms and full forms.';
+
+  @override
+  String get creditsDwylName => 'english-words (English)';
+
+  @override
+  String get creditsDwylBody =>
+      'From the dwyl/english-words list, released into the public domain.';
+
+  @override
+  String get creditsDwylChanges =>
+      'Adapted for this app: filtered to words of 3–8 letters.';
+
+  @override
+  String get creditsLicenceLink => 'Read the CC BY 4.0 licence';
 }

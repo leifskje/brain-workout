@@ -817,6 +817,66 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'\"{word}\" is a word — but not this one. Try again.'**
   String scrambleNearMiss(String word);
+
+  /// No description provided for @credits.
+  ///
+  /// In en, this message translates to:
+  /// **'About and credits'**
+  String get credits;
+
+  /// No description provided for @creditsIntro.
+  ///
+  /// In en, this message translates to:
+  /// **'The word games use these openly licensed word lists.'**
+  String get creditsIntro;
+
+  /// No description provided for @creditsWordListsTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Word lists'**
+  String get creditsWordListsTitle;
+
+  /// No description provided for @creditsOrdbankName.
+  ///
+  /// In en, this message translates to:
+  /// **'Norsk ordbank (Norwegian)'**
+  String get creditsOrdbankName;
+
+  /// No description provided for @creditsOrdbankBody.
+  ///
+  /// In en, this message translates to:
+  /// **'© Språkrådet and the University of Bergen, via the National Library\'s Språkbanken. Used under the Creative Commons Attribution 4.0 licence.'**
+  String get creditsOrdbankBody;
+
+  /// No description provided for @creditsOrdbankChanges.
+  ///
+  /// In en, this message translates to:
+  /// **'Adapted for this app: filtered to words of 3–8 letters, proper nouns removed, and split into base forms and full forms.'**
+  String get creditsOrdbankChanges;
+
+  /// No description provided for @creditsDwylName.
+  ///
+  /// In en, this message translates to:
+  /// **'english-words (English)'**
+  String get creditsDwylName;
+
+  /// No description provided for @creditsDwylBody.
+  ///
+  /// In en, this message translates to:
+  /// **'From the dwyl/english-words list, released into the public domain.'**
+  String get creditsDwylBody;
+
+  /// No description provided for @creditsDwylChanges.
+  ///
+  /// In en, this message translates to:
+  /// **'Adapted for this app: filtered to words of 3–8 letters.'**
+  String get creditsDwylChanges;
+
+  /// No description provided for @creditsLicenceLink.
+  ///
+  /// In en, this message translates to:
+  /// **'Read the CC BY 4.0 licence'**
+  String get creditsLicenceLink;
 }
 
 class _AppLocalizationsDelegate

@@ -449,4 +449,39 @@ class AppLocalizationsNb extends AppLocalizations {
   String scrambleNearMiss(String word) {
     return '«$word» er et ord — men ikke dette. Prøv igjen.';
   }
+
+  @override
+  String get credits => 'Om og takk til';
+
+  @override
+  String get creditsIntro =>
+      'Ordspillene bruker disse åpent lisensierte ordlistene.';
+
+  @override
+  String get creditsWordListsTitle => 'Ordlister';
+
+  @override
+  String get creditsOrdbankName => 'Norsk ordbank (norsk)';
+
+  @override
+  String get creditsOrdbankBody =>
+      '© Språkrådet og Universitetet i Bergen, via Språkbanken ved Nasjonalbiblioteket. Brukt under lisensen Creative Commons Navngivelse 4.0.';
+
+  @override
+  String get creditsOrdbankChanges =>
+      'Tilpasset denne appen: filtrert til ord på 3–8 bokstaver, egennavn fjernet, og delt i grunnformer og fullformer.';
+
+  @override
+  String get creditsDwylName => 'english-words (engelsk)';
+
+  @override
+  String get creditsDwylBody =>
+      'Fra listen dwyl/english-words, frigitt til offentlig eiendom.';
+
+  @override
+  String get creditsDwylChanges =>
+      'Tilpasset denne appen: filtrert til ord på 3–8 bokstaver.';
+
+  @override
+  String get creditsLicenceLink => 'Les lisensen CC BY 4.0';
 }

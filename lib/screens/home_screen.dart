@@ -7,6 +7,7 @@ import '../models/game_definition.dart';
 import '../services/app_locale.dart';
 import '../services/progress_store.dart';
 import 'coming_soon_screen.dart';
+import 'credits_screen.dart';
 import 'level_select_screen.dart';
 
 const String _supportUrl = 'https://ko-fi.com/loffen';
@@ -255,6 +256,21 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  /// Route to the word-list attribution. Norsk ordbank is CC BY 4.0, which
+  /// obliges the app itself to carry the credit — so this button is a licence
+  /// requirement, not a nicety, and shouldn't be removed.
+  Widget _buildCreditsButton() {
+    return IconButton(
+      tooltip: AppLocalizations.of(context).credits,
+      icon: const Icon(Icons.info_outline_rounded,
+          size: 28, color: Colors.black45),
+      onPressed: () => Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const CreditsScreen()),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -287,6 +303,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ),
                   _buildLanguageMenu(),
+                  _buildCreditsButton(),
                 ],
               ),
             ),
