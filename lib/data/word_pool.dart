@@ -13,7 +13,16 @@
 ///   - UPPERCASE, 3-8 letters (Word Scramble's range).
 ///   - Must exist in the matching `assets/words/<lang>_all.txt`, so the
 ///     near-miss check and the answer can never disagree. Guarded by a test.
-///   - Everyday, concrete vocabulary — the audience is elderly players.
+///   - Common, concrete vocabulary. This is the *easy* end of the difficulty
+///     range, not the whole of it.
+///
+/// Do not mistake this pool for the target vocabulary. "Elderly-friendly" in this
+/// app means the interface — large text, big tap targets, high contrast, calm
+/// flows — and says nothing about how hard the words should be. The player this
+/// was built for is a retired English teacher who reads widely in both languages,
+/// so a game made only of words like APPLE and KATT is not accessible, it is
+/// boring. Harder levels should reach past this pool into
+/// `assets/words/<lang>_all.txt`.
 ///
 /// Pure Dart (no Flutter imports) so it stays unit-testable.
 library;

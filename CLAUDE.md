@@ -4,6 +4,15 @@ A Flutter app of small "brain training" mini-games aimed at elderly users (built
 with my mother in mind). A home screen lists selectable games; each game is
 self-contained. Cross-platform Flutter, primary target Android.
 
+**"Elderly-friendly" means the interface, not the content.** Large text, big tap
+targets, high contrast, calm flows, no timers — yes. Easy puzzles — no. The player
+this was built for is a retired English teacher, widely read in Norwegian and
+English, so watering the content down makes the games boring rather than
+accessible. Judge every game on whether it is *entertaining* and *appropriately
+hard for its level number*, not on whether one specific person could manage it.
+Difficulty must keep climbing past the early levels; see the Arrow Maze notes
+under *Conventions* for how to measure that rather than guess at it.
+
 ## Working in this repo (for AI agents)
 
 - **Verify, don't claim.** "Done" means `/test` (or `flutter analyze` + `flutter
