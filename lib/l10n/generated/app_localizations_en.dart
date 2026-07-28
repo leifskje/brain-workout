@@ -248,7 +248,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get helpWordScramble =>
-      'The letters of a familiar word have been shuffled. Tap them in the right order to spell the word. Tap a letter in your answer to put it back.';
+      'The letters of a familiar word have been shuffled. Tap them in the right order to spell the word. Tap a letter in your answer to put it back. The category above the letters tells you what kind of word to look for. If the letters also spell a different real word, saying that one costs you nothing — just try again.';
 
   @override
   String get helpCrackCode =>
@@ -419,4 +419,33 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get languageSystem => 'Follow phone language';
+
+  @override
+  String get categoryFood => 'Food and drink';
+
+  @override
+  String get categoryAnimals => 'Animals';
+
+  @override
+  String get categoryHome => 'In the home';
+
+  @override
+  String get categoryNature => 'Nature and weather';
+
+  @override
+  String get categoryClothing => 'Clothes';
+
+  @override
+  String get categoryBody => 'The body';
+
+  @override
+  String get categoryTravel => 'Places and travel';
+
+  @override
+  String get categoryPeople => 'People';
+
+  @override
+  String scrambleNearMiss(String word) {
+    return '\"$word\" is a word — but not this one. Try again.';
+  }
 }

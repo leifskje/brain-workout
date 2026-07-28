@@ -75,7 +75,7 @@
   "helpMemoryMatch": "Alle kortene ligger med bildesiden ned, og hvert bilde har en tvilling. Snu to kort om gangen og husk hva du ser. Finn alle parene for å vinne.",
   "helpSimon": "Se på knappene som lyser opp, én etter én. Trykk så på de samme knappene i samme rekkefølge. Rekken blir ett trinn lengre for hver runde — heng med til slutten!",
   "helpWhatNext": "Se på tallrekken og finn mønsteret. Velg så tallet som kommer etterpå. Feil svar koster et hjerte.",
-  "helpWordScramble": "Bokstavene i et kjent ord er stokket om. Trykk på dem i riktig rekkefølge for å stave ordet. Trykk på en bokstav i svaret for å legge den tilbake.",
+  "helpWordScramble": "Bokstavene i et kjent ord er stokket om. Trykk på dem i riktig rekkefølge for å stave ordet. Trykk på en bokstav i svaret for å legge den tilbake. Kategorien over bokstavene sier hva slags ord du skal se etter. Hvis bokstavene også danner et annet ekte ord, koster det deg ingenting — bare prøv igjen.",
   "helpCrackCode": "Finn den hemmelige koden! Etter hvert forsøk får du hint: en grønn prikk betyr riktig tall på riktig plass, en gul prikk betyr riktig tall på feil plass. Knekk koden før forsøkene er brukt opp.",
   "helpTrail": "Trykk på sirklene i rekkefølge: 1, 2, 3 … På høyere nivåer veksler du mellom tall og bokstaver: 1, A, 2, B. Feil trykk koster et hjerte.",
   "helpMerge": "Sveip på brettet (eller bruk pilene) for å skyve alle brikkene én vei. Når to brikker med samme tall møtes, slås de sammen til én med dobbelt verdi. Nå målbrikken for å vinne.",
@@ -121,5 +121,14 @@
   "outOfGuesses": "Tomt for forsøk",
   "theWordWas": "Ordet var «{word}».",
   "language": "Språk",
-  "languageSystem": "Følg telefonens språk"
+  "languageSystem": "Følg telefonens språk",
+  "categoryFood": "Mat og drikke",
+  "categoryAnimals": "Dyr",
+  "categoryHome": "I hjemmet",
+  "categoryNature": "Natur og vær",
+  "categoryClothing": "Klær",
+  "categoryBody": "Kroppen",
+  "categoryTravel": "Steder og reise",
+  "categoryPeople": "Mennesker",
+  "scrambleNearMiss": "«{word}» er et ord — men ikke dette. Prøv igjen."
 }

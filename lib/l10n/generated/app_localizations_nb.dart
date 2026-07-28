@@ -248,7 +248,7 @@ class AppLocalizationsNb extends AppLocalizations {
 
   @override
   String get helpWordScramble =>
-      'Bokstavene i et kjent ord er stokket om. Trykk på dem i riktig rekkefølge for å stave ordet. Trykk på en bokstav i svaret for å legge den tilbake.';
+      'Bokstavene i et kjent ord er stokket om. Trykk på dem i riktig rekkefølge for å stave ordet. Trykk på en bokstav i svaret for å legge den tilbake. Kategorien over bokstavene sier hva slags ord du skal se etter. Hvis bokstavene også danner et annet ekte ord, koster det deg ingenting — bare prøv igjen.';
 
   @override
   String get helpCrackCode =>
@@ -420,4 +420,33 @@ class AppLocalizationsNb extends AppLocalizations {
 
   @override
   String get languageSystem => 'Følg telefonens språk';
+
+  @override
+  String get categoryFood => 'Mat og drikke';
+
+  @override
+  String get categoryAnimals => 'Dyr';
+
+  @override
+  String get categoryHome => 'I hjemmet';
+
+  @override
+  String get categoryNature => 'Natur og vær';
+
+  @override
+  String get categoryClothing => 'Klær';
+
+  @override
+  String get categoryBody => 'Kroppen';
+
+  @override
+  String get categoryTravel => 'Steder og reise';
+
+  @override
+  String get categoryPeople => 'Mennesker';
+
+  @override
+  String scrambleNearMiss(String word) {
+    return '«$word» er et ord — men ikke dette. Prøv igjen.';
+  }
 }

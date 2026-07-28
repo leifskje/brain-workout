@@ -1,15 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../data/dictionary.dart';
 import '../../l10n/generated/app_localizations.dart';
 import '../../services/progress_store.dart';
+import '../../widgets/category_chip.dart';
 import '../../widgets/game_header.dart';
 import '../../widgets/how_to_play.dart';
 import '../../widgets/win_dialog.dart';
 import 'word_scramble_models.dart';
 
 /// Playable Word Scramble: tap the shuffled letters in order to spell the
-/// word; tap a placed letter to put it back. A wrong full word costs a heart.
+/// word; tap a placed letter to put it back.
+///
+/// A category is shown above the letters, because most scrambles spell more than
+/// one real word and nothing otherwise says which is wanted. Spelling one of
+/// those other words is a *near miss*: it says so and costs no heart. Only a
+/// non-word costs a heart.
 class WordScrambleScreen extends StatefulWidget {
   const WordScrambleScreen({super.key, this.startLevel = 1});
 
@@ -35,6 +42,10 @@ class _WordScrambleScreenState extends State<WordScrambleScreen> {
   bool _busy = false;
   bool _flashWrong = false;
 
+  /// The real-but-wrong word just spelled, shown until the next full attempt.
+  /// Kept on screen rather than flashed, so there is time to read it.
+  String? _nearMissWord;
+
   ScrambleWord get _word => _round![_wordIndex];
 
   @override
@@ -43,6 +54,11 @@ class _WordScrambleScreenState extends State<WordScrambleScreen> {
     if (_round != null) return;
     _language =
         Localizations.localeOf(context).languageCode == 'nb' ? 'nb' : 'en';
+    // Warm the near-miss dictionary. Nothing waits on it: until it arrives a
+    // wrong answer is simply treated as a mistake, which is the old behaviour.
+    Dictionary.forLanguage(_language).then((_) {
+      if (mounted) setState(() {});
+    });
     _loadLevel(widget.startLevel);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
@@ -100,6 +116,7 @@ class _WordScrambleScreenState extends State<WordScrambleScreen> {
     if (spelled == _word.word) {
       HapticFeedback.lightImpact();
       _busy = true;
+      setState(() => _nearMissWord = null);
       Future.delayed(const Duration(milliseconds: 450), () {
         if (!mounted) return;
         if (_wordIndex + 1 >= _round!.length) {
@@ -112,10 +129,36 @@ class _WordScrambleScreenState extends State<WordScrambleScreen> {
           });
         }
       });
-    } else {
+      return;
+    }
+
+    // A real word, just not the one the category asks for. Losing a heart for
+    // spelling PANEL out of PLANE is the actual bug being fixed here, so say so
+    // and let them try again for free. If the dictionary hasn't finished loading
+    // we can't tell, and fall through to treating it as a mistake.
+    final dictionary = Dictionary.loaded(_language);
+    if (dictionary != null && dictionary.contains(spelled)) {
+      HapticFeedback.lightImpact();
+      _busy = true;
+      setState(() {
+        _nearMissWord = spelled;
+        _flashWrong = false;
+      });
+      Future.delayed(const Duration(milliseconds: 900), () {
+        if (!mounted) return;
+        setState(() {
+          _busy = false;
+          _resetSlots();
+        });
+      });
+      return;
+    }
+
+    {
       HapticFeedback.mediumImpact();
       setState(() {
         _flashWrong = true;
+        _nearMissWord = null;
         _hearts = (_hearts - 1).clamp(0, 1 << 30);
       });
       if (_hearts <= 0) {
@@ -215,6 +258,10 @@ class _WordScrambleScreenState extends State<WordScrambleScreen> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
+                    // Above the answer, so it is read before the letters are
+                    // tapped rather than after getting it wrong.
+                    CategoryChip(category: _word.category, accent: _accent),
+                    const SizedBox(height: 28),
                     _buildSlots(),
                     const SizedBox(height: 36),
                     _buildLetters(),
@@ -224,12 +271,25 @@ class _WordScrambleScreenState extends State<WordScrambleScreen> {
             ),
             Padding(
               padding: const EdgeInsets.fromLTRB(24, 0, 24, 16),
-              child: Text(
-                t.wordScrambleHint,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                    fontSize: 14, color: Colors.black.withValues(alpha: 0.6)),
-              ),
+              child: _nearMissWord == null
+                  ? Text(
+                      t.wordScrambleHint,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                          fontSize: 14,
+                          color: Colors.black.withValues(alpha: 0.6)),
+                    )
+                  : Text(
+                      t.scrambleNearMiss(_nearMissWord!),
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        // Encouraging, not the red used for a lost heart: they
+                        // did spell a real word.
+                        color: Color(0xFF5E7C2A),
+                      ),
+                    ),
             ),
           ],
         ),

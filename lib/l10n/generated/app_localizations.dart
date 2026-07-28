@@ -509,7 +509,7 @@ abstract class AppLocalizations {
   /// No description provided for @helpWordScramble.
   ///
   /// In en, this message translates to:
-  /// **'The letters of a familiar word have been shuffled. Tap them in the right order to spell the word. Tap a letter in your answer to put it back.'**
+  /// **'The letters of a familiar word have been shuffled. Tap them in the right order to spell the word. Tap a letter in your answer to put it back. The category above the letters tells you what kind of word to look for. If the letters also spell a different real word, saying that one costs you nothing — just try again.'**
   String get helpWordScramble;
 
   /// No description provided for @helpCrackCode.
@@ -763,6 +763,60 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Follow phone language'**
   String get languageSystem;
+
+  /// No description provided for @categoryFood.
+  ///
+  /// In en, this message translates to:
+  /// **'Food and drink'**
+  String get categoryFood;
+
+  /// No description provided for @categoryAnimals.
+  ///
+  /// In en, this message translates to:
+  /// **'Animals'**
+  String get categoryAnimals;
+
+  /// No description provided for @categoryHome.
+  ///
+  /// In en, this message translates to:
+  /// **'In the home'**
+  String get categoryHome;
+
+  /// No description provided for @categoryNature.
+  ///
+  /// In en, this message translates to:
+  /// **'Nature and weather'**
+  String get categoryNature;
+
+  /// No description provided for @categoryClothing.
+  ///
+  /// In en, this message translates to:
+  /// **'Clothes'**
+  String get categoryClothing;
+
+  /// No description provided for @categoryBody.
+  ///
+  /// In en, this message translates to:
+  /// **'The body'**
+  String get categoryBody;
+
+  /// No description provided for @categoryTravel.
+  ///
+  /// In en, this message translates to:
+  /// **'Places and travel'**
+  String get categoryTravel;
+
+  /// No description provided for @categoryPeople.
+  ///
+  /// In en, this message translates to:
+  /// **'People'**
+  String get categoryPeople;
+
+  /// No description provided for @scrambleNearMiss.
+  ///
+  /// In en, this message translates to:
+  /// **'\"{word}\" is a word — but not this one. Try again.'**
+  String scrambleNearMiss(String word);
 }
 
 class _AppLocalizationsDelegate

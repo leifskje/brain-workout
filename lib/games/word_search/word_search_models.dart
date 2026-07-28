@@ -1,5 +1,7 @@
 import 'dart:math';
 
+import '../../data/word_pool.dart';
+
 /// Word Search — find hidden words in a letter grid. Words are placed
 /// forward-only (right, down, and diagonals at higher levels) so nothing has
 /// to be read backwards; remaining cells are filled with random letters.
@@ -7,40 +9,9 @@ import 'dart:math';
 ///
 /// Pure Dart (no Flutter imports) so it stays unit-testable.
 
-/// Curated, familiar words (3–8 letters) per language — everyday nouns an
-/// elderly player recognises at a glance. Uppercase; Norwegian includes ÆØÅ.
-const Map<String, List<String>> wordSearchWords = {
-  'en': [
-    'APPLE', 'BREAD', 'MILK', 'BUTTER', 'CHEESE', 'FISH', 'CAR', 'BOAT',
-    'TRAIN', 'PLANE', 'HOUSE', 'CABIN', 'FOREST', 'HILL', 'LAKE', 'BEACH',
-    'FLOWER', 'ROSE', 'CAT', 'DOG', 'HORSE', 'COW', 'SHEEP', 'BIRD', 'FOX',
-    'BEAR', 'SUN', 'MOON', 'STAR', 'RAIN', 'SNOW', 'WIND', 'SUMMER',
-    'WINTER', 'SPRING', 'AUTUMN', 'COFFEE', 'TEA', 'CAKE', 'SUGAR', 'SALT',
-    'TABLE', 'CHAIR', 'BED', 'LAMP', 'DOOR', 'WINDOW', 'ROOF', 'FLOOR',
-    'BOOK', 'PAPER', 'LETTER', 'PEN', 'CLOCK', 'KEY', 'HAT', 'GLOVE',
-    'SHOE', 'JACKET', 'DRESS', 'CHILD', 'MOTHER', 'FATHER', 'FRIEND',
-    'CITY', 'STREET', 'ROAD', 'BRIDGE', 'CHURCH', 'SCHOOL', 'SHOP', 'MONEY',
-    'HEART', 'HAND', 'FOOT', 'EYE', 'EAR', 'NOSE', 'MOUTH', 'HAIR', 'TOOTH',
-    'ARM', 'LEG', 'MUSIC', 'SONG', 'DANCE', 'PARTY', 'GIFT', 'PICTURE',
-    'COLOR', 'RED', 'BLUE', 'GREEN', 'YELLOW', 'WHITE', 'BLACK', 'GARDEN',
-    'GRASS', 'TREE', 'LEAF', 'STONE', 'RIVER',
-  ],
-  'nb': [
-    'EPLE', 'BRØD', 'MELK', 'SMØR', 'OST', 'FISK', 'BIL', 'BÅT', 'TOG',
-    'FLY', 'HUS', 'HYTTE', 'SKOG', 'FJELL', 'SJØ', 'STRAND', 'BLOMST',
-    'ROSE', 'KATT', 'HUND', 'HEST', 'SAU', 'FUGL', 'ELG', 'REV', 'BJØRN',
-    'SOL', 'MÅNE', 'STJERNE', 'REGN', 'SNØ', 'VIND', 'SOMMER', 'VINTER',
-    'VÅR', 'HØST', 'KAFFE', 'KAKE', 'SUKKER', 'SALT', 'BORD', 'STOL',
-    'SENG', 'LAMPE', 'DØR', 'VINDU', 'TAK', 'GULV', 'BOK', 'AVIS', 'BREV',
-    'PENN', 'KLOKKE', 'NØKKEL', 'GENSER', 'LUE', 'VOTT', 'SKO', 'JAKKE',
-    'KJOLE', 'BARN', 'MOR', 'FAR', 'BESTEMOR', 'VENN', 'NABO', 'GATE',
-    'VEI', 'BRO', 'KIRKE', 'SKOLE', 'BUTIKK', 'PENGER', 'HJERTE', 'HÅND',
-    'FOT', 'ØYE', 'ØRE', 'NESE', 'MUNN', 'HÅR', 'TANN', 'ARM', 'BEIN',
-    'MUSIKK', 'SANG', 'DANS', 'FEST', 'GAVE', 'JUL', 'PÅSKE', 'FERIE',
-    'BILDE', 'FARGE', 'RØD', 'BLÅ', 'GRØNN', 'GUL', 'HVIT', 'SVART',
-    'HAGE', 'GRESS', 'TRE', 'BLAD', 'STEIN', 'ELV',
-  ],
-};
+/// The puzzle vocabulary now lives in `lib/data/word_pool.dart`, shared with
+/// Word Scramble, which needs the same words plus a category for each. Keeping
+/// two hand-written lists in sync was never going to work.
 
 /// Letters used to fill the empty cells, per language.
 const Map<String, String> _fillAlphabet = {
@@ -147,7 +118,7 @@ class WordSearchBoard {
   /// filler letters, so all of them are guaranteed findable.
   static WordSearchBoard generate(int level, String language) {
     final cfg = wordSearchConfigForLevel(level);
-    final pool = wordSearchWords[language] ?? wordSearchWords['en']!;
+    final pool = wordPoolFor(language);
     final alphabet = _fillAlphabet[language] ?? _fillAlphabet['en']!;
     final salt = _languageSalt[language] ?? 0;
     final rng = Random(level * 6151 + salt * 977 + 13);

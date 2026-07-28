@@ -1,9 +1,12 @@
+import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:brain_workout/data/dictionary.dart';
+import 'package:brain_workout/data/word_pool.dart';
 import 'package:brain_workout/games/arrow_escape/arrow_escape_models.dart';
 import 'package:brain_workout/games/crack_code/crack_code_models.dart';
 import 'package:brain_workout/games/crack_code/crack_code_screen.dart';
@@ -626,6 +629,141 @@ void main() {
       expect(TrailBoard.generate(level).nodes.first.x,
           board.nodes.first.x, reason: 'deterministic');
     }
+  });
+
+  test('Word pool entries obey their own rules', () {
+    // The pool's contract: 3-8 letters (Word Scramble's range), present in the
+    // matching dictionary so a puzzle answer can never be a word the near-miss
+    // check would reject, and in exactly one category — a word in two
+    // categories would make the hint ambiguous, which defeats the point.
+    for (final lang in categorisedWords.keys) {
+      final dict = File('assets/words/${lang}_all.txt')
+          .readAsLinesSync()
+          .map((l) => l.trim().toUpperCase())
+          .where((l) => l.isNotEmpty)
+          .toSet();
+      final categories = <String, Set<WordCategory>>{};
+
+      for (final entry in categorisedWords[lang]!) {
+        final w = entry.word;
+        expect(w.length, inInclusiveRange(3, 8),
+            reason: '$lang "$w" is outside the 3-8 letter range');
+        expect(w, equals(w.toUpperCase()),
+            reason: '$lang "$w" must be uppercase');
+        expect(dict.contains(w), isTrue,
+            reason: '$lang "$w" is missing from ${lang}_all.txt');
+        categories.putIfAbsent(w, () => {}).add(entry.category);
+      }
+      for (final entry in categories.entries) {
+        expect(entry.value.length, 1,
+            reason: '$lang "${entry.key}" is in more than one category');
+      }
+    }
+  });
+
+  test('Word Scramble deals words out instead of redrawing them', () {
+    // Each level used to shuffle independently, with no idea what earlier levels
+    // had served: Norwegian gave 188 puzzles from 44 distinct words, BILDE twelve
+    // times. Words are now dealt from one per-language order.
+    for (final lang in ['en', 'nb']) {
+      final counts = <String, int>{};
+      for (var level = 1; level <= 40; level++) {
+        for (final sw in generateScrambleRound(level, lang)) {
+          counts[sw.word] = (counts[sw.word] ?? 0) + 1;
+        }
+      }
+      expect(counts.length, greaterThan(120),
+          reason: '$lang served too few distinct words over 40 levels');
+      expect(counts.values.reduce(math.max), lessThanOrEqualTo(3),
+          reason: '$lang repeated one word too often');
+    }
+  });
+
+  test('Word Scramble words carry the category that identifies them', () {
+    final round = generateScrambleRound(12, 'nb');
+    expect(round, isNotEmpty);
+    for (final sw in round) {
+      // The scramble must not simply be the answer, and the category has to
+      // match the pool entry it came from.
+      expect(sw.letters.join(), isNot(sw.word));
+      expect(sw.letters.length, sw.word.length);
+      final entry =
+          categorisedWords['nb']!.firstWhere((e) => e.word == sw.word);
+      expect(sw.category, entry.category);
+    }
+  });
+
+  testWidgets('Word Scramble: a real-but-wrong word costs no heart',
+      (tester) async {
+    tester.view.physicalSize = const Size(1080, 2280);
+    tester.view.devicePixelRatio = 2.625;
+    addTearDown(tester.view.reset);
+
+    String signature(String w) => (w.split('')..sort()).join();
+
+    // Index the dictionary by letter-signature once. Scanning all 148k words per
+    // candidate level instead made this test take minutes.
+    final bySignature = <String, List<String>>{};
+    for (final line in File('assets/words/en_all.txt').readAsLinesSync()) {
+      final w = line.trim().toUpperCase();
+      if (w.isNotEmpty) {
+        bySignature.putIfAbsent(signature(w), () => []).add(w);
+      }
+    }
+
+    // Find a level whose *first* word has another real word in its letters —
+    // the case the player complained about (spelling PANEL from PLANE).
+    int? level;
+    String? alternative;
+    for (var candidate = 1; candidate <= 20 && level == null; candidate++) {
+      final first = generateScrambleRound(candidate, 'en').first.word;
+      final others = (bySignature[signature(first)] ?? const <String>[])
+          .where((d) => d != first);
+      if (others.isNotEmpty) {
+        level = candidate;
+        alternative = others.first;
+      }
+    }
+    expect(level, isNotNull,
+        reason: 'expected some early level to have an ambiguous first word');
+
+    // Load the dictionary up front, via runAsync: rootBundle does real async
+    // I/O, and awaiting that directly inside testWidgets deadlocks, because the
+    // test body runs in a fake-async zone where real futures never complete.
+    // The cache is static, so warming it here is what makes the screen see it
+    // as loaded — pumping alone would never get there.
+    final loaded =
+        await tester.runAsync(() => Dictionary.forLanguage('en'));
+    expect(loaded!.count, greaterThan(100000));
+
+    await tester
+        .pumpWidget(localizedApp(WordScrambleScreen(startLevel: level!)));
+    await tester.pump();
+
+    final word = generateScrambleRound(level, 'en').first;
+    expect(find.byIcon(Icons.favorite_border_rounded), findsNothing);
+
+    // Spell the *other* word by tapping tiles that hold its letters.
+    final taken = List<bool>.filled(word.letters.length, false);
+    for (final letter in alternative!.split('')) {
+      final index = [
+        for (var i = 0; i < word.letters.length; i++)
+          if (!taken[i] && word.letters[i] == letter) i,
+      ].first;
+      taken[index] = true;
+      await tester.tap(find.byKey(ValueKey('ws_tile_$index')));
+      await tester.pump();
+    }
+
+    // It is a word, so: told so, and no heart taken.
+    expect(find.textContaining('is a word'), findsOneWidget);
+    expect(find.byIcon(Icons.favorite_border_rounded), findsNothing,
+        reason: 'spelling a real word must not cost a heart');
+
+    // The slots clear so they can try again, and the message stays up long
+    // enough to read rather than vanishing with the letters.
+    await tester.pump(const Duration(milliseconds: 1000));
+    expect(find.textContaining('is a word'), findsOneWidget);
   });
 
   testWidgets('Word Scramble: spelling the word advances to the next',
