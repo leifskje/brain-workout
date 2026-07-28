@@ -42,18 +42,32 @@ Claude Code — that file is gitignored and machine-local).
 `.vscode/launch.json` is checked in, so with any Dart file open press **F5** —
 or pick a config in the **Run and Debug** panel:
 
-| Config | Device | Notes |
-|---|---|---|
-| Brain Workout (Android) | `android` | **Default on F5.** Boots the emulator itself |
-| Brain Workout (Windows desktop) | `windows` | No emulator, starts in seconds |
-| Brain Workout (Chrome) | `chrome` | Works on any machine, incl. Windows ARM |
-| Brain Workout (pick device) | — | Prompts for the device |
-| Brain Workout (Android, profile mode) | `android` | Release-ish timings; no hot reload |
+| Config | Notes |
+|---|---|
+| Brain Workout (Android) | The one you want. Boots `pixel_api35` itself |
+| Brain Workout (Android, profile mode) | Release-ish timings; no hot reload |
+| Brain Workout (pick device) | Prompts — use for a phone over USB, or a web check |
 
-F5 needs no setup: the Android configs run
-[`tool/boot_emulator.ps1`](tool/boot_emulator.ps1) as a `preLaunchTask`, which
-starts `pixel_api35` and waits for `sys.boot_completed`. If the emulator is
-already up, or a phone is attached over USB, it exits in well under a second.
+F5 needs no setup. The Android configs pin the emulator with **`emulatorId`**,
+which starts it if it isn't running and, per the Dart extension's docs,
+"overrides anything in `deviceId` or selected in the status bar" — so the device
+shown in the status bar can't hijack the launch. They also run
+[`tool/boot_emulator.ps1`](tool/boot_emulator.ps1) as a `preLaunchTask`, because
+the extension only waits for the emulator to *connect* while the script waits for
+`sys.boot_completed`; it no-ops in ~0.5s when a device is already attached.
+
+Two traps worth knowing, both of which cost an evening:
+
+- **VS Code remembers the last-used configuration per workspace**, so F5 does not
+  necessarily run the first one in the file. If F5 launches the wrong thing, pick
+  the config you want once in the dropdown and it sticks.
+- **`"deviceId": "android"` looks right and never works.** `deviceId` is matched
+  against device *ids and names*, and a booted AVD is `emulator-5554` /
+  `sdk gphone64 x86 64` — neither contains "android". Use `emulatorId` for an AVD,
+  or a real id like `emulator-5554`.
+
+There is deliberately no desktop config. This is an Android app; use
+`flutter run -d windows` from the terminal for the rare desktop check.
 
 `.vscode/tasks.json` adds tasks (**Ctrl+Shift+P → Tasks: Run Task**): *Boot
 Android emulator* — also the default build task, **Ctrl+Shift+B**, for booting

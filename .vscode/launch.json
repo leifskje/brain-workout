@@ -1,50 +1,52 @@
 {
-  // Press F5 (or the ▷ button) to run the first config below — Android on the
-  // emulator, which boots itself via the preLaunchTask if it isn't up yet.
-  // Use the dropdown in the Run and Debug panel to pick another config.
+  // F5 runs Android on the emulator, booting it first if needed.
+  //
+  // Note that VS Code remembers the *last used* configuration per workspace, so
+  // F5 does not necessarily run the first one listed here. If F5 ever launches
+  // the wrong thing, pick "Brain Workout (Android)" once in the Run and Debug
+  // dropdown and it sticks. There is deliberately no desktop config: this is an
+  // Android app, and a stale remembered selection pointing at Windows is exactly
+  // how F5 ended up building a Windows app.
   "version": "0.2.0",
   "configurations": [
     {
-      // Default. The preLaunchTask boots pixel_api35 and waits for it; if a
-      // phone is on USB or the emulator is already running it's a no-op.
+      // `emulatorId` (not `deviceId`) is what makes this reliable: it starts
+      // pixel_api35 if it isn't running, and per the extension's own docs it
+      // "overrides anything in deviceId or selected in the status bar" — so the
+      // status-bar device can't hijack the launch.
+      //
+      // `deviceId: "android"` does NOT work here, despite reading sensibly:
+      // deviceId is matched against device ids and names, and a booted AVD is
+      // "emulator-5554" / "sdk gphone64...", neither of which contains "android".
+      //
+      // The preLaunchTask is still worth keeping: the extension waits only for
+      // the emulator to *connect*, whereas tool/boot_emulator.ps1 waits for
+      // sys.boot_completed, so `flutter run` can't race a half-booted device.
+      // It no-ops in ~0.5s when a device is already attached.
       "name": "Brain Workout (Android)",
       "request": "launch",
       "type": "dart",
       "program": "lib/main.dart",
-      "deviceId": "android",
+      "emulatorId": "pixel_api35",
       "preLaunchTask": "Boot Android emulator"
     },
     {
-      // No emulator, boots in a few seconds — handy for pure UI/layout work.
-      "name": "Brain Workout (Windows desktop)",
-      "request": "launch",
-      "type": "dart",
-      "program": "lib/main.dart",
-      "deviceId": "windows"
-    },
-    {
-      "name": "Brain Workout (Chrome)",
-      "request": "launch",
-      "type": "dart",
-      "program": "lib/main.dart",
-      "deviceId": "chrome"
-    },
-    {
-      // Fallback: no deviceId, so VS Code asks which device to use.
-      "name": "Brain Workout (pick device)",
-      "request": "launch",
-      "type": "dart",
-      "program": "lib/main.dart"
-    },
-    {
-      // Release-ish timings on a real device; no hot reload in profile mode.
+      // Release-ish timings; no hot reload in profile mode.
       "name": "Brain Workout (Android, profile mode)",
       "request": "launch",
       "type": "dart",
       "program": "lib/main.dart",
-      "deviceId": "android",
+      "emulatorId": "pixel_api35",
       "flutterMode": "profile",
       "preLaunchTask": "Boot Android emulator"
+    },
+    {
+      // Escape hatch: no device pinned, so VS Code asks. Use this for a physical
+      // phone over USB, or a quick web check.
+      "name": "Brain Workout (pick device)",
+      "request": "launch",
+      "type": "dart",
+      "program": "lib/main.dart"
     }
   ]
 }

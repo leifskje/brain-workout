@@ -37,13 +37,26 @@ is provided via `.claude/settings.local.json`.
 - Build debug APK: `flutter build apk --debug`
 
 The owner runs the app from VS Code's play button (F5), not the terminal:
-`.vscode/launch.json` holds the debug configs (Android on the emulator is the
-F5 default, plus Windows desktop / Chrome / profile mode) and `.vscode/tasks.json`
-wraps analyze / test / gen-l10n. The Android configs boot the AVD themselves via
-`tool/boot_emulator.ps1` as a `preLaunchTask` (idempotent — it no-ops when a
-device is already attached). All checked in; keep them in sync with the command
-list above. Agents still use `flutter test` / `flutter analyze` directly and do
-**not** launch the app (see the top section).
+`.vscode/launch.json` holds the debug configs (Android debug / Android profile /
+pick-device — no desktop config on purpose, this is an Android app) and
+`.vscode/tasks.json` wraps analyze / test / gen-l10n. All checked in; keep them in
+sync with the command list above. Agents still use `flutter test` /
+`flutter analyze` directly and do **not** launch the app (see the top section).
+
+Two things about the launch configs that are easy to get wrong, and were:
+
+- The AVD is pinned with **`emulatorId: pixel_api35`**, not `deviceId`.
+  `"deviceId": "android"` reads sensibly but can never match — `deviceId` is
+  compared against device ids and names, and a booted AVD is `emulator-5554` /
+  `sdk gphone64 x86 64`. `emulatorId` also documents itself as overriding the
+  status-bar device, which `deviceId` does not.
+- **F5 runs the last-used config, not the first one in the file**, and VS Code
+  persists that per workspace. Reordering `launch.json` does not change it; that
+  is why F5 kept building a Windows app after Windows was demoted.
+
+`tool/boot_emulator.ps1` still runs as a `preLaunchTask` because the extension
+waits only for the emulator to connect, while the script waits for
+`sys.boot_completed`. It no-ops in ~0.5s when a device is already attached.
 
 A pre-commit hook (`.githooks/pre-commit`, enabled via `core.hooksPath`) runs
 `flutter analyze` before each commit. Bypass with `git commit --no-verify`.
