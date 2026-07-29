@@ -90,11 +90,25 @@ linked, but nothing there is needed for this.
 ### Then
 
 ```
-flutter build appbundle --release          # or tool/build_release.ps1
+python tool/prepare_screenshots.py store/raw/en store/screenshots/en
+python tool/prepare_screenshots.py store/raw/nb store/screenshots/nb
+python tool/sync_play_listing.py           # rebuild src/main/play from sources
+python tool/ensure_play_listings.py        # only needed for a *new* language
 cd android
 ./gradlew publishListing                   # listing text + graphics -> Play
 ./gradlew publishBundle                    # bundle -> internal track, as a DRAFT
 ```
+
+**A new language needs `ensure_play_listings.py` first.** `publishListing`
+uploads text and graphics concurrently, and its media uploader asks Play for
+`listings/<lang>/featureGraphic` before the listing exists, so a language that has
+never been added fails with `404 Listing for language 'en-GB' not found`. That
+script writes the text via the API, which creates the language; `publishListing`
+then attaches the graphics. Only needed once per language.
+
+`tool/play_listing_status.py` is the safe way to see what Play holds: it opens a
+draft edit, reads, and discards it without committing. Use it before and after a
+publish — unlike `bootstrapListing`, it never writes to the repo or to Play.
 
 **Do not run `bootstrapListing` here.** It is a *destructive one-way pull*: it
 clears `src/main/play/` and replaces it with whatever Play holds. Run against an
