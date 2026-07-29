@@ -44,6 +44,9 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 
+# Raw emulator captures; only the processed store/screenshots are kept.
+store/raw/
+
 # Written by DevTools when it opens; local preferences, not project config.
 devtools_options.yaml
 
