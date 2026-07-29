@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart' show RenderParagraph;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -70,6 +71,75 @@ void main() {
     expect(find.text('Words'), findsOneWidget);
     expect(find.textContaining('Play next:'), findsOneWidget);
     expect(find.text('Continue'), findsNothing);
+  });
+
+  testWidgets('Home screen game cards survive the largest text scale',
+      (tester) async {
+    // The app enlarges text up to 1.3x. With a fixed card aspect ratio the cards
+    // did not grow with it, so the two-line subtitle was clipped mid-word — and
+    // it showed up in a Play Store screenshot. Existing tests missed it because
+    // the platform scale in tests is 1.0, which the app clamps to its 1.1 floor,
+    // never reaching the ceiling where it breaks.
+    tester.view.physicalSize = const Size(1080, 2280);
+    tester.view.devicePixelRatio = 2.625;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(
+      MediaQuery(
+        // Above the app's clamp ceiling, so the clamp itself is exercised.
+        data: const MediaQueryData(textScaler: TextScaler.linear(1.6)),
+        child: const BrainWorkoutApp(),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // A clipped subtitle or a too-wide row reports a RenderFlex overflow, which
+    // fails the test.
+    expect(tester.takeException(), isNull);
+    expect(find.text('Arrow Escape'), findsOneWidget);
+
+    // Taller cards mean the lower ones are off-screen and never built, so scroll
+    // through the whole grid — the overflow could be on any card.
+    final grid = find.byType(GridView);
+    for (var i = 0; i < 6; i++) {
+      await tester.drag(grid, const Offset(0, -400));
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull,
+          reason: 'a card overflowed after scrolling $i screens');
+    }
+    // Confirms the grid really scrolled, so the loop above did exercise cards
+    // beyond the first screen rather than re-checking the same ones.
+    expect(find.text('Arrow Escape'), findsNothing);
+  });
+
+  testWidgets('Game card level label is not ellipsised away', (tester) async {
+    // Fixing the card overflow by making the label Flexible put it in
+    // competition with a Spacer — both default to flex 1, so they split the free
+    // space and "Level 46" rendered as "Niv…". find.text cannot catch that: the
+    // widget's data is still the full string, only the *painting* is truncated.
+    // Hence checking the render object.
+    SharedPreferences.setMockInitialValues({
+      'highest_level_arrow_escape': 46,
+      'stars_arrow_escape_1': 3,
+      'stars_arrow_escape_2': 3,
+    });
+    await ProgressStore.init();
+    for (final game in gamesCatalog) {
+      ProgressStore.instance.markHelpSeen(game.id);
+    }
+
+    tester.view.physicalSize = const Size(1080, 2280);
+    tester.view.devicePixelRatio = 2.625;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(const BrainWorkoutApp());
+    await tester.pumpAndSettle();
+
+    final label = find.text('Level 46');
+    expect(label, findsOneWidget);
+    final paragraph = tester.renderObject<RenderParagraph>(label);
+    expect(paragraph.didExceedMaxLines, isFalse,
+        reason: 'the level label was truncated, so it paints as "Level 4…"');
   });
 
   testWidgets('Credits screen carries the CC BY attribution', (tester) async {

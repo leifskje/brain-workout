@@ -315,7 +315,15 @@ class _HomeScreenState extends State<HomeScreen> {
                 crossAxisCount: 2,
                 mainAxisSpacing: 16,
                 crossAxisSpacing: 16,
-                childAspectRatio: 0.78,
+                // Card height has to follow the text scale. With a fixed ratio
+                // the cards stayed the same height while the text grew, so at
+                // the app's 1.3x ceiling the two-line subtitle was clipped
+                // mid-word ("Guess the hidden wo…"). Taller cards mean fewer
+                // visible at once, which is the right trade here — legibility
+                // over density.
+                childAspectRatio: 0.78 /
+                    (MediaQuery.textScalerOf(context).scale(100) / 100)
+                        .clamp(1.0, 1.3),
                 children: [
                   for (final game in gamesCatalog)
                     _GameCard(game: game, onOpen: () => _open(game)),
@@ -422,33 +430,56 @@ class _GameCard extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               if (game.available)
+                // spaceBetween rather than a Spacer, so the level label is the
+                // *only* flexible child. With both a Flexible and a Spacer they
+                // shared the free space equally and "Nivå 46" was ellipsised to
+                // "Niv…" — the label needs its natural width, and should shrink
+                // only when there genuinely isn't room.
                 Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(
-                      game.hasLevels
-                          ? t.levelN(
-                              ProgressStore.instance.highestLevel(game.id))
-                          : t.play,
-                      style: TextStyle(
-                          fontWeight: FontWeight.w700, color: game.color),
-                    ),
-                    const Spacer(),
-                    if (game.hasLevels &&
-                        ProgressStore.instance.totalStars(game.id) > 0) ...[
-                      const Icon(Icons.star_rounded,
-                          size: 18, color: Color(0xFFF5B301)),
-                      const SizedBox(width: 2),
-                      Text(
-                        '${ProgressStore.instance.totalStars(game.id)}',
-                        style: const TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.black54),
+                    // scaleDown, not ellipsis: "Level 46" alongside a star count
+                    // and chevron needs ~112px but only gets ~89 in a two-column
+                    // card, so truncating painted it as "Level 4…" and lost the
+                    // number entirely. Shrinking it a few percent keeps it
+                    // readable, which matters more here than exact type size.
+                    Flexible(
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                          game.hasLevels
+                              ? t.levelN(
+                                  ProgressStore.instance.highestLevel(game.id))
+                              : t.play,
+                          maxLines: 1,
+                          style: TextStyle(
+                              fontWeight: FontWeight.w700, color: game.color),
+                        ),
                       ),
-                      const SizedBox(width: 4),
-                    ],
-                    Icon(Icons.chevron_right_rounded,
-                        size: 22, color: game.color),
+                    ),
+                    // Trimmed from 18/22 and a 4px gap: every pixel here comes
+                    // straight off the level label's width.
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (game.hasLevels &&
+                            ProgressStore.instance.totalStars(game.id) > 0) ...[
+                          const Icon(Icons.star_rounded,
+                              size: 16, color: Color(0xFFF5B301)),
+                          const SizedBox(width: 2),
+                          Text(
+                            '${ProgressStore.instance.totalStars(game.id)}',
+                            style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.black54),
+                          ),
+                        ],
+                        Icon(Icons.chevron_right_rounded,
+                            size: 18, color: game.color),
+                      ],
+                    ),
                   ],
                 )
               else
