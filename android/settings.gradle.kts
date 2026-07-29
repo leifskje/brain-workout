@@ -21,6 +21,9 @@ plugins {
     id("dev.flutter.flutter-plugin-loader") version "1.0.0"
     id("com.android.application") version "9.0.1" apply false
     id("org.jetbrains.kotlin.android") version "2.3.20" apply false
+    // Gradle Play Publisher: uploads the bundle and syncs the store listing.
+    // 4.x is required — 3.x reads BaseAppModuleExtension, which AGP 9 removed.
+    id("com.github.triplet.play") version "4.0.0" apply false
 }
 
 include(":app")

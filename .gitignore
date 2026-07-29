@@ -44,6 +44,10 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 
+# Play publishing credential — can publish to the Play account. Machine-local,
+# exactly like android/key.properties.
+android/app/play-service-account.json
+
 # Raw emulator captures; only the processed store/screenshots are kept.
 store/raw/
 

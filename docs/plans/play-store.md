@@ -39,6 +39,50 @@ So, with two or three testers:
   (9:16) rather than cropping, because cropping would cut 480px off the board.
   Padding colour is sampled from the image so it blends in.
 
+## Automated publishing (Gradle Play Publisher)
+
+The store listing lives in the repo at `android/app/src/main/play/`, so the copy,
+graphics and screenshots are version-controlled and diffable instead of pasted
+into web forms. Generated from the existing sources — don't hand-edit it:
+
+```
+python tool/sync_play_listing.py
+```
+
+That reads [store-listing.md](store-listing.md), `store/icon_512.png`,
+`store/feature_1024x500.png` and `store/screenshots/<lang>/`, and writes GPP's
+layout. Play's locale codes differ from the app's: Norwegian is **`no-NO`**,
+English **`en-GB`**.
+
+### One-time setup (owner, in a browser)
+
+1. Play Console → **Setup → API access** → link a Google Cloud project.
+2. In Google Cloud, create a **service account**, then download its **JSON key**.
+3. Back in Play Console → **Users and permissions** → invite the service account's
+   email and grant it release permissions for this app.
+4. Save the key as `android/app/play-service-account.json`. It is gitignored: that
+   file can publish to the Play account, so treat it like `key.properties`.
+
+### Then
+
+```
+flutter build appbundle --release          # or tool/build_release.ps1
+cd android
+./gradlew publishBundle                    # bundle -> internal track, as a DRAFT
+./gradlew publishListing                   # listing text + graphics only
+./gradlew bootstrapListing                 # pull Play's current listing down
+```
+
+`releaseStatus` is pinned to **DRAFT** so an automated run can never flip a
+release live by itself — you still press the button in the Console.
+
+Requires **GPP 4.x**: 3.x reads `BaseAppModuleExtension`, which AGP 9 removed.
+Verified against AGP 9.0.1 — `gradlew tasks` registers `publishBundle`,
+`publishListing` and `bootstrapListing`.
+
+The API **cannot** create the app or answer the content questionnaires (data
+safety, content rating, target audience). Those stay manual.
+
 ## Privacy policy URL (GitHub Pages)
 
 `docs/index.md` and `docs/privacy.md` exist for this. After pushing, enable Pages

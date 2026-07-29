@@ -5,6 +5,7 @@ plugins {
     id("com.android.application")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
     id("dev.flutter.flutter-gradle-plugin")
+    id("com.github.triplet.play")
 }
 
 // Release signing: android/key.properties points at the upload keystore.
@@ -69,4 +70,30 @@ kotlin {
 
 flutter {
     source = "../.."
+}
+
+// Gradle Play Publisher. Store listing, graphics and screenshots live in
+// src/main/play/, so the listing is version-controlled and diffable rather than
+// pasted into web forms.
+//
+// The service-account JSON can publish to the Play account, so it is gitignored
+// and machine-local — exactly like key.properties. When it is absent the plugin's
+// tasks simply fail if invoked, which is why nothing here is conditional: no
+// normal build touches them.
+//
+// Usage (after `flutter build appbundle --release`):
+//   ./gradlew publishBundle          upload the bundle to the internal track
+//   ./gradlew publishListing         push listing text and graphics only
+//   ./gradlew bootstrap              pull the *current* Play listing into
+//                                    src/main/play/, useful to seed or compare
+//
+// Note the plugin cannot create the app or answer the content questionnaires;
+// those stay manual in the Console.
+play {
+    serviceAccountCredentials.set(file("play-service-account.json"))
+    // Internal testing: up to 100 testers, no review requirements.
+    track.set("internal")
+    defaultToAppBundles.set(true)
+    // Never let an automated run flip something to live by accident.
+    releaseStatus.set(com.github.triplet.gradle.androidpublisher.ReleaseStatus.DRAFT)
 }
