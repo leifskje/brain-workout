@@ -92,10 +92,21 @@ linked, but nothing there is needed for this.
 ```
 flutter build appbundle --release          # or tool/build_release.ps1
 cd android
+./gradlew publishListing                   # listing text + graphics -> Play
 ./gradlew publishBundle                    # bundle -> internal track, as a DRAFT
-./gradlew publishListing                   # listing text + graphics only
-./gradlew bootstrapListing                 # pull Play's current listing down
 ```
+
+**Do not run `bootstrapListing` here.** It is a *destructive one-way pull*: it
+clears `src/main/play/` and replaces it with whatever Play holds. Run against an
+empty Play listing it deletes the whole tree, which is exactly what happened the
+first time — recoverable only because everything was committed. It exists to seed
+a fresh repo *from* an established listing, which is the opposite of this setup,
+where the repo is the source of truth.
+
+If you ever do want it, pass `--no-products`: the in-app-products endpoint it
+otherwise calls is deprecated and returns `403 Please migrate to the new
+publishing API`. GPP's own flag description calls it "(legacy api)". This app has
+no in-app purchases, so nothing is lost by skipping it.
 
 `releaseStatus` is pinned to **DRAFT** so an automated run can never flip a
 release live by itself — you still press the button in the Console.
