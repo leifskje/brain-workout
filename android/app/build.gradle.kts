@@ -27,7 +27,9 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
+        // Must match the Play Console app entry exactly, and is permanent once a
+        // bundle has been uploaded under it — Play never reassigns a package name
+        // that has had installs. Keep this in step with `namespace` above.
         applicationId = "net.skjelten.brain_workout"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.

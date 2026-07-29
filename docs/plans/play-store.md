@@ -59,8 +59,18 @@ when a file has it; without front matter the page is served as raw text.
   the manifest `<queries>` so url_launcher resolves a browser on Android 11+.
 - [x] **Privacy policy** text — `PRIVACY.md` (truthful: no data collected,
   everything on-device). Needs a public URL — see below.
-- [x] applicationId `net.skjelten.brain_workout` (permanent once uploaded),
-  adaptive launcher icons, localized app label, `version: 1.0.0+1`.
+- [x] applicationId **`net.skjelten.brain_workout`** — must match the Play Console
+  app entry exactly, and is permanent once a bundle is uploaded under it. Verify
+  with `aapt2 dump packagename` on a built APK after any change here; no Dart test
+  or `flutter analyze` can see the Android package name.
+
+  A Play Console app entry's package name **cannot be changed** after the fact. If
+  the entry and the code ever disagree, either match the code to the entry, or
+  delete the entry and create a new one — deletion frees the package name for
+  reuse only while the app has **zero lifetime installs**, and requires the app to
+  be unpublished, on fewer than 100 active devices, not suspended, with no changes
+  in review, plus your developer registration transaction ID.
+- [x] Adaptive launcher icons, localized app label, `version: 1.0.0+1`.
 
 ## One-time owner tasks
 

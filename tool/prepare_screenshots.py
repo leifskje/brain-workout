@@ -18,6 +18,7 @@ Usage:
 Put the raw captures in the input folder in the order you want them shown; output
 files are numbered so Play keeps that order.
 """
+import collections
 import os
 import sys
 from PIL import Image
@@ -25,6 +26,23 @@ from PIL import Image
 # 9:16 — Play's recommended portrait shape and comfortably inside the 2x rule.
 TARGET_RATIO = 9 / 16
 MIN_SIDE, MAX_SIDE = 320, 3840
+
+
+def sample_background(img):
+    """The app's background colour, for padding that blends in.
+
+    Sampled from the side edges at mid height, *not* from a corner: emulator
+    captures have rounded corners with black outside them, so (0, 0) is black and
+    padding with it produces ugly bars.
+    """
+    rgb = img.convert('RGB')
+    w, h = rgb.size
+    votes = collections.Counter()
+    for fraction in (0.3, 0.4, 0.5, 0.6, 0.7):
+        y = int(h * fraction)
+        votes[rgb.getpixel((0, y))] += 1
+        votes[rgb.getpixel((w - 1, y))] += 1
+    return votes.most_common(1)[0][0]
 
 
 def pad_to_ratio(img):
@@ -40,8 +58,7 @@ def pad_to_ratio(img):
     if (want_w, want_h) == (w, h):
         return img.convert('RGB'), False
 
-    # Sample the corner for a background colour that blends in.
-    bg = img.convert('RGB').getpixel((0, 0))
+    bg = sample_background(img)
     canvas = Image.new('RGB', (want_w, want_h), bg)
     canvas.paste(img.convert('RGB'),
                  ((want_w - w) // 2, (want_h - h) // 2))
