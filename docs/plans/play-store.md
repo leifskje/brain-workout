@@ -122,8 +122,11 @@ otherwise calls is deprecated and returns `403 Please migrate to the new
 publishing API`. GPP's own flag description calls it "(legacy api)". This app has
 no in-app purchases, so nothing is lost by skipping it.
 
-`releaseStatus` is pinned to **DRAFT** so an automated run can never flip a
-release live by itself — you still press the button in the Console.
+`releaseStatus` is **COMPLETED** at the owner's request, so `publishBundle` rolls
+straight out to the internal track's testers with no draft to approve. There is
+therefore no safety net: **never run `publishBundle` or `publishListing` unless a
+release has been explicitly asked for.** Building locally is always fine; shipping
+is not. See the release rule in [CLAUDE.md](../../CLAUDE.md).
 
 Requires **GPP 4.x**: 3.x reads `BaseAppModuleExtension`, which AGP 9 removed.
 Verified against AGP 9.0.1 — `gradlew tasks` registers `publishBundle`,

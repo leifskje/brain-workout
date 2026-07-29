@@ -155,3 +155,24 @@ A pre-commit hook (`.githooks/pre-commit`, enabled via `core.hooksPath`) runs
   locally (global git identity is unchanged).
 - Per my standing preference: do **not** commit or push automatically — leave
   commits for me to review at my own pace, and I push manually.
+
+## Releasing to Google Play — never without being asked
+
+**`gradlew publishBundle` ships to real testers immediately.** `releaseStatus` is
+`COMPLETED`, so there is no draft to approve in the Console: the build goes
+straight out. Treat it like `git push --force` — only ever on an explicit request
+for a release, never as the natural end of a piece of work, and never to "verify"
+something.
+
+What is always fine: `flutter build appbundle --release`, `tool/build_release.ps1`,
+and `tool/play_listing_status.py` (which opens a draft edit, reads, and discards).
+
+What needs asking first: `publishBundle`, `publishListing`,
+`ensure_play_listings.py` — all three write to the live Play account.
+
+Never run `bootstrapListing`: it deletes the local listing under
+`android/app/src/main/play/`. See [play-store.md](docs/plans/play-store.md).
+
+Bump `version:` in `pubspec.yaml` before any upload — Play rejects a repeated
+`+N` versionCode. And note the Play *release name* is a free-text label, not the
+app's version; don't infer what a build contains from it.

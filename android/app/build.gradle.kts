@@ -94,6 +94,12 @@ play {
     // Internal testing: up to 100 testers, no review requirements.
     track.set("internal")
     defaultToAppBundles.set(true)
-    // Never let an automated run flip something to live by accident.
-    releaseStatus.set(com.github.triplet.gradle.androidpublisher.ReleaseStatus.DRAFT)
+    // COMPLETED, at the owner's request: a `publishBundle` run rolls straight out
+    // to the internal track's testers, with no draft to approve in the Console.
+    //
+    // That removes the safety net, so the rule in CLAUDE.md carries it instead:
+    // **never run publishBundle unless the owner has explicitly asked for a
+    // release.** Building and testing locally is always fine; shipping is not.
+    releaseStatus.set(
+        com.github.triplet.gradle.androidpublisher.ReleaseStatus.COMPLETED)
 }
