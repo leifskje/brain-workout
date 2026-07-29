@@ -56,12 +56,36 @@ English **`en-GB`**.
 
 ### One-time setup (owner, in a browser)
 
-1. Play Console → **Setup → API access** → link a Google Cloud project.
-2. In Google Cloud, create a **service account**, then download its **JSON key**.
-3. Back in Play Console → **Users and permissions** → invite the service account's
-   email and grant it release permissions for this app.
-4. Save the key as `android/app/play-service-account.json`. It is gitignored: that
+There is **no "Setup → API access" page any more** — Google removed the project
+linking step: *"You no longer need to link your developer account to a Google
+Cloud Project in order to access the Google Play Developer API."* Looking for that
+menu item is a dead end, and a common one.
+
+In [Google Cloud Console](https://console.cloud.google.com):
+
+1. Create or select any project you own.
+2. **APIs & Services → Library** → search *Google Play Android Developer API* →
+   **Enable**. Don't skip this: it is still required even though the linking is
+   not, and skipping it produces a 403 that looks like a permissions problem.
+3. **IAM & Admin → Service Accounts → Create service account** → name it → Done.
+4. Open it → **Keys → Add key → Create new key → JSON** → download.
+
+In [Play Console](https://play.google.com/console), at *account* level — not
+inside the app:
+
+5. **Users and permissions → Invite new users**.
+6. Paste the service account's email (it looks like
+   `name@project-id.iam.gserviceaccount.com`).
+7. Grant it **Release to testing tracks** and **Edit and delete draft apps** for
+   this app, then Invite. Service accounts are active immediately; there is no
+   email to accept.
+8. Save the key as `android/app/play-service-account.json`. It is gitignored: that
    file can publish to the Play account, so treat it like `key.properties`.
+
+The legacy API-access page still exists at
+`https://play.google.com/console/developers/<your-developer-id>/api-access` (the
+developer ID is the long number in any Console URL) if you want to check what is
+linked, but nothing there is needed for this.
 
 ### Then
 
