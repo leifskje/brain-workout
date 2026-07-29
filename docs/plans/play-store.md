@@ -19,6 +19,44 @@ So, with two or three testers:
 - **Production** — blocked until you find 12 testers. Worth knowing now rather
   than discovering it later.
 
+### Which track, and whether the link is enough
+
+| Track | Who can join | Limit | Counts toward the production gate? |
+|---|---|---|---|
+| Internal | **only accounts on the email list** | 100 | no |
+| Closed | only the list, or a Google Group | 2,000/list | **yes** |
+| Open | **anyone with the link**, and findable in Play search | unlimited | no |
+
+On internal and closed testing the opt-in link alone does nothing — the tester's
+Google account must be on the list first, and they must be signed into that
+account on the device. A link handed to someone not on the list simply fails to
+resolve, which is exactly how it looks when it goes wrong.
+
+Two consequences worth planning around:
+
+- If testers are being collected anyway, put them on a **closed** track: it counts
+  toward the 12-testers-for-14-days production gate, and testers can be managed
+  with a Google Group instead of typed one at a time.
+- **Open testing** is the only "just send a link" option and does not need a live
+  production version — but the app becomes findable in Play search, which is more
+  exposure than a family test usually wants.
+
+### When a tester cannot see the app
+
+Checked in this order, because that is roughly how likely each is:
+
+1. **Is a Google account signed in on the device, and is it the tester account?**
+   `adb shell dumpsys account` → `Accounts: 0` means nothing will ever appear. A
+   freshly cold-booted emulator has no account.
+2. Is the emulator image `google_apis_playstore`? A plain `google_apis` image has
+   no Play Store at all. Check `tag.id` in the AVD's `config.ini`.
+3. Has the release actually rolled out? `status` must be `completed`, not `draft`
+   — `tool/play_listing_status.py` and the track query show this.
+4. Is the opt-in link the internal-test one
+   (`https://play.google.com/apps/internaltest/<id>`), copied from the Testers tab?
+5. Give it a few minutes, then force-stop Play Store and clear its cache. A first
+   release on a new app can take longer to propagate.
+
 ## Helper scripts
 
 - `python tool/build_store_graphics.py` — regenerates `store/icon_512.png` and

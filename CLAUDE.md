@@ -156,6 +156,24 @@ A pre-commit hook (`.githooks/pre-commit`, enabled via `core.hooksPath`) runs
 - Per my standing preference: do **not** commit or push automatically — leave
   commits for me to review at my own pace, and I push manually.
 
+### Branching — `main` is the release branch
+
+Since the app is on the Play Store, `main` is what ships. Nothing lands on it
+directly any more.
+
+- **Every fix and feature goes on a branch**, named `les/<short-topic>` (or
+  `les/<issue>/<short-topic>` once there are tickets) — `les` is the standing
+  prefix across all my repos.
+- **Merge to `main` via pull request.** Agents create and push the branch; they do
+  **not** open the PR — I do that, same standing rule as commits and pushes.
+- The pre-commit hook runs `flutter analyze` on every commit regardless of branch,
+  so a branch is no excuse for a red tree. `/test` should be green before the PR.
+- **Releases only ever happen from `main`**, and only when I ask — see the release
+  section above. A branch is never published.
+- `gh` on this machine holds two accounts; the work one (`LoffenHent`) is active by
+  default. Use `gh auth switch --user leifskje` before any `gh` work on this repo,
+  or the PR is attributed to the wrong identity.
+
 ## Releasing to Google Play — never without being asked
 
 **`gradlew publishBundle` ships to real testers immediately.** `releaseStatus` is
