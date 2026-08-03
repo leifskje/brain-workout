@@ -14,6 +14,7 @@ import 'package:brain_workout/games/crack_code/crack_code_models.dart';
 import 'package:brain_workout/games/memory_match/memory_match_models.dart';
 import 'package:brain_workout/games/merge/merge_models.dart';
 import 'package:brain_workout/games/mini_sudoku/mini_sudoku_models.dart';
+import 'package:brain_workout/games/nonogram/nonogram_models.dart';
 import 'package:brain_workout/games/number_cross/number_cross_models.dart';
 import 'package:brain_workout/games/simon/simon_models.dart';
 import 'package:brain_workout/games/snake_arrows/snake_arrows_models.dart';
@@ -50,6 +51,12 @@ final Map<String, String Function(int)> games = {
   'Mini Sudoku': (l) {
     final c = miniSudokuConfigForLevel(l);
     return 'size=${c.size} blanks=${c.blanks}';
+  },
+  'Picture Logic': (l) {
+    final c = nonogramConfigForLevel(l);
+    return '${c.width}x${c.height} maxClues=${c.maxClues} '
+        'density=${c.density.toStringAsFixed(2)} '
+        'branchTarget=${c.targetBranching.toStringAsFixed(2)}';
   },
   'Number Cross': (l) {
     final c = numberCrossConfigForLevel(l);

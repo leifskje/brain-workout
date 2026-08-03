@@ -54,6 +54,8 @@
   "gameTrailSubtitle": "Tap the circles in order",
   "gameMergeTitle": "2048",
   "gameMergeSubtitle": "Merge tiles to the target",
+  "gameNonogramTitle": "Picture Logic",
+  "gameNonogramSubtitle": "Reveal the hidden picture",
 
   "comingSoonTitle": "{game} is coming soon!",
   "@comingSoonTitle": {"placeholders": {"game": {"type": "String"}}},
@@ -88,6 +90,7 @@
   "helpCrackCode": "Find the secret code! After each guess you get clues: a green dot means a correct digit in the correct spot, a yellow dot means a correct digit in the wrong spot. Crack the code before your guesses run out.",
   "helpTrail": "Tap the circles in order: 1, 2, 3 … On higher levels you alternate numbers and letters: 1, A, 2, B. A wrong tap costs a heart.",
   "helpMerge": "Swipe the board (or use the arrows) to slide all the tiles one way. When two tiles with the same number touch, they merge into one with double the value. Reach the target tile to win.",
+  "helpNonogram": "The numbers along the top and the left tell you how many squares in a row are filled, in order. A line marked 4 2 has four filled squares, at least one gap, then two more. A line marked 0 is empty. Tap a square to fill it, tap again to put a cross where you are sure it stays empty, and once more to clear it. Fill in every correct square to reveal the picture. Nothing is timed and a wrong square costs you nothing — just fix it.",
 
   "outOfHearts": "Out of hearts",
   "outOfHeartsBody": "No hearts left. Want to try this level again?",
@@ -135,6 +138,12 @@
   "@mergeScore": {"placeholders": {"value": {"type": "int"}}},
   "noMoves": "No more moves",
   "noMovesBody": "The board is full. Want to try this level again?",
+
+  "nonogramHint": "Tap to fill, tap again for a cross, once more to clear.",
+  "nonogramCheck": "Check my squares",
+  "nonogramCheckClean": "No mistakes so far!",
+  "nonogramCheckFound": "{count, plural, =1{1 filled square is wrong} other{{count} filled squares are wrong}}",
+  "@nonogramCheckFound": {"placeholders": {"count": {"type": "int"}}},
 
   "notEnoughLetters": "Not enough letters",
   "notInWordList": "Not in word list",

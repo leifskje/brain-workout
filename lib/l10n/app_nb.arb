@@ -48,6 +48,8 @@
   "gameTrailSubtitle": "Trykk på sirklene i rekkefølge",
   "gameMergeTitle": "2048",
   "gameMergeSubtitle": "Slå sammen brikker til målet",
+  "gameNonogramTitle": "Bildekryss",
+  "gameNonogramSubtitle": "Finn det skjulte bildet",
 
   "comingSoonTitle": "{game} kommer snart!",
   "comingSoonBody": "Vi jobber fortsatt med dette spillet. Kom tilbake senere.",
@@ -79,6 +81,7 @@
   "helpCrackCode": "Finn den hemmelige koden! Etter hvert forsøk får du hint: en grønn prikk betyr riktig tall på riktig plass, en gul prikk betyr riktig tall på feil plass. Knekk koden før forsøkene er brukt opp.",
   "helpTrail": "Trykk på sirklene i rekkefølge: 1, 2, 3 … På høyere nivåer veksler du mellom tall og bokstaver: 1, A, 2, B. Feil trykk koster et hjerte.",
   "helpMerge": "Sveip på brettet (eller bruk pilene) for å skyve alle brikkene én vei. Når to brikker med samme tall møtes, slås de sammen til én med dobbelt verdi. Nå målbrikken for å vinne.",
+  "helpNonogram": "Tallene øverst og til venstre forteller hvor mange ruter på rad som er fylt, i rekkefølge. En linje merket 4 2 har fire fylte ruter, minst ett opphold, og så to til. En linje merket 0 er tom. Trykk på en rute for å fylle den, trykk igjen for å sette et kryss der du er sikker på at den skal være tom, og en gang til for å tømme den. Fyll alle de riktige rutene for å avsløre bildet. Ingenting er på tid, og en feil rute koster deg ingenting — bare rett den opp.",
 
   "outOfHearts": "Tomt for hjerter",
   "outOfHeartsBody": "Ingen hjerter igjen. Vil du prøve nivået på nytt?",
@@ -114,6 +117,11 @@
   "mergeScore": "Poeng: {value}",
   "noMoves": "Ingen flere trekk",
   "noMovesBody": "Brettet er fullt. Vil du prøve nivået på nytt?",
+
+  "nonogramHint": "Trykk for å fylle, igjen for kryss, en gang til for å tømme.",
+  "nonogramCheck": "Sjekk rutene mine",
+  "nonogramCheckClean": "Ingen feil så langt!",
+  "nonogramCheckFound": "{count, plural, =1{1 fylt rute er feil} other{{count} fylte ruter er feil}}",
 
   "notEnoughLetters": "For få bokstaver",
   "notInWordList": "Ordet er ikke i ordlisten",

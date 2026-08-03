@@ -6,6 +6,7 @@ import 'crack_code/crack_code_screen.dart';
 import 'memory_match/memory_match_screen.dart';
 import 'merge/merge_screen.dart';
 import 'mini_sudoku/mini_sudoku_screen.dart';
+import 'nonogram/nonogram_screen.dart';
 import 'number_cross/number_cross_screen.dart';
 import 'simon/simon_screen.dart';
 import 'snake_arrows/snake_arrows_screen.dart';
@@ -127,6 +128,15 @@ final List<GameDefinition> gamesCatalog = [
     color: const Color(0xFFC94B4B),
     category: GameCategory.memory,
     levelBuilder: (level) => SimonScreen(startLevel: level),
+  ),
+  GameDefinition(
+    id: 'nonogram',
+    title: (t) => t.gameNonogramTitle,
+    subtitle: (t) => t.gameNonogramSubtitle,
+    icon: Icons.gradient_rounded,
+    color: const Color(0xFF00796B),
+    category: GameCategory.logic,
+    levelBuilder: (level) => NonogramScreen(startLevel: level),
   ),
   GameDefinition(
     id: 'what_next',

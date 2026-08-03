@@ -98,6 +98,23 @@ A pre-commit hook (`.githooks/pre-commit`, enabled via `core.hooksPath`) runs
   already placed; the reverse of placement order is then a valid solution. Levels
   are seeded by level number → deterministic and retry-stable. Tests assert
   solvability for levels 1–30 (`test/widget_test.dart`).
+- **Picture Logic is the exception to reverse-solve generation: it *proves*
+  solvability with a solver.** Clues are derived from a filled grid, so whether
+  they are deducible is emergent and cannot be constructed. `solveNonogram`
+  applies one rule — a cell that can be filled but cannot be empty is forced —
+  to every row and column until nothing changes. If that completes the grid the
+  puzzle needs no guessing *and* its solution is unique, because every step was
+  forced, so uniqueness costs nothing extra. Candidates it can't finish are
+  thrown away. Don't try to reverse-solve it. The uniqueness claim is checked
+  against an independent exhaustive counter in the tests rather than assumed.
+- **A knob you assume is a tradeoff might be free — measure before designing
+  around it.** The nonogram clue-gutter cap was planned as a
+  difficulty-vs-legibility tradeoff. Caps of 4, 5, 6 and 7 turn out to admit an
+  identical candidate pool with identical branching, because a symmetric blob
+  almost never puts five runs in a line. The narrow gutter was free, which is
+  what lets a 12-wide grid fit a phone. Conversely, density there runs *opposite*
+  to intuition — branching peaks near 0.38 and falls above it, so the first
+  version's rising density curve was quietly making late levels easier.
 - **Solvable is not the same as hard, and board size is a poor difficulty proxy.**
   Arrow Maze once capped every knob by level 17, so level 42 was config-identical
   to level 17 and measured as the *easiest* board in the game: 14×20, but ~7.5
@@ -168,6 +185,26 @@ A pre-commit hook (`.githooks/pre-commit`, enabled via `core.hooksPath`) runs
   aren't slow. This is *not* a refresh-rate issue either — Flutter animates from
   wall-clock time, so a 120Hz screen renders the same animation more smoothly,
   never faster. Frame rate was never the variable.
+- **A modal bottom sheet needs `isScrollControlled` *and* a real constraint on
+  the route.** Picture Logic's Norwegian help text overflowed the how-to-play
+  sheet by 38px on a device: without `isScrollControlled` a sheet is capped at
+  9/16 of the screen and simply overflows. Pass the cap via
+  `showModalBottomSheet(constraints:)` measured from the *calling* context, put
+  only the body in a `SingleChildScrollView`, and leave the dismiss button
+  outside it — for this audience an unreachable "Got it!" is worse than clipped
+  text. Note the nastier half: if the content ends up laid out *unbounded*,
+  `Flexible` never shrinks, the button lands below the fold, and **no overflow
+  error is reported at all**. Assert `finder.hitTestable()`, not just
+  `findsOneWidget`, or the test will pass on a silently unreachable button.
+- **Never set text scale in a test with `MediaQuery(data: MediaQueryData(textScaler: …))`.**
+  That constructor replaces *all* of `MediaQueryData`, so `size` becomes
+  `Size.zero` and the widget under test is laid out on a zero-height screen —
+  the assertions still run, they just aren't testing a phone. Use
+  `tester.platformDispatcher.textScaleFactorTestValue` (with a
+  `clearTextScaleFactorTestValue` tear-down). The home-screen text-scale test
+  carried this flaw for a while and read as protective while measuring nothing;
+  an ancestor `MediaQuery` does override the one `MaterialApp` installs, so the
+  scale took effect while the size silently did not.
 - **Create `AnimationController`s in `initState`, never as lazy `late final`
   fields.** A lazy controller can stay unconstructed during normal play and then
   get built inside `dispose()`, which performs a `TickerMode` ancestor lookup on a

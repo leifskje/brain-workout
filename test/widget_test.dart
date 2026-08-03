@@ -16,6 +16,8 @@ import 'package:brain_workout/games/crack_code/crack_code_models.dart';
 import 'package:brain_workout/games/crack_code/crack_code_screen.dart';
 import 'package:brain_workout/games/games_catalog.dart';
 import 'package:brain_workout/games/memory_match/memory_match_models.dart';
+import 'package:brain_workout/games/nonogram/nonogram_models.dart';
+import 'package:brain_workout/games/nonogram/nonogram_screen.dart';
 import 'package:brain_workout/games/number_cross/number_cross_models.dart';
 import 'package:brain_workout/games/number_cross/number_cross_screen.dart';
 import 'package:brain_workout/games/simon/simon_models.dart';
@@ -38,6 +40,7 @@ import 'package:brain_workout/l10n/generated/app_localizations.dart';
 import 'package:brain_workout/main.dart';
 import 'package:brain_workout/screens/home_screen.dart';
 import 'package:brain_workout/services/app_locale.dart';
+import 'package:brain_workout/widgets/how_to_play.dart';
 import 'package:brain_workout/services/progress_store.dart';
 import 'package:brain_workout/theme/motion.dart';
 
@@ -85,15 +88,16 @@ void main() {
     // never reaching the ceiling where it breaks.
     tester.view.physicalSize = const Size(1080, 2280);
     tester.view.devicePixelRatio = 2.625;
+    // Above the app's clamp ceiling, so the clamp itself is exercised. Set on
+    // the platform rather than by wrapping in
+    // `MediaQuery(data: MediaQueryData(textScaler: ...))`: that constructor
+    // replaces all of MediaQueryData, so `size` became Size.zero and this test
+    // spent a while checking the layout of a zero-height screen.
+    tester.platformDispatcher.textScaleFactorTestValue = 1.6;
     addTearDown(tester.view.reset);
+    addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
 
-    await tester.pumpWidget(
-      MediaQuery(
-        // Above the app's clamp ceiling, so the clamp itself is exercised.
-        data: const MediaQueryData(textScaler: TextScaler.linear(1.6)),
-        child: const BrainWorkoutApp(),
-      ),
-    );
+    await tester.pumpWidget(const BrainWorkoutApp());
     await tester.pumpAndSettle();
 
     // A clipped subtitle or a too-wide row reports a RenderFlex overflow, which
@@ -1443,4 +1447,385 @@ void main() {
     await tester.pump();
     expect(chips(), findsNWidgets(poolSize));
   });
+
+  test('Nonogram: the line solver forces cells and spots contradictions', () {
+    // A run filling the whole line forces every cell.
+    final full = deduceLine([5], List.filled(5, 0))!;
+    expect(full.canFill, everyElement(isTrue));
+    expect(full.canEmpty, everyElement(isFalse));
+    expect(full.placements, 1);
+
+    // No runs at all forces every cell empty.
+    final none = deduceLine([], List.filled(5, 0))!;
+    expect(none.canEmpty, everyElement(isTrue));
+    expect(none.canFill, everyElement(isFalse));
+
+    // The classic overlap: a run of 3 in 5 cells always covers the middle.
+    final overlap = deduceLine([3], List.filled(5, 0))!;
+    expect(overlap.canFill[2] && !overlap.canEmpty[2], isTrue,
+        reason: 'centre cell is forced');
+    expect(overlap.canEmpty[0], isTrue, reason: 'the ends are still open');
+    expect(overlap.placements, 3);
+
+    // Two single cells in a line of five have six arrangements.
+    expect(deduceLine([1, 1], List.filled(5, 0))!.placements, 6);
+
+    // Contradiction: a run of 4 cannot fit when both ends are known empty.
+    expect(deduceLine([4], [2, 0, 0, 0, 2]), isNull);
+  });
+
+  test('Nonogram: clue derivation, and a hand-built board that must solve', () {
+    expect(cluesFor([true, true, false, true, false]), [2, 1]);
+    expect(cluesFor([false, false, false]), isEmpty);
+    expect(cluesFor([true, true, true]), [3]);
+
+    // Alternating full and empty rows: every row clue forces its whole line at
+    // once, so this has to fall out immediately.
+    final rows = [
+      [5],
+      <int>[],
+      [5],
+      <int>[],
+      [5],
+    ];
+    final cols = List.generate(5, (_) => [1, 1, 1]);
+    expect(solveNonogram(rows, cols).solved, isTrue);
+  });
+
+  test('Nonogram levels are guess-free, unique, and fit their gutters', () {
+    for (var level = 1; level <= 30; level++) {
+      final cfg = nonogramConfigForLevel(level);
+      final board = NonogramBoard.generate(level);
+
+      expect(board.width, cfg.width, reason: 'level $level width');
+      expect(board.height, cfg.height, reason: 'level $level height');
+
+      // The clues really describe the solution.
+      for (var r = 0; r < board.height; r++) {
+        expect(board.rowClues[r], cluesFor(board.solution[r]),
+            reason: 'level $level row $r clue');
+      }
+      for (var c = 0; c < board.width; c++) {
+        final col = [
+          for (var r = 0; r < board.height; r++) board.solution[r][c]
+        ];
+        expect(board.colClues[c], cluesFor(col), reason: 'level $level col $c');
+      }
+
+      // The layout gate: no line may need more clue numbers than the gutter can
+      // draw, or the board stops being readable on a phone.
+      for (final clue in [...board.rowClues, ...board.colClues]) {
+        expect(clue.length, lessThanOrEqualTo(cfg.maxClues),
+            reason: 'level $level clue $clue exceeds the gutter');
+      }
+
+      // Solvable by forced deductions alone — the player never has to guess.
+      expect(solveNonogram(board.rowClues, board.colClues).solved, isTrue,
+          reason: 'level $level should need no guessing');
+
+      // Never the last-resort board (one full row, everything else empty).
+      expect(board.rowClues.where((r) => r.isNotEmpty).length, greaterThan(1),
+          reason: 'level $level fell back to the last-resort board');
+
+      // Seeded: a retry gives the same puzzle.
+      expect(NonogramBoard.generate(level).solution, board.solution,
+          reason: 'level $level should be deterministic');
+    }
+  });
+
+  test('Nonogram: line-solvable really does imply a unique solution', () {
+    // The whole mechanic rests on this claim, so it is checked against an
+    // independent exhaustive counter rather than assumed. Small grids only:
+    // brute force is exponential, and the claim is about the deduction rule
+    // rather than the grid size.
+    for (var level = 1; level <= 8; level++) {
+      final board = NonogramBoard.generate(level);
+      expect(countNonogramSolutions(board.rowClues, board.colClues, limit: 2), 1,
+          reason: 'level $level must have exactly one solution');
+    }
+  });
+
+  test('Nonogram difficulty climbs past the early levels and stays on target',
+      () {
+    final branching = <int, double>{};
+    for (var level = 1; level <= 30; level++) {
+      final cfg = nonogramConfigForLevel(level);
+      final board = NonogramBoard.generate(level);
+      branching[level] = board.branching;
+      expect((board.branching - cfg.targetBranching).abs(),
+          lessThanOrEqualTo(onTargetTolerance),
+          reason: 'level $level branching '
+              '${board.branching.toStringAsFixed(2)} misses target '
+              '${cfg.targetBranching.toStringAsFixed(2)}');
+    }
+
+    // The failure this guards against is a plateau: Arrow Maze once made level
+    // 42 config-identical to level 17. Late levels must be measurably harder.
+    final early =
+        [for (var l = 1; l <= 5; l++) branching[l]!].reduce((a, b) => a + b) / 5;
+    final late = [for (var l = 26; l <= 30; l++) branching[l]!]
+            .reduce((a, b) => a + b) /
+        5;
+    expect(late, greaterThan(early + 0.8),
+        reason: 'late levels ($late) must be clearly harder than early ($early)');
+  });
+
+  test('Nonogram: marks cycle, and crosses never block a win', () {
+    final board = NonogramBoard.generate(1);
+    expect(board.isSolved, isFalse);
+
+    board.cycle(0, 0);
+    expect(board.marks[0][0], NonogramMark.filled);
+    board.cycle(0, 0);
+    expect(board.marks[0][0], NonogramMark.crossed);
+    board.cycle(0, 0);
+    expect(board.marks[0][0], NonogramMark.blank);
+
+    // Fill exactly the solution and cross off everything else: still a win,
+    // because crosses are only the player's own notes.
+    for (var r = 0; r < board.height; r++) {
+      for (var c = 0; c < board.width; c++) {
+        board.marks[r][c] = board.solution[r][c]
+            ? NonogramMark.filled
+            : NonogramMark.crossed;
+      }
+    }
+    expect(board.wrongFills, 0);
+    expect(board.isSolved, isTrue);
+
+    // One extra filled cell is a wrong fill and un-wins the board.
+    final spare = [
+      for (var r = 0; r < board.height; r++)
+        for (var c = 0; c < board.width; c++)
+          if (!board.solution[r][c]) (r, c)
+    ].first;
+    board.marks[spare.$1][spare.$2] = NonogramMark.filled;
+    expect(board.isWrongFill(spare.$1, spare.$2), isTrue);
+    expect(board.wrongFills, 1);
+    expect(board.isSolved, isFalse);
+  });
+
+  testWidgets('Nonogram: a second tap crosses a cell, and Check reports a clean '
+      'board', (tester) async {
+    tester.view.physicalSize = const Size(1080, 2280);
+    tester.view.devicePixelRatio = 2.625;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(localizedApp(const NonogramScreen(startLevel: 1)));
+    await tester.pumpAndSettle();
+
+    expect(find.byIcon(Icons.close_rounded), findsNothing);
+    await tester.tap(find.byKey(const ValueKey('nonogram-0-0')));
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('nonogram-0-0')));
+    await tester.pump();
+    expect(find.byIcon(Icons.close_rounded), findsOneWidget,
+        reason: 'a second tap should mark a cross');
+
+    // Nothing has been wrongly filled, so Check should say so.
+    await tester.tap(find.text('Check my squares'));
+    await tester.pump();
+    expect(find.text('No mistakes so far!'), findsOneWidget);
+  });
+
+  testWidgets('Nonogram: the board fits a small phone at the largest text scale',
+      (tester) async {
+    // The clue gutters plus the Check button plus the hint line are the tight
+    // part, and the biggest grid is the worst case — level 16 is the first 12x12.
+    tester.view.physicalSize = const Size(1080, 1920);
+    tester.view.devicePixelRatio = 3.0; // 360x640 logical
+    tester.platformDispatcher.textScaleFactorTestValue = 1.3;
+    addTearDown(tester.view.reset);
+    addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+
+    for (final level in [1, 16]) {
+      await tester.pumpWidget(localizedApp(NonogramScreen(startLevel: level)));
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull,
+          reason: 'level $level overflowed on a small phone');
+      // The board must still be reachable, not squeezed out by the chrome.
+      expect(find.byKey(const ValueKey('nonogram-0-0')).hitTestable(),
+          findsOneWidget,
+          reason: 'level $level board is not tappable');
+    }
+  });
+
+  testWidgets('Nonogram: filling in the picture wins the level', (tester) async {
+    tester.view.physicalSize = const Size(1080, 2280);
+    tester.view.devicePixelRatio = 2.625;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(localizedApp(const NonogramScreen(startLevel: 1)));
+    await tester.pumpAndSettle();
+
+    final board = NonogramBoard.generate(1); // same seed as the screen's
+    for (var r = 0; r < board.height; r++) {
+      for (var c = 0; c < board.width; c++) {
+        if (!board.solution[r][c]) continue;
+        await tester.tap(find.byKey(ValueKey('nonogram-$r-$c')));
+        await tester.pump();
+      }
+    }
+    // The win is announced after a short delay, and a pending timer is not a
+    // scheduled frame — pumpAndSettle alone would never advance the clock to it.
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.pumpAndSettle();
+    expect(find.text('Well done!'), findsOneWidget);
+  });
+  testWidgets('How to play: the longest help text fits on a small phone',
+      (tester) async {
+    // Reported from the emulator: the sheet rendered "BOTTOM OVERFLOWED BY 38
+    // PIXELS" on the first open of Picture Logic. The cause is not that game —
+    // showModalBottomSheet caps a non-scroll-controlled sheet at 9/16 of the
+    // screen, and the sheet's Column had no way to give, so *any* help text past
+    // that height overflowed. Picture Logic's is simply the longest, and
+    // Norwegian runs longer than English.
+    tester.view.physicalSize = const Size(1080, 1920); // small phone
+    tester.view.devicePixelRatio = 3.0; // 360x640 logical
+    // Set at the platform level, NOT by wrapping in
+    // `MediaQuery(data: MediaQueryData(textScaler: ...))` — that constructor
+    // replaces the whole of MediaQueryData, so `size` becomes Size.zero and the
+    // widget under test is handed a zero-height screen. The first version of
+    // this test did exactly that and "failed" for that reason rather than the
+    // real one.
+    tester.platformDispatcher.textScaleFactorTestValue = 1.3; // the app's ceiling
+    addTearDown(tester.view.reset);
+    addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+
+    for (final locale in [const Locale('en'), const Locale('nb')]) {
+      await tester.pumpWidget(MaterialApp(
+        localizationsDelegates: AppLocalizations.localizationsDelegates,
+        supportedLocales: AppLocalizations.supportedLocales,
+        locale: locale,
+        home: Builder(
+          builder: (context) => Scaffold(
+            body: Center(
+              child: ElevatedButton(
+                onPressed: () => showHowToPlay(context,
+                    body: AppLocalizations.of(context).helpNonogram,
+                    accent: Colors.teal),
+                child: const Text('open'),
+              ),
+            ),
+          ),
+        ),
+      ));
+      await tester.tap(find.text('open'));
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull,
+          reason: 'the help sheet overflowed in ${locale.languageCode}');
+
+      // However long the text is, the dismiss button must stay on screen and
+      // tappable — scrolling the body must never push it out of reach.
+      final gotIt = find.text(
+          locale.languageCode == 'nb' ? 'Skjønner!' : 'Got it!');
+      expect(gotIt, findsOneWidget);
+      // hitTestable, not just present: the failure mode being guarded against is
+      // a button pushed below the fold, which is still in the tree and still
+      // "findable" while being completely unreachable to the player.
+      expect(gotIt.hitTestable(), findsOneWidget,
+          reason: 'the dismiss button is off screen in '
+              '${locale.languageCode}');
+      await tester.tap(gotIt);
+      await tester.pumpAndSettle();
+      expect(gotIt, findsNothing, reason: 'the sheet should have closed');
+    }
+  });
+}
+
+/// Counts solutions of a nonogram by row-wise backtracking, stopping at [limit].
+///
+/// Deliberately independent of `solveNonogram`: this is what turns "the line
+/// solver finished, so the solution must be unique" from an argument into a
+/// checked fact. Exponential, so tests only run it on small grids.
+int countNonogramSolutions(
+  List<List<int>> rowClues,
+  List<List<int>> colClues, {
+  int limit = 2,
+}) {
+  final h = rowClues.length, w = colClues.length;
+  final options = [for (final clue in rowClues) _rowPlacements(clue, w)];
+  final grid = List.generate(h, (_) => List<bool>.filled(w, false));
+  var found = 0;
+
+  /// Whether column [c] is still consistent after [rows] rows are laid down.
+  bool columnOk(int c, int rows) {
+    final runs = <int>[];
+    var open = 0;
+    for (var r = 0; r < rows; r++) {
+      if (grid[r][c]) {
+        open++;
+      } else if (open > 0) {
+        runs.add(open);
+        open = 0;
+      }
+    }
+    final clue = colClues[c];
+    for (var i = 0; i < runs.length; i++) {
+      if (i >= clue.length || runs[i] != clue[i]) return false;
+    }
+    if (open > 0) {
+      if (runs.length >= clue.length || open > clue[runs.length]) return false;
+    }
+    if (rows == h) {
+      if (open > 0) runs.add(open);
+      if (runs.length != clue.length) return false;
+      for (var i = 0; i < runs.length; i++) {
+        if (runs[i] != clue[i]) return false;
+      }
+    }
+    return true;
+  }
+
+  void search(int r) {
+    if (found >= limit) return;
+    if (r == h) {
+      for (var c = 0; c < w; c++) {
+        if (!columnOk(c, h)) return;
+      }
+      found++;
+      return;
+    }
+    for (final placement in options[r]) {
+      grid[r] = placement;
+      var ok = true;
+      for (var c = 0; c < w && ok; c++) {
+        if (!columnOk(c, r + 1)) ok = false;
+      }
+      if (ok) search(r + 1);
+      if (found >= limit) return;
+    }
+    grid[r] = List<bool>.filled(w, false);
+  }
+
+  search(0);
+  return found;
+}
+
+/// Every arrangement of [clue] in a line of [n] cells.
+List<List<bool>> _rowPlacements(List<int> clue, int n) {
+  final out = <List<bool>>[];
+  void place(int idx, int pos, List<bool> cur) {
+    if (idx == clue.length) {
+      out.add([...cur]);
+      return;
+    }
+    // Every later run still needs its own length plus one separating gap.
+    var rest = 0;
+    for (var i = idx + 1; i < clue.length; i++) {
+      rest += clue[i] + 1;
+    }
+    final len = clue[idx];
+    for (var s = pos; s + len + rest <= n; s++) {
+      final next = [...cur];
+      for (var k = s; k < s + len; k++) {
+        next[k] = true;
+      }
+      place(idx + 1, s + len + 1, next);
+    }
+  }
+
+  place(0, 0, List<bool>.filled(n, false));
+  return out;
 }
