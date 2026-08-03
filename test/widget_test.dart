@@ -37,6 +37,7 @@ import 'package:brain_workout/main.dart';
 import 'package:brain_workout/screens/home_screen.dart';
 import 'package:brain_workout/services/app_locale.dart';
 import 'package:brain_workout/services/progress_store.dart';
+import 'package:brain_workout/theme/motion.dart';
 
 /// Wraps [home] in a MaterialApp with the app's localizations (English in
 /// tests), for pumping a single screen.
@@ -241,6 +242,35 @@ void main() {
     store.recordStars('g', 1, 3); // best kept
     store.recordStars('g', 2, 1);
     expect(store.totalStars('g'), 4);
+  });
+
+  test('Slide timing is derived from distance, not fixed', () {
+    // A tester said Arrow Maze needed an animation when tapping an arrow — but
+    // there was one. The duration was fixed at 520ms while the travel distance
+    // scales with cell size, so on a bigger screen the arrow covered far more
+    // pixels in the same time and read as a blur. Speed is now the constant.
+    //
+    // Not a refresh-rate problem: Flutter animates from wall-clock time, so a
+    // 120Hz screen renders the same animation more smoothly, not faster.
+    final near = slideDuration(300);
+    final far = slideDuration(900);
+    expect(far, greaterThan(near),
+        reason: 'a longer slide must take longer, or speed is not constant');
+
+    // Same distance always gives the same answer, whatever the device.
+    expect(slideDuration(600), slideDuration(600));
+
+    // Clamped at both ends: a tiny board should not feel twitchy, and a huge one
+    // should not make the player wait.
+    expect(slideDuration(1), const Duration(milliseconds: 340));
+    expect(slideDuration(100000), const Duration(milliseconds: 820));
+    // Degenerate inputs fall back rather than producing a zero-length animation.
+    expect(slideDuration(0), const Duration(milliseconds: 340));
+    expect(slideDuration(-5), const Duration(milliseconds: 340));
+    expect(slideDuration(double.nan), const Duration(milliseconds: 340));
+
+    // Within the clamps the speed really is what it claims: 900 dp/s.
+    expect(slideDuration(450).inMilliseconds, closeTo(500, 2));
   });
 
   test('Difficulty keeps climbing past the early levels', () {

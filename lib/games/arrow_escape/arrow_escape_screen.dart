@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 
 import '../../l10n/generated/app_localizations.dart';
 import '../../services/progress_store.dart';
+import '../../theme/motion.dart';
 import '../../widgets/game_header.dart';
 import '../../widgets/how_to_play.dart';
 import '../../widgets/win_dialog.dart';
@@ -26,7 +27,11 @@ class ArrowEscapeScreen extends StatefulWidget {
 
 class _ArrowEscapeScreenState extends State<ArrowEscapeScreen>
     with SingleTickerProviderStateMixin {
-  static const _moveDuration = Duration(milliseconds: 380);
+  /// Fallback only: replaced from the layout once the cell size is known. A
+  /// fixed duration meant the *speed* varied with the device, because a piece
+  /// slides the full width of the board and that distance scales with the screen.
+  static const _fallbackMoveDuration = Duration(milliseconds: 380);
+  Duration _moveDuration = _fallbackMoveDuration;
   static const _gameId = 'arrow_escape';
   static const _accent = Color(0xFF3F7DAA);
 
@@ -225,6 +230,11 @@ class _ArrowEscapeScreenState extends State<ArrowEscapeScreen>
       builder: (context, constraints) {
         final dim = math.min(constraints.maxWidth, constraints.maxHeight);
         final cell = dim / _board.rows;
+        // A piece leaves by sliding clear of the board, so time that distance at
+        // the shared speed rather than fixing the duration. Same value feeds the
+        // AnimatedPositioned and the post-move delay, so they cannot drift.
+        _moveDuration = slideDuration(
+            (math.max(_board.rows, _board.cols) + 2) * cell);
         final width = cell * _board.cols;
         final height = cell * _board.rows;
 

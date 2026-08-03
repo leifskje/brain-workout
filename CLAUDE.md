@@ -137,6 +137,16 @@ A pre-commit hook (`.githooks/pre-commit`, enabled via `core.hooksPath`) runs
   branching precision from 0.1 to 0.0 — imperceptible — while giving up visible
   coverage. Don't tighten the tolerance either: at 0.1 it rejected perfectly
   playable boards and the fallback was worse on every axis.
+- **Animate at a fixed *speed*, not a fixed duration, whenever the distance
+  depends on the screen.** Both arrow games slid a piece a distance derived from
+  cell size — which scales with the device — over a hard-coded duration, so the
+  *speed* varied: on a large phone an arrow crossed ~1850 dp/s and read as no
+  animation at all. A tester duly reported that Arrow Maze "should have an
+  animation when you click the arrows", for one that had been there all along.
+  `lib/theme/motion.dart` holds `slideDuration(distanceDp)`; clamped so small
+  boards aren't twitchy and big ones aren't slow. This is *not* a refresh-rate
+  issue — Flutter animates from wall-clock time, so a 120Hz screen renders the
+  same animation more smoothly, never faster. Frame rate was never the variable.
 - **Create `AnimationController`s in `initState`, never as lazy `late final`
   fields.** A lazy controller can stay unconstructed during normal play and then
   get built inside `dispose()`, which performs a `TickerMode` ancestor lookup on a
