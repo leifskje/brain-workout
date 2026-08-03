@@ -44,8 +44,12 @@ class _MergeScreenState extends State<MergeScreen>
     super.initState();
     // Create eagerly in initState (never a lazy late field), so dispose()
     // can't construct it on a deactivated widget.
+    // preserve: the slide is how the player sees which tiles merged, so it must
+    // survive reduced-animation mode. See lib/theme/motion.dart.
     _slide = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 150))
+        vsync: this,
+        duration: const Duration(milliseconds: 150),
+        animationBehavior: AnimationBehavior.preserve)
       ..addStatusListener((status) {
         if (status == AnimationStatus.completed && mounted) _onSlideDone();
       });

@@ -55,12 +55,24 @@ class _SnakeArrowsScreenState extends State<SnakeArrowsScreen>
     super.initState();
     // Create eagerly in initState so dispose() never lazily constructs a
     // controller (which would do a TickerMode ancestor lookup) during teardown.
-    _escapeCtrl = AnimationController(vsync: this, duration: _escapeDuration)
+    // animationBehavior: preserve — see the note in lib/theme/motion.dart. When
+    // the platform asks for reduced animations, Flutter runs a `normal`
+    // controller at 5% duration, i.e. a single frame: the escape became 26ms and
+    // testers reported it as missing. These two animations carry meaning rather
+    // than decorate — one shows which arrow left and where it went, the other is
+    // how a lost heart is communicated — so they opt out, exactly as Flutter's
+    // own scroll physics controller does.
+    _escapeCtrl = AnimationController(
+      vsync: this,
+      duration: _escapeDuration,
+      animationBehavior: AnimationBehavior.preserve,
+    )
       ..addListener(_tick)
       ..addStatusListener(_onEscapeStatus);
     _shakeCtrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 400),
+      animationBehavior: AnimationBehavior.preserve,
     )..addListener(_tick);
     _loadLevel(widget.startLevel);
     WidgetsBinding.instance.addPostFrameCallback((_) {

@@ -3,6 +3,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart' show RenderParagraph;
+import 'package:flutter/semantics.dart' show debugSemanticsDisableAnimations;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -10,6 +11,7 @@ import 'package:brain_workout/data/dictionary.dart';
 import 'package:brain_workout/data/word_pool.dart';
 import 'package:brain_workout/data/word_tier.dart';
 import 'package:brain_workout/games/arrow_escape/arrow_escape_models.dart';
+import 'package:brain_workout/games/arrow_escape/arrow_escape_screen.dart';
 import 'package:brain_workout/games/crack_code/crack_code_models.dart';
 import 'package:brain_workout/games/crack_code/crack_code_screen.dart';
 import 'package:brain_workout/games/games_catalog.dart';
@@ -394,6 +396,89 @@ void main() {
     expect(snakeConfigForLevel(42).hearts, lessThan(snakeConfigForLevel(1).hearts));
     expect(snakeConfigForLevel(42).minLength,
         greaterThan(snakeConfigForLevel(1).minLength));
+  });
+
+  testWidgets('Arrow Maze animates even when the device disables animations',
+      (tester) async {
+    // A tester on an S23 Ultra reported that tapping an arrow produced no
+    // animation, while the same build animated visibly on an S24. The cause was
+    // not the device or the frame rate: with the platform's "reduce animations"
+    // setting on, Flutter runs an AnimationController with the default
+    // AnimationBehavior.normal at *5% duration* — the framework's own comment
+    // says this limits it "to a single frame". 520ms became 26ms.
+    //
+    // This reproduces that setting and asserts the animation still takes real
+    // time, which is what AnimationBehavior.preserve buys.
+    debugSemanticsDisableAnimations = true;
+    addTearDown(() => debugSemanticsDisableAnimations = null);
+
+    tester.view.physicalSize = const Size(1080, 2280);
+    tester.view.devicePixelRatio = 2.625;
+    addTearDown(tester.view.reset);
+
+    await tester
+        .pumpWidget(localizedApp(const SnakeArrowsScreen(startLevel: 1)));
+    final board = SnakeBoard.generate(1); // same seed as the screen
+    final rect = tester.getRect(find.byKey(const ValueKey('arrow_maze_board')));
+    final cell = rect.width / board.cols;
+    final arrow = board.arrows.firstWhere(board.isPathClear);
+    final target = arrow.cells.first;
+    await tester.tapAt(rect.topLeft +
+        Offset((target.col + 0.5) * cell, (target.row + 0.5) * cell));
+
+    // The screen's own board is private, so measure the animation itself: a
+    // running controller keeps a transient frame callback registered. The screen
+    // has no idle animations, so this is 0 whenever nothing is moving.
+    await tester.pump();
+    expect(tester.binding.transientCallbackCount, greaterThan(0),
+        reason: 'tapping a clear arrow should start the escape animation');
+
+    // 120ms in it must still be travelling. Under the default behaviour the whole
+    // slide would already be over (780ms x 5% = 39ms) — that is exactly the
+    // "there is no animation" the tester saw.
+    await tester.pump(const Duration(milliseconds: 120));
+    expect(tester.binding.transientCallbackCount, greaterThan(0),
+        reason: 'the animation collapsed to a frame or two, as if not animating');
+
+    // And it does finish, so nothing hangs waiting on it.
+    await tester.pumpAndSettle();
+    expect(tester.binding.transientCallbackCount, 0);
+  });
+
+  testWidgets('Arrow Escape animates even when the device disables animations',
+      (tester) async {
+    // Same defect as Arrow Maze above, but this screen had it through
+    // AnimatedPositioned/AnimatedOpacity: ImplicitlyAnimatedWidgetState creates
+    // its controller without an animationBehavior, so implicit animations collapse
+    // to 5% too and cannot be told not to. Hence the explicit controller in
+    // _PieceView. Worse here than a missing animation: the arrow teleported off
+    // the board while the win dialog still waited a full _moveDuration.
+    debugSemanticsDisableAnimations = true;
+    addTearDown(() => debugSemanticsDisableAnimations = null);
+
+    tester.view.physicalSize = const Size(1080, 2280);
+    tester.view.devicePixelRatio = 2.625;
+    addTearDown(tester.view.reset);
+
+    await tester
+        .pumpWidget(localizedApp(const ArrowEscapeScreen(startLevel: 1)));
+    final board = ArrowBoard.generate(1); // same seed as the screen
+    final rect =
+        tester.getRect(find.byKey(const ValueKey('arrow_escape_board')));
+    final cell = rect.height / board.rows;
+    final piece = board.pieces.firstWhere(board.isPathClear);
+    await tester.tapAt(rect.topLeft +
+        Offset((piece.col + 0.5) * cell, (piece.row + 0.5) * cell));
+
+    await tester.pump();
+    expect(tester.binding.transientCallbackCount, greaterThan(0),
+        reason: 'tapping a clear arrow should start the slide');
+    await tester.pump(const Duration(milliseconds: 120));
+    expect(tester.binding.transientCallbackCount, greaterThan(0),
+        reason: 'the slide collapsed to a frame or two, as if not animating');
+
+    await tester.pumpAndSettle();
+    expect(tester.binding.transientCallbackCount, 0);
   });
 
   testWidgets('Arrow Maze: tapping a clear arrow slithers it off the board',

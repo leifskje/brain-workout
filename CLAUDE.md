@@ -137,16 +137,37 @@ A pre-commit hook (`.githooks/pre-commit`, enabled via `core.hooksPath`) runs
   branching precision from 0.1 to 0.0 — imperceptible — while giving up visible
   coverage. Don't tighten the tolerance either: at 0.1 it rejected perfectly
   playable boards and the fallback was worse on every axis.
+- **A motion that carries information must opt out of "reduce animations."** A
+  tester reported that Arrow Maze "should have an animation when you click the
+  arrows", for one that had been there all along. The cause is not the device and
+  not the frame rate: with the platform's reduce-animations setting on, an
+  `AnimationController` with the default `AnimationBehavior.normal` runs at **5%
+  of its duration** — the framework's own comment is that this limits it "to a
+  single frame". 520ms becomes 26ms, i.e. nothing. Pass
+  `animationBehavior: AnimationBehavior.preserve` wherever the movement *is* the
+  feedback (which arrow left, and in which direction), and leave the default on
+  decorative motion whose end state is visible anyway — a Wordle tile colour, a
+  Simon flash, a card flip. Those are what the setting is for.
+  - **Implicit animations cannot be told this.** `ImplicitlyAnimatedWidgetState`
+    builds its controller without an `animationBehavior`, so `AnimatedPositioned`,
+    `AnimatedOpacity`, `AnimatedContainer` and `TweenAnimationBuilder` all
+    collapse and there is no parameter to stop them. That is why Arrow Escape's
+    pieces are driven by an explicit controller in `_PieceView` instead — its
+    arrow teleported off the board while the win dialog still waited a full
+    `_moveDuration`, which is worse than a missing animation.
+  - Both cases are covered by tests that set `debugSemanticsDisableAnimations` and
+    assert the controller is still ticking 120ms in. Verify such a test by
+    breaking the fix and watching it fail: the first version asserted on a
+    locally generated `SnakeBoard`, not the screen's, so it passed either way.
 - **Animate at a fixed *speed*, not a fixed duration, whenever the distance
-  depends on the screen.** Both arrow games slid a piece a distance derived from
-  cell size — which scales with the device — over a hard-coded duration, so the
-  *speed* varied: on a large phone an arrow crossed ~1850 dp/s and read as no
-  animation at all. A tester duly reported that Arrow Maze "should have an
-  animation when you click the arrows", for one that had been there all along.
-  `lib/theme/motion.dart` holds `slideDuration(distanceDp)`; clamped so small
-  boards aren't twitchy and big ones aren't slow. This is *not* a refresh-rate
-  issue — Flutter animates from wall-clock time, so a 120Hz screen renders the
-  same animation more smoothly, never faster. Frame rate was never the variable.
+  depends on the screen.** Separate from the above, and a smaller effect: both
+  arrow games slid a piece a distance derived from cell size — which scales with
+  the device — over a hard-coded duration, so the *speed* varied, around
+  ~1850 dp/s on a large phone. `lib/theme/motion.dart` holds
+  `slideDuration(distanceDp)`; clamped so small boards aren't twitchy and big ones
+  aren't slow. This is *not* a refresh-rate issue either — Flutter animates from
+  wall-clock time, so a 120Hz screen renders the same animation more smoothly,
+  never faster. Frame rate was never the variable.
 - **Create `AnimationController`s in `initState`, never as lazy `late final`
   fields.** A lazy controller can stay unconstructed during normal play and then
   get built inside `dispose()`, which performs a `TickerMode` ancestor lookup on a

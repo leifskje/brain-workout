@@ -8,17 +8,21 @@ library;
 /// Both arrow games used a *fixed* duration for a slide whose distance scales
 /// with the board's cell size — and cell size scales with the screen. So the
 /// duration was device-independent while the **speed** was not: on a large phone
-/// an arrow crossed far more pixels in the same 520ms and read as a blur. A
-/// tester reported "there should be an animation when you click the arrows" for
-/// an animation that was already there, just too fast to register.
+/// an arrow crossed far more pixels in the same 520ms.
 ///
 /// Fixing the speed instead makes the motion look the same on every device, and
 /// has a pleasant side effect: a long snake takes longer to slither out than a
 /// short one, which is what the eye expects anyway.
 ///
-/// Note this is not about refresh rate. Flutter drives animations from wall-clock
-/// elapsed time, so a 120Hz screen renders the same animation more smoothly, not
-/// faster. Frame rate was never the variable — distance was.
+/// Two things this does *not* explain, both worth knowing before reaching for it:
+///
+/// - **Refresh rate.** Flutter drives animations from wall-clock elapsed time, so
+///   a 120Hz screen renders the same animation more smoothly, not faster.
+/// - **"There is no animation at all."** That is the platform's reduce-animations
+///   setting, which makes an `AnimationController` with the default
+///   `AnimationBehavior.normal` run at 5% duration — a single frame. No timing
+///   choice here survives that; the controller has to ask for
+///   `AnimationBehavior.preserve`, and the arrow games do.
 Duration slideDuration(
   double distanceDp, {
   double speedDpPerSecond = _defaultSpeed,
