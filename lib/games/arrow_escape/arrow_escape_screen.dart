@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 
 import '../../l10n/generated/app_localizations.dart';
 import '../../services/progress_store.dart';
+import '../../theme/motion.dart';
 import '../../widgets/game_header.dart';
 import '../../widgets/how_to_play.dart';
 import '../../widgets/win_dialog.dart';
@@ -26,7 +27,11 @@ class ArrowEscapeScreen extends StatefulWidget {
 
 class _ArrowEscapeScreenState extends State<ArrowEscapeScreen>
     with SingleTickerProviderStateMixin {
-  static const _moveDuration = Duration(milliseconds: 380);
+  /// Fallback only: replaced from the layout once the cell size is known. A
+  /// fixed duration meant the *speed* varied with the device, because a piece
+  /// slides the full width of the board and that distance scales with the screen.
+  static const _fallbackMoveDuration = Duration(milliseconds: 380);
+  Duration _moveDuration = _fallbackMoveDuration;
   static const _gameId = 'arrow_escape';
   static const _accent = Color(0xFF3F7DAA);
 
@@ -51,7 +56,10 @@ class _ArrowEscapeScreenState extends State<ArrowEscapeScreen>
     // created lazily, a play-through with no blocked tap would never construct
     // it, and dispose()'s _shake.dispose() would lazily build it mid-teardown,
     // triggering a TickerMode ancestor lookup on a deactivated widget.
+    // preserve: reduced-animation mode would collapse this to one frame, and the
+    // shake is how a blocked arrow reports itself. See lib/theme/motion.dart.
     _shake = AnimationController(
+      animationBehavior: AnimationBehavior.preserve,
       vsync: this,
       duration: const Duration(milliseconds: 400),
     )..addListener(_onShakeTick);
@@ -225,10 +233,17 @@ class _ArrowEscapeScreenState extends State<ArrowEscapeScreen>
       builder: (context, constraints) {
         final dim = math.min(constraints.maxWidth, constraints.maxHeight);
         final cell = dim / _board.rows;
+        // A piece leaves by sliding clear of the board, so time that distance at
+        // the shared speed rather than fixing the duration. Same value feeds the
+        // AnimatedPositioned and the post-move delay, so they cannot drift.
+        _moveDuration = slideDuration(
+            (math.max(_board.rows, _board.cols) + 2) * cell);
         final width = cell * _board.cols;
         final height = cell * _board.rows;
 
         return ClipRRect(
+          // Named so tests can aim taps at a cell centre, as in Arrow Maze.
+          key: const ValueKey('arrow_escape_board'),
           borderRadius: BorderRadius.circular(18),
           child: Container(
             width: width,
@@ -261,23 +276,18 @@ class _ArrowEscapeScreenState extends State<ArrowEscapeScreen>
   }
 
   Widget _buildPiece(ArrowPiece p, double cell) {
-    var left = p.col * cell;
-    var top = p.row * cell;
-
-    // When escaped, slide the arrow fully off the board in its direction.
-    if (p.escaped) {
-      final offCols = (_board.cols + 2) * cell;
-      final offRows = (_board.rows + 2) * cell;
-      switch (p.dir) {
-        case Direction.left:
-          left = -offCols;
-        case Direction.right:
-          left = offCols;
-        case Direction.up:
-          top = -offRows;
-        case Direction.down:
-          top = offRows;
-      }
+    // Where the arrow ends up once it has left: fully clear of the board, in the
+    // direction it points.
+    var offset = Offset.zero;
+    switch (p.dir) {
+      case Direction.left:
+        offset = Offset(-(_board.cols + 2) * cell, 0);
+      case Direction.right:
+        offset = Offset((_board.cols + 2) * cell, 0);
+      case Direction.up:
+        offset = Offset(0, -(_board.rows + 2) * cell);
+      case Direction.down:
+        offset = Offset(0, (_board.rows + 2) * cell);
     }
 
     final isBlocked = p.id == _blockedId && _shake.isAnimating;
@@ -285,24 +295,121 @@ class _ArrowEscapeScreenState extends State<ArrowEscapeScreen>
         ? math.sin(_shake.value * math.pi * 6) * (1 - _shake.value) * 6
         : 0.0;
 
-    return AnimatedPositioned(
+    return _PieceView(
       key: ValueKey(p.id),
+      home: Offset(p.col * cell, p.row * cell),
+      away: offset,
+      cell: cell,
       duration: _moveDuration,
-      curve: Curves.easeIn,
-      left: left,
-      top: top,
-      width: cell,
-      height: cell,
-      child: AnimatedOpacity(
-        duration: _moveDuration,
-        opacity: p.escaped ? 0 : 1,
+      escaped: p.escaped,
+      shakeDx: shakeDx,
+      dir: p.dir,
+      blocked: isBlocked,
+      onTap: () => _onTapPiece(p),
+    );
+  }
+}
+
+/// One arrow on the board, owning the animation that carries it off.
+///
+/// This was an `AnimatedPositioned` + `AnimatedOpacity`, which reads better but
+/// cannot survive the platform's "reduce animations" setting:
+/// `ImplicitlyAnimatedWidgetState` builds its controller with the default
+/// [AnimationBehavior.normal], and that runs at **5% duration** when animations
+/// are disabled — the framework's own words are that this limits it "to a single
+/// frame". The arrow teleported off the board while the game still waited a full
+/// `_moveDuration` before the win dialog, so the move read as no animation at all.
+/// An explicit controller can ask for [AnimationBehavior.preserve]; an implicit
+/// one cannot. The slide is how this game reports what a tap did, so it is
+/// functional motion, which is exactly what `preserve` is for.
+///
+/// One controller per piece (rather than one shared by the board) so a second tap
+/// mid-slide does not snap the first arrow to its destination.
+class _PieceView extends StatefulWidget {
+  const _PieceView({
+    super.key,
+    required this.home,
+    required this.away,
+    required this.cell,
+    required this.duration,
+    required this.escaped,
+    required this.shakeDx,
+    required this.dir,
+    required this.blocked,
+    required this.onTap,
+  });
+
+  /// Top-left of the arrow's resting cell, and how far it travels to leave.
+  final Offset home;
+  final Offset away;
+  final double cell;
+  final Duration duration;
+  final bool escaped;
+  final double shakeDx;
+  final Direction dir;
+  final bool blocked;
+  final VoidCallback onTap;
+
+  @override
+  State<_PieceView> createState() => _PieceViewState();
+}
+
+class _PieceViewState extends State<_PieceView>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: widget.duration,
+      animationBehavior: AnimationBehavior.preserve,
+    )..addListener(() {
+        if (mounted) setState(() {});
+      });
+    // A level can be resumed with pieces already gone; don't animate those in.
+    if (widget.escaped) _ctrl.value = 1;
+  }
+
+  @override
+  void didUpdateWidget(_PieceView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _ctrl.duration = widget.duration;
+    if (widget.escaped == oldWidget.escaped) return;
+    if (widget.escaped) {
+      _ctrl.forward(from: 0);
+    } else {
+      // Restart / next level reuses these widgets (the keys are piece ids, which
+      // start over), so a controller left at 1 would hide the new arrow for good.
+      _ctrl.value = 0;
+    }
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final t = _ctrl.value;
+    final slide = widget.away * Curves.easeIn.transform(t);
+    return Positioned(
+      left: widget.home.dx + slide.dx,
+      top: widget.home.dy + slide.dy,
+      width: widget.cell,
+      height: widget.cell,
+      child: Opacity(
+        opacity: 1 - t,
         child: Transform.translate(
-          offset: Offset(shakeDx, 0),
+          offset: Offset(widget.shakeDx, 0),
           child: Padding(
-            padding: EdgeInsets.all(cell * 0.08),
+            padding: EdgeInsets.all(widget.cell * 0.08),
             child: GestureDetector(
-              onTap: () => _onTapPiece(p),
-              child: _ArrowTile(dir: p.dir, blocked: isBlocked),
+              onTap: widget.onTap,
+              child: _ArrowTile(dir: widget.dir, blocked: widget.blocked),
             ),
           ),
         ),

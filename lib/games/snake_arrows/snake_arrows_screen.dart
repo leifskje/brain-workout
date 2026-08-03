@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 
 import '../../l10n/generated/app_localizations.dart';
 import '../../services/progress_store.dart';
+import '../../theme/motion.dart';
 import '../../widgets/game_header.dart';
 import '../../widgets/how_to_play.dart';
 import '../../widgets/win_dialog.dart';
@@ -35,6 +36,11 @@ class _SnakeArrowsScreenState extends State<SnakeArrowsScreen>
   late int _hearts;
   int? _escapingId;
   int? _blockedId;
+
+  /// Cell size from the last layout, in logical pixels. The escape animation is
+  /// timed from how far the arrow actually travels, and only the layout knows
+  /// that — a fixed duration made the *speed* vary with screen size.
+  double _cell = 0;
   bool _busy = false; // locks taps while an arrow is leaving / dialog pending
 
   late final AnimationController _escapeCtrl;
@@ -49,12 +55,24 @@ class _SnakeArrowsScreenState extends State<SnakeArrowsScreen>
     super.initState();
     // Create eagerly in initState so dispose() never lazily constructs a
     // controller (which would do a TickerMode ancestor lookup) during teardown.
-    _escapeCtrl = AnimationController(vsync: this, duration: _escapeDuration)
+    // animationBehavior: preserve — see the note in lib/theme/motion.dart. When
+    // the platform asks for reduced animations, Flutter runs a `normal`
+    // controller at 5% duration, i.e. a single frame: the escape became 26ms and
+    // testers reported it as missing. These two animations carry meaning rather
+    // than decorate — one shows which arrow left and where it went, the other is
+    // how a lost heart is communicated — so they opt out, exactly as Flutter's
+    // own scroll physics controller does.
+    _escapeCtrl = AnimationController(
+      vsync: this,
+      duration: _escapeDuration,
+      animationBehavior: AnimationBehavior.preserve,
+    )
       ..addListener(_tick)
       ..addStatusListener(_onEscapeStatus);
     _shakeCtrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 400),
+      animationBehavior: AnimationBehavior.preserve,
     )..addListener(_tick);
     _loadLevel(widget.startLevel);
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -112,6 +130,11 @@ class _SnakeArrowsScreenState extends State<SnakeArrowsScreen>
 
     if (_board.isPathClear(arrow)) {
       HapticFeedback.lightImpact();
+      // Time the slide from how far it travels, so the speed is the same on every
+      // screen. The painter moves the arrow this same distance (see _drawArrow's
+      // totalShift), so the two must stay in step.
+      _escapeCtrl.duration = slideDuration(
+          (arrow.cells.length - 1 + _board.rows + 1) * _cell);
       setState(() {
         _escapingId = arrow.id;
         _blockedId = null;
@@ -248,6 +271,9 @@ class _SnakeArrowsScreenState extends State<SnakeArrowsScreen>
           constraints.maxWidth / _board.cols,
           constraints.maxHeight / _board.rows,
         );
+        // Remembered for the tap handler, which needs the travel distance to time
+        // the escape at a constant speed. Only the layout knows the cell size.
+        _cell = cell;
         final boardSize = Size(cell * _board.cols, cell * _board.rows);
 
         return GestureDetector(
