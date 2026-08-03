@@ -162,6 +162,12 @@ class AppLocalizationsEn extends AppLocalizations {
   String get gameMergeSubtitle => 'Merge tiles to the target';
 
   @override
+  String get gameNonogramTitle => 'Picture Logic';
+
+  @override
+  String get gameNonogramSubtitle => 'Reveal the hidden picture';
+
+  @override
   String comingSoonTitle(String game) {
     return '$game is coming soon!';
   }
@@ -261,6 +267,10 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get helpMerge =>
       'Swipe the board (or use the arrows) to slide all the tiles one way. When two tiles with the same number touch, they merge into one with double the value. Reach the target tile to win.';
+
+  @override
+  String get helpNonogram =>
+      'The numbers along the top and the left tell you how many squares in a row are filled, in order. A line marked 4 2 has four filled squares, at least one gap, then two more. A line marked 0 is empty. Tap a square to fill it, tap again to put a cross where you are sure it stays empty, and once more to clear it. Fill in every correct square to reveal the picture. Nothing is timed and a wrong square costs you nothing — just fix it.';
 
   @override
   String get outOfHearts => 'Out of hearts';
@@ -390,6 +400,27 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get noMovesBody => 'The board is full. Want to try this level again?';
+
+  @override
+  String get nonogramHint =>
+      'Tap to fill, tap again for a cross, once more to clear.';
+
+  @override
+  String get nonogramCheck => 'Check my squares';
+
+  @override
+  String get nonogramCheckClean => 'No mistakes so far!';
+
+  @override
+  String nonogramCheckFound(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count filled squares are wrong',
+      one: '1 filled square is wrong',
+    );
+    return '$_temp0';
+  }
 
   @override
   String get notEnoughLetters => 'Not enough letters';

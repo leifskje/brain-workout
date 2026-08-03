@@ -368,6 +368,18 @@ abstract class AppLocalizations {
   /// **'Merge tiles to the target'**
   String get gameMergeSubtitle;
 
+  /// No description provided for @gameNonogramTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Picture Logic'**
+  String get gameNonogramTitle;
+
+  /// No description provided for @gameNonogramSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Reveal the hidden picture'**
+  String get gameNonogramSubtitle;
+
   /// No description provided for @comingSoonTitle.
   ///
   /// In en, this message translates to:
@@ -529,6 +541,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Swipe the board (or use the arrows) to slide all the tiles one way. When two tiles with the same number touch, they merge into one with double the value. Reach the target tile to win.'**
   String get helpMerge;
+
+  /// No description provided for @helpNonogram.
+  ///
+  /// In en, this message translates to:
+  /// **'The numbers along the top and the left tell you how many squares in a row are filled, in order. A line marked 4 2 has four filled squares, at least one gap, then two more. A line marked 0 is empty. Tap a square to fill it, tap again to put a cross where you are sure it stays empty, and once more to clear it. Fill in every correct square to reveal the picture. Nothing is timed and a wrong square costs you nothing — just fix it.'**
+  String get helpNonogram;
 
   /// No description provided for @outOfHearts.
   ///
@@ -721,6 +739,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'The board is full. Want to try this level again?'**
   String get noMovesBody;
+
+  /// No description provided for @nonogramHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap to fill, tap again for a cross, once more to clear.'**
+  String get nonogramHint;
+
+  /// No description provided for @nonogramCheck.
+  ///
+  /// In en, this message translates to:
+  /// **'Check my squares'**
+  String get nonogramCheck;
+
+  /// No description provided for @nonogramCheckClean.
+  ///
+  /// In en, this message translates to:
+  /// **'No mistakes so far!'**
+  String get nonogramCheckClean;
+
+  /// No description provided for @nonogramCheckFound.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 filled square is wrong} other{{count} filled squares are wrong}}'**
+  String nonogramCheckFound(int count);
 
   /// No description provided for @notEnoughLetters.
   ///

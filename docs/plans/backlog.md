@@ -1,6 +1,6 @@
 # Game & feature backlog
 
-Status: ✅ shipped · 🔨 in progress · 📝 planned · 💡 idea
+Status: ✅ shipped · 🔨 in progress · 📝 planned · 💡 idea · ⛔ blocked
 
 ## Games by cognitive domain
 
@@ -11,11 +11,11 @@ We deliberately spread games across domains for a rounded "workout," and want
 |---|---|
 | Spatial / planning | ✅ Arrow Escape · ✅ Arrow Maze |
 | Working memory | ✅ Memory Match |
-| Logic / pattern | ✅ What Comes Next |
-| Language | 🔨 Word game (Wordle-style) — see [wordle.md](wordle.md) |
-| Numeracy | 📝 Number Cross (math crossword) — see [number-cross.md](number-cross.md) |
-| Attention / speed | 💡 Odd One Out · 💡 Tap-in-order (Schulte table) |
-| Memory (other) | 💡 Simon / sequence-repeat |
+| Logic / pattern | ✅ What Comes Next · ✅ Crack the Code — see [crack-code.md](crack-code.md) · ✅ Picture Logic (nonogram) — see [nonogram.md](nonogram.md) |
+| Language | ✅ Word (Wordle-style) — see [wordle.md](wordle.md) · ✅ Word Search — see [word-search.md](word-search.md) · ✅ Word Scramble — see [word-scramble.md](word-scramble.md) · ⛔ Compound Words — see [compound-words.md](compound-words.md) |
+| Numeracy | ✅ Number Cross — see [number-cross.md](number-cross.md) · ✅ Mini Sudoku — see [mini-sudoku.md](mini-sudoku.md) · ✅ 2048 — see [merge.md](merge.md) |
+| Attention / speed | ✅ Follow the Trail — see [trail.md](trail.md) · 💡 Odd One Out |
+| Memory (other) | ✅ Simon — see [simon.md](simon.md) |
 
 ## Engagement & polish
 

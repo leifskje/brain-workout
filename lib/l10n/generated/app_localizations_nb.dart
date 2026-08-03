@@ -162,6 +162,12 @@ class AppLocalizationsNb extends AppLocalizations {
   String get gameMergeSubtitle => 'Slå sammen brikker til målet';
 
   @override
+  String get gameNonogramTitle => 'Bildekryss';
+
+  @override
+  String get gameNonogramSubtitle => 'Finn det skjulte bildet';
+
+  @override
   String comingSoonTitle(String game) {
     return '$game kommer snart!';
   }
@@ -261,6 +267,10 @@ class AppLocalizationsNb extends AppLocalizations {
   @override
   String get helpMerge =>
       'Sveip på brettet (eller bruk pilene) for å skyve alle brikkene én vei. Når to brikker med samme tall møtes, slås de sammen til én med dobbelt verdi. Nå målbrikken for å vinne.';
+
+  @override
+  String get helpNonogram =>
+      'Tallene øverst og til venstre forteller hvor mange ruter på rad som er fylt, i rekkefølge. En linje merket 4 2 har fire fylte ruter, minst ett opphold, og så to til. En linje merket 0 er tom. Trykk på en rute for å fylle den, trykk igjen for å sette et kryss der du er sikker på at den skal være tom, og en gang til for å tømme den. Fyll alle de riktige rutene for å avsløre bildet. Ingenting er på tid, og en feil rute koster deg ingenting — bare rett den opp.';
 
   @override
   String get outOfHearts => 'Tomt for hjerter';
@@ -391,6 +401,27 @@ class AppLocalizationsNb extends AppLocalizations {
 
   @override
   String get noMovesBody => 'Brettet er fullt. Vil du prøve nivået på nytt?';
+
+  @override
+  String get nonogramHint =>
+      'Trykk for å fylle, igjen for kryss, en gang til for å tømme.';
+
+  @override
+  String get nonogramCheck => 'Sjekk rutene mine';
+
+  @override
+  String get nonogramCheckClean => 'Ingen feil så langt!';
+
+  @override
+  String nonogramCheckFound(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count fylte ruter er feil',
+      one: '1 fylt rute er feil',
+    );
+    return '$_temp0';
+  }
 
   @override
   String get notEnoughLetters => 'For få bokstaver';
