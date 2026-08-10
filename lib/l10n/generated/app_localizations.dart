@@ -863,8 +863,14 @@ abstract class AppLocalizations {
   /// No description provided for @practiceWord.
   ///
   /// In en, this message translates to:
-  /// **'Practice word'**
+  /// **'Play another word'**
   String get practiceWord;
+
+  /// No description provided for @practiceWordNote.
+  ///
+  /// In en, this message translates to:
+  /// **'As many as you like — these are just for practice.'**
+  String get practiceWordNote;
 
   /// No description provided for @notEnoughLetters.
   ///

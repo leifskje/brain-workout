@@ -455,11 +455,30 @@ class _WordleScreenState extends State<WordleScreen> {
             textAlign: TextAlign.center,
             style: const TextStyle(fontSize: 15, color: Colors.black54),
           ),
-          const SizedBox(height: 12),
-          TextButton(
-            key: const ValueKey('wordle_practice'),
-            onPressed: _startNewWord,
-            child: Text(t.practiceWord),
+          const SizedBox(height: 16),
+          // "One word a day" is the shared ritual, not a limit on playing. This
+          // was a faint TextButton and read as a footnote — the owner concluded
+          // the game was over for the day. It is a real button now, because
+          // "keep playing" is the more common thing to want here.
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              key: const ValueKey('wordle_practice'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: _accent,
+                side: const BorderSide(color: _accent, width: 1.5),
+                minimumSize: const Size(0, 56),
+              ),
+              onPressed: _startNewWord,
+              icon: const Icon(Icons.replay_rounded),
+              label: Text(t.practiceWord),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            t.practiceWordNote,
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 13, color: Colors.black45),
           ),
         ],
       ),

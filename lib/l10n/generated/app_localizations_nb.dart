@@ -507,7 +507,10 @@ class AppLocalizationsNb extends AppLocalizations {
   String get copiedToClipboard => 'Kopiert til utklippstavlen';
 
   @override
-  String get practiceWord => 'Øvingsord';
+  String get practiceWord => 'Spill et nytt ord';
+
+  @override
+  String get practiceWordNote => 'Så mange du vil — disse er bare til øving.';
 
   @override
   String get notEnoughLetters => 'For få bokstaver';

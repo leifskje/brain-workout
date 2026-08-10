@@ -169,7 +169,8 @@
   "shareUnavailable": "Sharing isn't available here — copied to the clipboard instead.",
   "copyResult": "Copy",
   "copiedToClipboard": "Copied to the clipboard",
-  "practiceWord": "Practice word",
+  "practiceWord": "Play another word",
+  "practiceWordNote": "As many as you like — these are just for practice.",
 
   "notEnoughLetters": "Not enough letters",
   "notInWordList": "Not in word list",

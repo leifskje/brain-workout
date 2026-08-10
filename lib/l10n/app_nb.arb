@@ -140,7 +140,8 @@
   "shareUnavailable": "Deling er ikke tilgjengelig her — kopiert til utklippstavlen i stedet.",
   "copyResult": "Kopier",
   "copiedToClipboard": "Kopiert til utklippstavlen",
-  "practiceWord": "Øvingsord",
+  "practiceWord": "Spill et nytt ord",
+  "practiceWordNote": "Så mange du vil — disse er bare til øving.",
 
   "notEnoughLetters": "For få bokstaver",
   "notInWordList": "Ordet er ikke i ordlisten",

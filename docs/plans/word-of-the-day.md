@@ -41,9 +41,17 @@ Opening the game starts today's word. Once it is finished the board is replaced 
 result card — grid, share buttons, and "come back tomorrow" — rather than the board
 being restored, because the stored result deliberately keeps only the colours.
 
-**Practice words** are still available from the card and the header. They are random,
-unrecorded and not shareable: a practice word is nobody else's puzzle, so a grid
-from one would mean nothing to the person receiving it.
+**Practice words** are available from the card and from the header, in unlimited
+number. They are random, unrecorded and not shareable: a practice word is nobody
+else's puzzle, so a grid from one would mean nothing to the person receiving it.
+
+One word a day is the shared *ritual*, not a cap on playing — and that distinction
+has to be visible. The practice route was first a faint `TextButton` under the
+"come back tomorrow" line, and the owner read the card as "the game is over for
+today". It is now a full-width button with an icon, plus a line saying there can be
+as many as you like. Tested for the thing that was actually wrong: the button is
+`hitTestable`, it yields a playable board, it works a second time, and it never
+overwrites the recorded daily result.
 
 Today's result is stored keyed on the **puzzle number**, not a date string, so
 yesterday's result can never be mistaken for today's.

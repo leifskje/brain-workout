@@ -109,6 +109,44 @@ void main() {
         findsOneWidget);
   });
 
+  testWidgets('After the daily word you can keep playing, repeatedly',
+      (tester) async {
+    // The owner read the finished-daily card as "the game is over for today". One
+    // word a day is the shared ritual, not a cap on playing, so the practice route
+    // has to be an obvious button and has to work more than once.
+    phoneSize(tester);
+    final puzzle = WordRepository.dailyPuzzleNumber(DateTime.now());
+    ProgressStore.instance.recordDailyWord('en', puzzle,
+        solved: true, rows: ['aapca', 'ccccc']);
+
+    await tester.pumpWidget(localizedApp(const WordleScreen()));
+    await settle(tester, 30);
+    expect(find.byKey(const ValueKey('wordle_practice')).hitTestable(),
+        findsOneWidget,
+        reason: 'the way to keep playing must be reachable, not a footnote');
+
+    // First practice word: the board and keyboard come back.
+    await tester.tap(find.byKey(const ValueKey('wordle_practice')));
+    await settle(tester);
+    expect(find.text("Today's word is done!"), findsNothing);
+    expect(find.byKey(const ValueKey('wordle_key_ENTER')).hitTestable(),
+        findsOneWidget, reason: 'a practice board should be playable');
+
+    // A practice word must not be mistaken for the daily, or it would overwrite
+    // the recorded result and offer a meaningless grid to share.
+    final stored = ProgressStore.instance.dailyWordResult('en', puzzle);
+    expect(stored, isNotNull);
+    expect(stored!.rows, ['aapca', 'ccccc'],
+        reason: 'playing practice must not touch the recorded daily result');
+
+    // And again, from the header — the second route, which stays available while
+    // playing rather than only on the card.
+    await tester.tap(find.byIcon(Icons.refresh_rounded));
+    await settle(tester);
+    expect(find.byKey(const ValueKey('wordle_key_ENTER')).hitTestable(),
+        findsOneWidget, reason: 'a second practice word should start too');
+  });
+
   testWidgets('Tapping Share never throws at the player', (tester) async {
     // Reported from a real device: MissingPluginException(No implementation found
     // for method share on channel dev.fluttercommunity.plus/share). The cause was

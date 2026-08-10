@@ -506,7 +506,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get copiedToClipboard => 'Copied to the clipboard';
 
   @override
-  String get practiceWord => 'Practice word';
+  String get practiceWord => 'Play another word';
+
+  @override
+  String get practiceWordNote =>
+      'As many as you like — these are just for practice.';
 
   @override
   String get notEnoughLetters => 'Not enough letters';
