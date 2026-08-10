@@ -2511,6 +2511,82 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text("Today's word is done!"), findsNothing);
   });
+  test('Arrow Maze bonus arrows: well-formed, stuck at the start, and fair', () {
+    for (final level in [1, 8, 12, 20, 40, 60]) {
+      final cfg = snakeConfigForLevel(level);
+      final board = SnakeBoard.generate(level);
+      final bonus = board.bonusArrow;
+
+      if (cfg.bonusFrees == 0) {
+        expect(bonus, isNull, reason: 'level $level should have no bonus arrow');
+        continue;
+      }
+      // A board can legitimately lack a bonus if too few arrows start stuck, but
+      // the dense late boards should always manage one.
+      if (level >= 20) {
+        expect(bonus, isNotNull, reason: 'level $level should have a bonus arrow');
+      }
+      if (bonus == null) continue;
+
+      expect(bonus.frees.length, cfg.bonusFrees, reason: 'level $level link count');
+      expect(bonus.frees, isNot(contains(bonus.id)),
+          reason: 'a bonus arrow must not free itself');
+      expect(bonus.frees.toSet().length, bonus.frees.length,
+          reason: 'duplicate links');
+      final ids = {for (final a in board.arrows) a.id};
+      expect(bonus.frees.every(ids.contains), isTrue,
+          reason: 'links must point at real arrows');
+
+      // Both ends start blocked: a tappable bonus arrow would be a free opening
+      // move, and freeing arrows that were never stuck would be no gift at all.
+      expect(board.isPathClear(bonus), isFalse,
+          reason: 'level $level bonus arrow is clear at the start');
+      for (final id in bonus.frees) {
+        final linked = board.arrows.firstWhere((a) => a.id == id);
+        expect(board.isPathClear(linked), isFalse,
+            reason: 'level $level frees arrow $id which was never stuck');
+      }
+
+      // Still winnable playing normally — the cascade only ever removes arrows,
+      // so it cannot strand anything, but the board must be solvable *without*
+      // relying on the bonus too.
+      var progress = true;
+      while (progress) {
+        progress = false;
+        for (final a in board.arrows) {
+          if (!a.escaped && board.isPathClear(a)) {
+            a.escaped = true;
+            progress = true;
+          }
+        }
+      }
+      expect(board.isSolved, isTrue,
+          reason: 'level $level must be solvable ignoring the bonus');
+    }
+  });
+
+  test('Arrow Maze bonus arrows: the cascade fires once and skips the gone', () {
+    final board = SnakeBoard.generate(25);
+    final bonus = board.bonusArrow!;
+    expect(board.bonusFreedBy(bonus).length, bonus.frees.length);
+
+    // An already-escaped link is not freed twice.
+    final first = board.arrows.firstWhere((a) => a.id == bonus.frees.first);
+    first.escaped = true;
+    expect(board.bonusFreedBy(bonus).length, bonus.frees.length - 1);
+    expect(board.bonusFreedBy(bonus), isNot(contains(first)));
+
+    // Clearing the bonus last wastes it entirely, which is the decision the
+    // mechanic exists to create.
+    for (final id in bonus.frees) {
+      board.arrows.firstWhere((a) => a.id == id).escaped = true;
+    }
+    expect(board.bonusFreedBy(bonus), isEmpty);
+
+    // A normal arrow frees nothing.
+    final plain = board.arrows.firstWhere((a) => !a.isBonus);
+    expect(board.bonusFreedBy(plain), isEmpty);
+  });
 }
 
 /// Counts solutions of a nonogram by row-wise backtracking, stopping at [limit].

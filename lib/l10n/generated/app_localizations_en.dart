@@ -222,7 +222,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get helpArrowMaze =>
-      'The long arrows slide off the board head-first. Tap one to send it out — the path in front of its head must be clear. Clear the whole board to win.';
+      'The long arrows slide off the board head-first. Tap one to send it out — the path in front of its head must be clear. Clear the whole board to win. From level 12 one arrow is golden: when it gets away it takes the paler golden arrows with it, so it pays to free the golden one while they are still stuck.';
 
   @override
   String get helpWord =>
@@ -304,6 +304,17 @@ class AppLocalizationsEn extends AppLocalizations {
       locale: localeName,
       other: 'Your best: $count guesses',
       one: 'Your best: 1 guess',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String bonusArrowFreed(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'The golden arrow freed $count more!',
+      one: 'The golden arrow freed 1 more!',
     );
     return '$_temp0';
   }

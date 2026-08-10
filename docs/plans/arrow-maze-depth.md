@@ -48,11 +48,21 @@ drops meaningfully below 2.1. If it doesn't, zoom buys nothing and shouldn't shi
 Both of these add difficulty *without* more cells, which makes them strictly
 better value than axis 1 if they work.
 
-- **Bonus arrows.** A coloured arrow that, when cleared, frees three others.
-  This is the strongest idea on the list: it creates a reason to plan an *order*
-  rather than just find any legal move, which is precisely the "forces looking
-  ahead" property `measureDifficulty` is trying to capture. It should show up as a
-  measurable branching change, so it is testable.
+- ✅ **Bonus arrows — shipped.** One golden arrow per board from level 12 (three
+  freed arrows, four from level 40). Both the bonus arrow *and* the arrows it frees
+  are chosen from arrows that are **stuck at the start**: a tappable bonus arrow
+  would be a free opening move, and freeing arrows that were never stuck would be
+  no gift at all. Linked arrows are drawn in the same hue, lighter, so the
+  connection is visible *before* the player commits to an order — which is the
+  entire mechanic. Clearing the golden arrow last simply wastes it.
+
+  Two things worth knowing. `measureDifficulty` simulates the cascade, because a
+  metric that ignored it would be scoring a game nobody plays; the tuned curve
+  survived that change with every level still inside tolerance, so no retuning was
+  needed. And solvability is untouched for the same monotonicity reason as the
+  autosave restores — a cascade only ever *removes* arrows, so it cannot strand
+  anything, and the tests additionally assert every board is still solvable while
+  ignoring the bonus entirely.
 - **Eagle eye.** Reward spotting an arrow that threads a gap others block —
   i.e. a hard-to-see legal move. Adds a perception challenge on the same board.
   Needs a definition of "hard to spot" that isn't arbitrary; a candidate is an
@@ -75,5 +85,8 @@ them for *ideas* is fine; copying code is not.
 ## Status
 
 ✅ Retune shipped (plateau 35 → 63).
-💡 Axis 1 (zoom + bigger board) and axis 2 (bonus arrows, eagle eye) both open.
-Axis 2 first — cheaper, and it doesn't risk the scanning UX.
+✅ Bonus arrows shipped — the first difficulty axis here that isn't a generator knob.
+💡 Still open: **eagle eye**, and **axis 1 (zoom + a bigger board)**, which remains
+the only route to the large remaining headroom. Verify zoom pays before building it:
+generate at 20×30, run `analyze_snake_difficulty`, and check the achievable branching
+floor actually drops meaningfully below 2.1. If it doesn't, zoom buys nothing.

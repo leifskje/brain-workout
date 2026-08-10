@@ -34,6 +34,7 @@ final Map<String, String Function(int)> games = {
     final c = snakeConfigForLevel(l);
     return '${c.cols}x${c.rows} len=${c.minLength}-${c.maxLength} '
         'fill=${c.fillTarget.toStringAsFixed(2)} hearts=${c.hearts} '
+        'bonus=${c.bonusFrees} '
         'branchTarget=${snakeTargetBranchingForLevel(l).toStringAsFixed(2)}';
   },
   'Crack the Code': (l) {

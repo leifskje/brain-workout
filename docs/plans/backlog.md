@@ -56,10 +56,10 @@ identical to the twenties. Plateaus after it:
 
 What's left:
 
-- ⛔ **Arrow Maze is out of config knobs.** All are at their limits and the
-  measured branching floor at 14×20 is ~2.1. Real depth now needs a bigger board
-  (which needs zoom) or a new mechanic — see
-  [arrow-maze-depth.md](arrow-maze-depth.md).
+- 🔨 **Arrow Maze got its new mechanic: bonus arrows** (golden arrow frees three
+  stuck ones, from level 12). Config knobs remain exhausted — the measured branching
+  floor at 14×20 is ~2.1 — so the remaining depth is *eagle eye* and a bigger board
+  behind zoom. See [arrow-maze-depth.md](arrow-maze-depth.md).
 - 💡 **Memory Match needs *triples* to go further.** 21 pairs is the structural
   ceiling: all layouts are 6 columns wide, so card size is width-bound at ~45dp
   on a 360dp phone and rows are the only thing that can grow. Matching three of a

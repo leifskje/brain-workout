@@ -42,6 +42,17 @@ class SnakeArrow {
   final Dir exitDir;
   bool escaped = false;
 
+  /// Ids this arrow sweeps off the board with it when it escapes.
+  ///
+  /// A **bonus arrow** (non-empty [frees]) is the one mechanic here that rewards
+  /// choosing an *order* rather than just finding any legal move: the arrows it
+  /// frees are ones that are stuck at the start, so clearing the bonus early is
+  /// worth far more than clearing it last. That is the property the difficulty
+  /// metric has always been reaching for — see docs/plans/arrow-maze-depth.md.
+  List<int> frees = const [];
+
+  bool get isBonus => frees.isNotEmpty;
+
   Cell get head => cells.last;
 
   bool occupies(int r, int c) {
@@ -61,6 +72,7 @@ class SnakeLevelConfig {
     required this.maxLength,
     required this.hearts,
     required this.fillTarget,
+    this.bonusFrees = 0,
   });
 
   final int rows;
@@ -71,6 +83,10 @@ class SnakeLevelConfig {
 
   /// Fraction of the grid to fill with arrows (denser = harder).
   final double fillTarget;
+
+  /// How many stuck arrows the board's bonus arrow sweeps out with it. 0 = no
+  /// bonus arrow on this level.
+  final int bonusFrees;
 }
 
 SnakeLevelConfig snakeConfigForLevel(int level) {
@@ -94,6 +110,11 @@ SnakeLevelConfig snakeConfigForLevel(int level) {
   final minLen = level >= 45 ? 5 : (level >= 30 ? 4 : (level >= 15 ? 3 : 2));
   // Less margin for error once the boards genuinely require planning.
   final hearts = level >= 35 ? 3 : (level >= 20 ? 4 : 5);
+  // Bonus arrows start at 12, once boards are dense enough that being stuck is a
+  // real state rather than a rarity, and grow to four freed arrows late on. This
+  // is the first difficulty axis in the game that isn't a knob on the generator —
+  // see docs/plans/arrow-maze-depth.md.
+  final bonusFrees = level < 12 ? 0 : (level < 40 ? 3 : 4);
   return SnakeLevelConfig(
     rows: rows,
     cols: cols,
@@ -101,6 +122,7 @@ SnakeLevelConfig snakeConfigForLevel(int level) {
     maxLength: maxLen,
     hearts: hearts,
     fillTarget: fill,
+    bonusFrees: bonusFrees,
   );
 }
 
@@ -211,6 +233,41 @@ class SnakeBoard {
   }
 
   bool get isSolved => arrows.every((a) => a.escaped);
+
+  /// Arrows freed as a side effect of [arrow] leaving. Empty for a normal arrow.
+  ///
+  /// Already-escaped links are skipped, so clearing a bonus arrow late simply
+  /// wastes the bonus — which is exactly the decision the mechanic exists to
+  /// create.
+  List<SnakeArrow> bonusFreedBy(SnakeArrow arrow) => [
+        for (final a in arrows)
+          if (!a.escaped && a.id != arrow.id && arrow.frees.contains(a.id)) a
+      ];
+
+  /// The bonus arrow, if this board has one.
+  SnakeArrow? get bonusArrow =>
+      arrows.where((a) => a.isBonus).cast<SnakeArrow?>().firstWhere(
+            (a) => true,
+            orElse: () => null,
+          );
+
+  /// Assigns one bonus arrow and the arrows it frees, deterministically.
+  ///
+  /// Both ends are chosen from arrows that are **blocked at the start**: a bonus
+  /// arrow that could be tapped immediately would be a free opening move, and
+  /// freeing arrows that were never stuck would be no gift at all. Does nothing
+  /// unless there are enough blocked arrows to make it meaningful, so an unusually
+  /// open board simply has no bonus rather than a token one.
+  void assignBonus(Random rng, {required int freeCount}) {
+    if (freeCount <= 0) return;
+    final blocked = [for (final a in arrows) if (!isPathClear(a)) a];
+    // The bonus arrow itself plus the arrows it frees, all from the blocked set.
+    if (blocked.length < freeCount + 1) return;
+
+    final pool = [...blocked]..shuffle(rng);
+    final bonus = pool.removeLast();
+    bonus.frees = [for (final a in pool.take(freeCount)) a.id];
+  }
 
   /// Which arrows have already left, for resuming after an interruption.
   ///
@@ -330,7 +387,14 @@ class SnakeBoard {
         break;
       }
       branching.add(clear.length);
-      clear.first.escaped = true;
+      final fired = clear.first;
+      fired.escaped = true;
+      // Bonus arrows have to be simulated, or the metric would be measuring a
+      // game nobody plays: a cascade removes several obstacles at once and
+      // genuinely changes how the rest of the board opens up.
+      for (final freed in bonusFreedBy(fired)) {
+        freed.escaped = true;
+      }
     }
 
     for (final a in arrows) {
@@ -380,6 +444,11 @@ class SnakeBoard {
     for (var attempt = 0; attempt < maxGenerationAttempts; attempt++) {
       final board = _build(cfg, _seedFor(level, attempt));
       if (board.arrows.isEmpty) continue;
+
+      // Assign the bonus *before* measuring, so the difficulty gate scores the
+      // board the player will actually get rather than a bonus-free version of it.
+      board.assignBonus(Random(_seedFor(level, attempt) ^ 0x5EED),
+          freeCount: cfg.bonusFrees);
 
       final d = board.measureDifficulty();
       // Reverse-solve order should prevent this.

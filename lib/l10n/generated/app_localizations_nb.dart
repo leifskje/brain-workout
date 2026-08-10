@@ -222,7 +222,7 @@ class AppLocalizationsNb extends AppLocalizations {
 
   @override
   String get helpArrowMaze =>
-      'De lange pilene glir ut av brettet med hodet først. Trykk på en for å sende den ut — banen foran hodet må være fri. Tøm hele brettet for å vinne.';
+      'De lange pilene glir ut av brettet med hodet først. Trykk på en for å sende den ut — banen foran hodet må være fri. Tøm hele brettet for å vinne. Fra nivå 12 er én pil gyllen: når den kommer seg ut, tar den de lysere gylne pilene med seg — så det lønner seg å frigjøre den gylne mens de andre fortsatt står fast.';
 
   @override
   String get helpWord =>
@@ -304,6 +304,17 @@ class AppLocalizationsNb extends AppLocalizations {
       locale: localeName,
       other: 'Din beste: $count gjett',
       one: 'Din beste: 1 gjett',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String bonusArrowFreed(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Den gylne pilen frigjorde $count til!',
+      one: 'Den gylne pilen frigjorde 1 til!',
     );
     return '$_temp0';
   }

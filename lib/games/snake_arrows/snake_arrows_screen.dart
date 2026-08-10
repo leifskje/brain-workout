@@ -147,11 +147,29 @@ class _SnakeArrowsScreenState extends State<SnakeArrowsScreen>
     if (!mounted) return;
     if (status != AnimationStatus.completed || _escapingId == null) return;
     final arrow = _board.arrows.firstWhere((a) => a.id == _escapingId);
+    // A bonus arrow takes its linked arrows with it. They vanish rather than
+    // animating out, which is acceptable because their colour already announced
+    // the link — but the count is still worth saying out loud for this audience.
+    final freed = _board.bonusFreedBy(arrow);
     setState(() {
       arrow.escaped = true;
+      for (final a in freed) {
+        a.escaped = true;
+      }
       _escapingId = null;
       _busy = false;
     });
+    if (freed.isNotEmpty) {
+      HapticFeedback.mediumImpact();
+      ScaffoldMessenger.of(context)
+        ..clearSnackBars()
+        ..showSnackBar(SnackBar(
+          content: Text(
+              AppLocalizations.of(context).bonusArrowFreed(freed.length),
+              style: const TextStyle(fontSize: 18)),
+          duration: const Duration(seconds: 2),
+        ));
+    }
     if (_board.isSolved) {
       _busy = true;
       Future.delayed(const Duration(milliseconds: 150), () {
@@ -362,6 +380,12 @@ class _SnakePainter extends CustomPainter {
 
   static const _normalColor = Color(0xFF37474F);
   static const _blockedColor = Color(0xFFE53935);
+  /// Bonus arrow: clearing it sweeps its linked arrows off the board too.
+  static const _bonusColor = Color(0xFFB8860B);
+  /// The arrows a bonus arrow will free — same hue, lighter, so the link reads at
+  /// a glance. That pre-announcement is the whole mechanic: the player has to see
+  /// the connection *before* deciding what order to clear in.
+  static const _bonusLinkColor = Color(0xFFD9A93B);
   static const _boardColor = Color(0xFFE8EDF2);
 
   @override
@@ -395,6 +419,11 @@ class _SnakePainter extends CustomPainter {
   void _drawArrow(Canvas canvas, SnakeArrow arrow) {
     final dir = arrow.exitDir;
     var color = _normalColor;
+    if (arrow.isBonus) {
+      color = _bonusColor;
+    } else if (board.bonusArrow?.frees.contains(arrow.id) ?? false) {
+      color = _bonusLinkColor;
+    }
     List<Offset> points;
     Offset headCenter;
 
