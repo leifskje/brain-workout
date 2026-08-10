@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../../l10n/generated/app_localizations.dart';
 import '../../services/progress_store.dart';
@@ -36,6 +37,19 @@ class _WordleScreenState extends State<WordleScreen> {
   String _current = '';
   bool _finished = false;
 
+  /// True while playing the shared daily word; false in practice mode. Only a
+  /// daily result is recorded and shareable — a practice word is nobody else's
+  /// puzzle, so a shared grid from one would mean nothing.
+  bool _isDaily = true;
+  int _puzzleNumber = 0;
+
+  /// Set once today's daily is finished, which swaps the board for the result
+  /// card. The card shows the grid rather than restoring the board because the
+  /// stored result keeps only the colours, never the words.
+  bool _dailyDone = false;
+  bool _dailySolved = false;
+  List<List<LetterState>> _dailyRows = const [];
+
   bool _initedLanguage = false;
 
   @override
@@ -67,12 +81,108 @@ class _WordleScreenState extends State<WordleScreen> {
     final repo = await WordRepository.forLanguage(language);
     if (!mounted) return;
     _repo = repo;
-    _startNewWord();
+    _startDaily();
   }
 
+  /// Starts (or re-shows) today's shared word.
+  ///
+  /// The word is a pure function of the local date, so every player of this
+  /// language gets the same one with no server involved — which is what makes the
+  /// shared grid comparable.
+  void _startDaily() {
+    final puzzle = WordRepository.dailyPuzzleNumber(DateTime.now());
+    final done = ProgressStore.instance.dailyWordResult(_language.id, puzzle);
+    setState(() {
+      _loading = false;
+      _isDaily = true;
+      _puzzleNumber = puzzle;
+      _guesses.clear();
+      _results.clear();
+      _keyStates.clear();
+      _current = '';
+      _finished = done != null;
+      _dailyDone = done != null;
+      _dailySolved = done?.solved ?? false;
+      _dailyRows = done == null ? const [] : _decodeRows(done.rows);
+      _target = done != null ? '' : _repo!.wordOfTheDay(DateTime.now());
+    });
+  }
+
+  static List<List<LetterState>> _decodeRows(List<String> rows) => [
+        for (final row in rows)
+          [
+            for (final ch in row.split(''))
+              switch (ch) {
+                'c' => LetterState.correct,
+                'p' => LetterState.present,
+                _ => LetterState.absent,
+              }
+          ]
+      ];
+
+  static List<String> _encodeRows(List<List<LetterState>> rows) => [
+        for (final row in rows)
+          row.map((s) => switch (s) {
+                LetterState.correct => 'c',
+                LetterState.present => 'p',
+                LetterState.absent => 'a',
+              }).join()
+      ];
+
+  String _shareText(BuildContext context) => dailyShareText(
+        title: AppLocalizations.of(context).dailyShareTitle(_puzzleNumber),
+        rows: _dailyRows.isEmpty ? _results : _dailyRows,
+        solved: _dailyDone ? _dailySolved : true,
+      );
+
+  /// Opens the system share sheet, falling back to the clipboard if it isn't
+  /// there.
+  ///
+  /// The fallback is not defensive padding. `share_plus` is a *native* plugin, and
+  /// plugin registration is generated at build time — so any app that picked up the
+  /// Dart side without a full rebuild throws
+  /// `MissingPluginException(No implementation found for method share ...)`. That
+  /// happened on the first real run. It can also fail on a device with nothing
+  /// registered to receive a share.
+  ///
+  /// Whatever the cause, the player's result must not be lost to a stack trace:
+  /// the text goes to the clipboard instead and they are told so, which is a
+  /// perfectly good way to send it to someone.
+  Future<void> _shareResult() async {
+    final text = _shareText(context);
+    try {
+      await SharePlus.instance.share(ShareParams(text: text));
+    } on Object {
+      if (!mounted) return;
+      await Clipboard.setData(ClipboardData(text: text));
+      if (mounted) _toast(AppLocalizations.of(context).shareUnavailable);
+    }
+  }
+
+  Future<void> _copyResult() async {
+    final text = _shareText(context);
+    await Clipboard.setData(ClipboardData(text: text));
+    if (mounted) _toast(AppLocalizations.of(context).copiedToClipboard);
+  }
+
+  /// Files today's result, so returning shows the card rather than the answer.
+  void _finishDaily({required bool solved}) {
+    if (!_isDaily) return;
+    ProgressStore.instance.recordDailyWord(_language.id, _puzzleNumber,
+        solved: solved, rows: _encodeRows(_results));
+    setState(() {
+      _dailyDone = true;
+      _dailySolved = solved;
+      _dailyRows = [for (final r in _results) [...r]];
+    });
+  }
+
+  /// A practice word: random, unrecorded, and not shareable.
   void _startNewWord() {
     setState(() {
       _loading = false;
+      _isDaily = false;
+      _dailyDone = false;
       _target = _repo!.randomWord();
       _guesses.clear();
       _results.clear();
@@ -139,9 +249,11 @@ class _WordleScreenState extends State<WordleScreen> {
     if (result.every((s) => s == LetterState.correct)) {
       _finished = true;
       ProgressStore.instance.registerPlay(_gameId);
+      _finishDaily(solved: true);
       Future.delayed(const Duration(milliseconds: 200), _showWin);
     } else if (_guesses.length >= maxGuesses) {
       _finished = true;
+      _finishDaily(solved: false);
       Future.delayed(const Duration(milliseconds: 200), _showLose);
     }
   }
@@ -156,19 +268,34 @@ class _WordleScreenState extends State<WordleScreen> {
     if (!mounted) return;
     HapticFeedback.heavyImpact();
     final n = _guesses.length;
+    final t = AppLocalizations.of(context);
+    // On the daily word the dialog sits on top of the result card, so its buttons
+    // have to lead *to* the share rather than away from it. Offering "New word"
+    // here was the bug: it was the only non-Home action, and taking it replaced
+    // the finished daily with a practice word — so the share buttons could never
+    // be reached at all.
     showWinDialog(
       context,
       level: n,
       accent: _accent,
       stars: wordleStars(n),
-      message: AppLocalizations.of(context).solvedInGuesses(n),
-      nextLabel: AppLocalizations.of(context).newWord,
+      message: t.solvedInGuesses(n),
+      nextLabel: _isDaily ? t.shareResult : t.newWord,
+      closeLabel: _isDaily ? t.closeAction : null,
     ).then((action) {
       if (!mounted || action == null) return;
-      if (action == WinAction.next) {
-        _startNewWord();
-      } else {
-        Navigator.popUntil(context, (route) => route.isFirst);
+      switch (action) {
+        case WinAction.next:
+          if (_isDaily) {
+            _shareResult();
+          } else {
+            _startNewWord();
+          }
+        // Stays on the result card, where Copy and the practice word live.
+        case WinAction.close:
+          break;
+        case WinAction.home:
+          Navigator.popUntil(context, (route) => route.isFirst);
       }
     });
   }
@@ -184,20 +311,32 @@ class _WordleScreenState extends State<WordleScreen> {
         title: Text(AppLocalizations.of(context).outOfGuesses),
         content: Text(AppLocalizations.of(context).theWordWas(_target)),
         actions: [
+          // Same reasoning as the win dialog: on the daily word, dismissing has to
+          // leave the player on the result card, not send them away from it.
           TextButton(
             onPressed: () {
               Navigator.pop(dialogContext);
-              Navigator.popUntil(context, (route) => route.isFirst);
+              if (!_isDaily) {
+                Navigator.popUntil(context, (route) => route.isFirst);
+              }
             },
-            child: Text(AppLocalizations.of(context).home),
+            child: Text(_isDaily
+                ? AppLocalizations.of(context).closeAction
+                : AppLocalizations.of(context).home),
           ),
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: _accent),
             onPressed: () {
               Navigator.pop(dialogContext);
-              _startNewWord();
+              if (_isDaily) {
+                _shareResult();
+              } else {
+                _startNewWord();
+              }
             },
-            child: Text(AppLocalizations.of(context).newWord),
+            child: Text(_isDaily
+                ? AppLocalizations.of(context).shareResult
+                : AppLocalizations.of(context).newWord),
           ),
         ],
       ),
@@ -213,6 +352,10 @@ class _WordleScreenState extends State<WordleScreen> {
             _buildHeader(),
             if (_loading)
               const Expanded(child: Center(child: CircularProgressIndicator()))
+            else if (_dailyDone)
+              // Today's word is finished, so there is no board to show and no
+              // keyboard to offer: only the result and a way to pass it on.
+              Expanded(child: Center(child: _buildDailyResult()))
             else ...[
               Expanded(child: Center(child: _buildBoard())),
               _buildKeyboard(),
@@ -220,6 +363,124 @@ class _WordleScreenState extends State<WordleScreen> {
             ],
           ],
         ),
+      ),
+    );
+  }
+
+  /// The end-of-day card: how it went, the spoiler-free grid, and two ways to
+  /// pass it on.
+  ///
+  /// Both share routes are offered on purpose. The share sheet is what most
+  /// people expect and goes straight to WhatsApp or SMS; copy-to-clipboard always
+  /// works, needs no other app to cooperate, and is the more predictable of the
+  /// two for someone who finds the sheet confusing.
+  Widget _buildDailyResult() {
+    final t = AppLocalizations.of(context);
+    final rows = _dailyRows.isEmpty ? _results : _dailyRows;
+    return SingleChildScrollView(
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            _dailySolved ? t.dailyDoneTitle : t.dailyNotSolved,
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            t.wordOfTheDay(_puzzleNumber),
+            style: const TextStyle(fontSize: 16, color: Colors.black54),
+          ),
+          const SizedBox(height: 16),
+          // The grid is the shareable artefact: colours only, never the letters,
+          // so showing it to someone who hasn't played spoils nothing.
+          for (final row in rows)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 2),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  for (final s in row)
+                    Container(
+                      margin: const EdgeInsets.symmetric(horizontal: 2),
+                      width: 30,
+                      height: 30,
+                      decoration: BoxDecoration(
+                        color: switch (s) {
+                          LetterState.correct => _green,
+                          LetterState.present => _yellow,
+                          LetterState.absent => _keyIdle,
+                        },
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          const SizedBox(height: 20),
+          Wrap(
+            alignment: WrapAlignment.center,
+            spacing: 12,
+            runSpacing: 12,
+            children: [
+              FilledButton.icon(
+                key: const ValueKey('wordle_share'),
+                style: FilledButton.styleFrom(
+                  backgroundColor: _accent,
+                  minimumSize: const Size(0, 52),
+                  padding: const EdgeInsets.symmetric(horizontal: 22),
+                ),
+                onPressed: _shareResult,
+                icon: const Icon(Icons.share_rounded),
+                label: Text(t.shareResult),
+              ),
+              OutlinedButton.icon(
+                key: const ValueKey('wordle_copy'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: _accent,
+                  side: const BorderSide(color: _accent, width: 1.5),
+                  minimumSize: const Size(0, 52),
+                  padding: const EdgeInsets.symmetric(horizontal: 22),
+                ),
+                onPressed: _copyResult,
+                icon: const Icon(Icons.copy_rounded),
+                label: Text(t.copyResult),
+              ),
+            ],
+          ),
+          const SizedBox(height: 18),
+          Text(
+            t.dailyDoneBody,
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 15, color: Colors.black54),
+          ),
+          const SizedBox(height: 16),
+          // "One word a day" is the shared ritual, not a limit on playing. This
+          // was a faint TextButton and read as a footnote — the owner concluded
+          // the game was over for the day. It is a real button now, because
+          // "keep playing" is the more common thing to want here.
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              key: const ValueKey('wordle_practice'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: _accent,
+                side: const BorderSide(color: _accent, width: 1.5),
+                minimumSize: const Size(0, 56),
+              ),
+              onPressed: _startNewWord,
+              icon: const Icon(Icons.replay_rounded),
+              label: Text(t.practiceWord),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            t.practiceWordNote,
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 13, color: Colors.black45),
+          ),
+        ],
       ),
     );
   }
@@ -387,6 +648,9 @@ class _WordleScreenState extends State<WordleScreen> {
       child: Padding(
         padding: const EdgeInsets.all(2.5),
         child: Material(
+          // Keyed because a by-text finder would also match the board tiles,
+          // which show the same letters.
+          key: ValueKey('wordle_key_$label'),
           color: color,
           borderRadius: BorderRadius.circular(6),
           child: InkWell(

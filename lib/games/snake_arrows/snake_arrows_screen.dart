@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../l10n/generated/app_localizations.dart';
+import '../../services/board_autosave.dart';
 import '../../services/progress_store.dart';
 import '../../theme/motion.dart';
 import '../../widgets/game_header.dart';
@@ -26,7 +27,10 @@ class SnakeArrowsScreen extends StatefulWidget {
 }
 
 class _SnakeArrowsScreenState extends State<SnakeArrowsScreen>
-    with TickerProviderStateMixin {
+    with
+        TickerProviderStateMixin,
+        WidgetsBindingObserver,
+        BoardAutosave<SnakeArrowsScreen> {
   static const _escapeDuration = Duration(milliseconds: 520);
   static const _gameId = 'arrow_maze';
   static const _accent = Color(0xFF2E8B8B);
@@ -53,6 +57,7 @@ class _SnakeArrowsScreenState extends State<SnakeArrowsScreen>
   @override
   void initState() {
     super.initState();
+    startAutosave();
     // Create eagerly in initState so dispose() never lazily constructs a
     // controller (which would do a TickerMode ancestor lookup) during teardown.
     // animationBehavior: preserve — see the note in lib/theme/motion.dart. When
@@ -87,34 +92,84 @@ class _SnakeArrowsScreenState extends State<SnakeArrowsScreen>
 
   @override
   void dispose() {
+    saveBoardNow();
+    stopAutosave();
     _escapeCtrl.dispose();
     _shakeCtrl.dispose();
     super.dispose();
   }
 
-  void _loadLevel(int level) {
+  /// Loads [level], resuming a saved position for it when one exists. Hearts
+  /// travel with the save — returning to a part-cleared board with full lives
+  /// would feel like a bug.
+  void _loadLevel(int level, {bool allowResume = true}) {
     ProgressStore.instance.recordReached(_gameId, level);
+    final board = SnakeBoard.generate(level);
+    var hearts = snakeConfigForLevel(level).hearts;
+    final saved =
+        allowResume ? ProgressStore.instance.loadBoard(_gameId, level) : null;
+    if (saved != null && board.applyEscapedJson(saved)) {
+      final h = saved['hearts'];
+      if (h is int && h > 0 && h <= hearts) hearts = h;
+    }
     setState(() {
       _level = level;
-      _board = SnakeBoard.generate(level);
-      _hearts = snakeConfigForLevel(level).hearts;
+      _board = board;
+      _hearts = hearts;
       _escapingId = null;
       _blockedId = null;
       _busy = false;
     });
   }
 
-  void _restart() => _loadLevel(_level);
+  void _restart() {
+    ProgressStore.instance.clearBoard(_gameId);
+    _loadLevel(_level, allowResume: false);
+  }
+
+  // ---- BoardAutosave ----
+
+  @override
+  String get autosaveGameId => _gameId;
+
+  @override
+  int get autosaveLevel => _level;
+
+  @override
+  Map<String, dynamic>? captureBoard() {
+    if (_board.isSolved) return null; // finished
+    if (_hearts <= 0) return null; // lost; the level restarts anyway
+    if (!_board.hasProgress) return null; // untouched
+    return {..._board.escapedJson(), 'hearts': _hearts};
+  }
 
   void _onEscapeStatus(AnimationStatus status) {
     if (!mounted) return;
     if (status != AnimationStatus.completed || _escapingId == null) return;
     final arrow = _board.arrows.firstWhere((a) => a.id == _escapingId);
+    // A bonus arrow takes its linked arrows with it. They vanish rather than
+    // animating out, which is acceptable because their colour already announced
+    // the link — but the count is still worth saying out loud for this audience.
+    final freed = _board.bonusFreedBy(arrow);
     setState(() {
       arrow.escaped = true;
+      for (final a in freed) {
+        a.escaped = true;
+      }
       _escapingId = null;
       _busy = false;
     });
+    if (freed.isNotEmpty) {
+      HapticFeedback.mediumImpact();
+      ScaffoldMessenger.of(context)
+        ..clearSnackBars()
+        ..showSnackBar(SnackBar(
+          content: Text(
+              AppLocalizations.of(context).bonusArrowFreed(freed.length),
+              style: const TextStyle(fontSize: 18)),
+          duration: const Duration(seconds: 2),
+        ));
+    }
     if (_board.isSolved) {
       _busy = true;
       Future.delayed(const Duration(milliseconds: 150), () {
@@ -159,6 +214,7 @@ class _SnakeArrowsScreenState extends State<SnakeArrowsScreen>
 
   void _showWin() {
     if (!mounted) return;
+    ProgressStore.instance.clearBoard(_gameId);
     HapticFeedback.heavyImpact();
     final lost = snakeConfigForLevel(_level).hearts - _hearts;
     final stars = lost == 0 ? 3 : (lost <= 2 ? 2 : 1);
@@ -324,6 +380,12 @@ class _SnakePainter extends CustomPainter {
 
   static const _normalColor = Color(0xFF37474F);
   static const _blockedColor = Color(0xFFE53935);
+  /// Bonus arrow: clearing it sweeps its linked arrows off the board too.
+  static const _bonusColor = Color(0xFFB8860B);
+  /// The arrows a bonus arrow will free — same hue, lighter, so the link reads at
+  /// a glance. That pre-announcement is the whole mechanic: the player has to see
+  /// the connection *before* deciding what order to clear in.
+  static const _bonusLinkColor = Color(0xFFD9A93B);
   static const _boardColor = Color(0xFFE8EDF2);
 
   @override
@@ -357,6 +419,11 @@ class _SnakePainter extends CustomPainter {
   void _drawArrow(Canvas canvas, SnakeArrow arrow) {
     final dir = arrow.exitDir;
     var color = _normalColor;
+    if (arrow.isBonus) {
+      color = _bonusColor;
+    } else if (board.bonusArrow?.frees.contains(arrow.id) ?? false) {
+      color = _bonusLinkColor;
+    }
     List<Offset> points;
     Offset headCenter;
 

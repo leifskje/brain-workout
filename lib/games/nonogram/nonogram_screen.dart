@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../l10n/generated/app_localizations.dart';
+import '../../services/board_autosave.dart';
 import '../../services/progress_store.dart';
 import '../../widgets/game_header.dart';
 import '../../widgets/how_to_play.dart';
@@ -31,7 +32,8 @@ class NonogramScreen extends StatefulWidget {
   State<NonogramScreen> createState() => _NonogramScreenState();
 }
 
-class _NonogramScreenState extends State<NonogramScreen> {
+class _NonogramScreenState extends State<NonogramScreen>
+    with WidgetsBindingObserver, BoardAutosave<NonogramScreen> {
   static const _gameId = 'nonogram';
   static const _accent = Color(0xFF00796B);
 
@@ -48,6 +50,7 @@ class _NonogramScreenState extends State<NonogramScreen> {
   @override
   void initState() {
     super.initState();
+    startAutosave();
     _loadLevel(widget.startLevel);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
@@ -59,11 +62,23 @@ class _NonogramScreenState extends State<NonogramScreen> {
     });
   }
 
-  void _loadLevel(int level) {
+  /// Loads [level], restoring the player's marks when a save exists for it.
+  ///
+  /// The board itself is always regenerated from the level number rather than
+  /// stored — it is deterministic, so the save only has to carry the marks.
+  void _loadLevel(int level, {bool allowResume = true}) {
     ProgressStore.instance.recordReached(_gameId, level);
+    final board = NonogramBoard.generate(level);
+    final saved =
+        allowResume ? ProgressStore.instance.loadBoard(_gameId, level) : null;
+    if (saved != null) {
+      // Marks that don't fit are dropped silently: a fresh board is a fine
+      // outcome, an exception on opening a game is not.
+      board.applyMarksJson(saved);
+    }
     setState(() {
       _level = level;
-      _board = NonogramBoard.generate(level);
+      _board = board;
       _mistakes.clear();
       _checksUsed = 0;
       _showingCheck = false;
@@ -71,7 +86,32 @@ class _NonogramScreenState extends State<NonogramScreen> {
     });
   }
 
-  void _restart() => _loadLevel(_level);
+  void _restart() {
+    ProgressStore.instance.clearBoard(_gameId);
+    _loadLevel(_level, allowResume: false);
+  }
+
+  @override
+  void dispose() {
+    saveBoardNow();
+    stopAutosave();
+    super.dispose();
+  }
+
+  // ---- BoardAutosave ----
+
+  @override
+  String get autosaveGameId => _gameId;
+
+  @override
+  int get autosaveLevel => _level;
+
+  @override
+  Map<String, dynamic>? captureBoard() {
+    if (_board.isSolved) return null; // finished; nothing to come back to
+    if (!_board.hasProgress) return null; // untouched
+    return _board.marksJson();
+  }
 
   void _onCellTap(int r, int c) {
     if (_busy) return;
@@ -108,6 +148,7 @@ class _NonogramScreenState extends State<NonogramScreen> {
   void _showWin() {
     if (!mounted) return;
     HapticFeedback.heavyImpact();
+    ProgressStore.instance.clearBoard(_gameId);
     // Check is the only real cost; a player who never asks for help and never
     // mis-fills gets three stars.
     final stars = _mistakes.isEmpty && _checksUsed == 0
@@ -116,7 +157,19 @@ class _NonogramScreenState extends State<NonogramScreen> {
     ProgressStore.instance
       ..registerPlay(_gameId)
       ..recordStars(_gameId, _level, stars);
-    showWinDialog(context, level: _level, accent: _accent, stars: stars)
+    // Local-only personal best. This is save data, not analytics: it lives in
+    // SharedPreferences on the device and nothing about it is ever sent anywhere.
+    final beat = ProgressStore.instance
+        .recordBest(_gameId, _level, _mistakes.length, lowerIsBetter: true);
+    final best = ProgressStore.instance.bestResult(_gameId, _level);
+    showWinDialog(context,
+            level: _level,
+            accent: _accent,
+            stars: stars,
+            newRecord: beat,
+            bestText: best == null
+                ? null
+                : AppLocalizations.of(context).bestMistakes(best))
         .then((action) {
       if (!mounted || action == null) return;
       if (action == WinAction.next) {

@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Persists per-game progress across app launches: furthest level reached,
@@ -72,6 +74,130 @@ class ProgressStore {
 
   /// When the game was last opened (epoch millis; 0 = never).
   int lastOpened(String gameId) => _prefs.getInt(_openedKey(gameId)) ?? 0;
+
+  // ---------------------------------------------------------- word of the day ---
+
+  String _dailyKey(String language) => 'daily_word_$language';
+
+  /// Records that today's word puzzle is finished, keeping the score rows so the
+  /// result and its shareable grid can be shown again without replaying.
+  ///
+  /// [rows] is one string per guess of the characters `c`/`p`/`a` — compact, and
+  /// it survives a format change more gracefully than serialised enums would.
+  void recordDailyWord(String language, int puzzleNumber,
+      {required bool solved, required List<String> rows}) {
+    _prefs.setString(
+        _dailyKey(language),
+        jsonEncode({
+          'puzzle': puzzleNumber,
+          'solved': solved,
+          'rows': rows,
+        }));
+  }
+
+  /// Today's finished daily result for [language], or null if it hasn't been
+  /// played yet. Keyed on [puzzleNumber] rather than a stored date string, so
+  /// yesterday's result can never be mistaken for today's.
+  ({bool solved, List<String> rows})? dailyWordResult(
+      String language, int puzzleNumber) {
+    final raw = _prefs.getString(_dailyKey(language));
+    if (raw == null) return null;
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is! Map<String, dynamic>) return null;
+      if (decoded['puzzle'] != puzzleNumber) return null;
+      final rows = decoded['rows'];
+      final solved = decoded['solved'];
+      if (rows is! List || solved is! bool) return null;
+      return (solved: solved, rows: [for (final r in rows) '$r']);
+    } on FormatException {
+      return null;
+    }
+  }
+
+  // ------------------------------------------------------- personal records ---
+
+  String _bestKey(String gameId, int level) => 'best_${gameId}_$level';
+
+  /// The player's best result for [gameId] at [level], or null if never finished.
+  ///
+  /// Stored per level rather than per game: "fewest moves" only means something
+  /// against the same board, and a 5x5 Picture Logic and a 12x12 are not
+  /// comparable. Deliberately *local only* — this is save data, not analytics;
+  /// nothing about it leaves the phone.
+  int? bestResult(String gameId, int level) =>
+      _prefs.getInt(_bestKey(gameId, level));
+
+  /// Files [value] as a completed result and reports whether it beat the previous
+  /// best.
+  ///
+  /// Returns false on a first completion. There is no record to beat the first
+  /// time, and congratulating someone for setting one by simply finishing would
+  /// make the message meaningless the one time it matters.
+  bool recordBest(String gameId, int level, int value,
+      {required bool lowerIsBetter}) {
+    final key = _bestKey(gameId, level);
+    final previous = _prefs.getInt(key);
+    if (previous == null) {
+      _prefs.setInt(key, value);
+      return false;
+    }
+    final beaten = lowerIsBetter ? value < previous : value > previous;
+    if (beaten) _prefs.setInt(key, value);
+    return beaten;
+  }
+
+  // ------------------------------------------------------- saved board state ---
+
+  // Bump when a game's saved shape changes incompatibly. Old saves are then
+  // dropped instead of being fed to a parser that no longer understands them —
+  // a half-restored board is worse than a fresh one, and an exception on resume
+  // is worst of all.
+  static const _saveVersion = 1;
+
+  String _boardKey(String gameId) => 'board_$gameId';
+
+  /// Stores the in-progress board for [gameId] at [level].
+  ///
+  /// One slot per game, not per level: the player is in the middle of exactly one
+  /// board, and keeping every level's abandoned attempt around would grow without
+  /// bound. The level is recorded *inside* the slot so [loadBoard] can refuse a
+  /// save belonging to a different level — otherwise picking level 3 from the
+  /// picker would resurrect your half-finished level 20.
+  void saveBoard(String gameId, int level, Map<String, dynamic> state) {
+    _prefs.setString(
+        _boardKey(gameId),
+        jsonEncode({
+          'v': _saveVersion,
+          'level': level,
+          'state': state,
+        }));
+  }
+
+  /// The saved board for [gameId] at [level], or null if there isn't a usable
+  /// one. Returns null rather than throwing on anything unexpected — a corrupt
+  /// or stale save must never be able to stop a game from opening.
+  Map<String, dynamic>? loadBoard(String gameId, int level) {
+    final raw = _prefs.getString(_boardKey(gameId));
+    if (raw == null) return null;
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is! Map<String, dynamic>) return null;
+      if (decoded['v'] != _saveVersion) return null;
+      if (decoded['level'] != level) return null;
+      final state = decoded['state'];
+      return state is Map<String, dynamic> ? state : null;
+    } on FormatException {
+      return null;
+    }
+  }
+
+  /// Whether a resumable board exists for [gameId] at [level].
+  bool hasSavedBoard(String gameId, int level) =>
+      loadBoard(gameId, level) != null;
+
+  /// Drops the saved board — call on win, on restart, and on giving up.
+  void clearBoard(String gameId) => _prefs.remove(_boardKey(gameId));
 
   // ------------------------------------------------------------- how to play ---
 

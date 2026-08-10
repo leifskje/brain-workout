@@ -1,8 +1,10 @@
+import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart' show RenderParagraph;
+import 'package:flutter/services.dart';
 import 'package:flutter/semantics.dart' show debugSemanticsDisableAnimations;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -16,6 +18,7 @@ import 'package:brain_workout/games/crack_code/crack_code_models.dart';
 import 'package:brain_workout/games/crack_code/crack_code_screen.dart';
 import 'package:brain_workout/games/games_catalog.dart';
 import 'package:brain_workout/games/memory_match/memory_match_models.dart';
+import 'package:brain_workout/games/memory_match/memory_match_screen.dart';
 import 'package:brain_workout/games/nonogram/nonogram_models.dart';
 import 'package:brain_workout/games/nonogram/nonogram_screen.dart';
 import 'package:brain_workout/games/number_cross/number_cross_models.dart';
@@ -39,8 +42,11 @@ import 'package:brain_workout/games/wordle/wordle_models.dart';
 import 'package:brain_workout/l10n/generated/app_localizations.dart';
 import 'package:brain_workout/main.dart';
 import 'package:brain_workout/screens/home_screen.dart';
+import 'package:brain_workout/games/wordle/word_repository.dart';
+import 'package:brain_workout/games/wordle/wordle_screen.dart';
 import 'package:brain_workout/services/app_locale.dart';
 import 'package:brain_workout/widgets/how_to_play.dart';
+import 'package:brain_workout/widgets/win_dialog.dart';
 import 'package:brain_workout/services/progress_store.dart';
 import 'package:brain_workout/theme/motion.dart';
 
@@ -295,6 +301,25 @@ void main() {
     expect(configForLevel(21).rows, greaterThan(configForLevel(13).rows));
     expect(configForLevel(21).arrowCount,
         greaterThan(configForLevel(13).arrowCount));
+
+    // Uncapped after a tester reached level 50 in Arrow Maze and found it
+    // identical to level 35. Lower branching is harder, hence lessThan.
+    expect(snakeTargetBranchingForLevel(60),
+        lessThan(snakeTargetBranchingForLevel(40)));
+    expect(snakeConfigForLevel(50).minLength,
+        greaterThan(snakeConfigForLevel(35).minLength));
+    expect(memoryConfigForLevel(9).pairs,
+        greaterThan(memoryConfigForLevel(7).pairs));
+    // 2048's target tile is a structural ceiling, so the spawn mix carries the
+    // curve past it — that is the knob that has to keep moving.
+    expect(mergeConfigForLevel(18).fourChance,
+        greaterThan(mergeConfigForLevel(8).fourChance));
+    expect(numberCrossConfigForLevel(26).blanks,
+        greaterThan(numberCrossConfigForLevel(12).blanks));
+    expect(numberCrossConfigForLevel(26).decoys,
+        greaterThan(numberCrossConfigForLevel(12).decoys));
+    expect(whatNextConfigForLevel(17).tier,
+        greaterThan(whatNextConfigForLevel(9).tier));
   });
 
   test('Arrow Escape stays solvable at the new high levels', () {
@@ -345,7 +370,18 @@ void main() {
   });
 
   test('Snake arrow levels are always solvable', () {
-    for (var level = 1; level <= 30; level++) {
+    // 1-30 plus a sample of the *high* levels. The high ones matter because the
+    // level-45 minLength floor and the extended branching tail only take effect
+    // up there, and a generator change that strands an arrow would otherwise be
+    // invisible: this test used to stop at 30, i.e. before any of it.
+    // Sampled rather than exhaustive because a 14x20 board costs ~400ms.
+    for (final level in [
+      for (var l = 1; l <= 30; l++) l,
+      45,
+      60,
+      63,
+      80,
+    ]) {
       final board = SnakeBoard.generate(level);
       expect(board.arrows, isNotEmpty, reason: 'level $level produced no arrows');
 
@@ -537,6 +573,10 @@ void main() {
       }
       expect(counts.values.every((n) => n == 2), isTrue,
           reason: 'memory level $level has a non-paired symbol');
+      // The board grew to 21 pairs, so the symbol pool has to keep up. Without
+      // this, too few symbols would quietly shrink the deck instead of failing.
+      expect(counts.length, board.cards.length ~/ 2,
+          reason: 'memory level $level ran short of distinct symbols');
     }
   });
 
@@ -1218,7 +1258,17 @@ void main() {
       final cfg = mergeConfigForLevel(level);
       final game = MergeGame.generate(level);
       expect(game.size, cfg.size);
-      expect(game.target, 1 << (5 + level - 1).clamp(5, 11));
+      // Assert against the config rather than re-deriving the formula here: the
+      // old copy of it silently became the only thing pinning 2048 as the
+      // ceiling, and had to be edited to raise it.
+      expect(game.target, cfg.target);
+      expect(cfg.target, lessThanOrEqualTo(4096));
+      expect(cfg.fourChance, inInclusiveRange(0.1, 0.3));
+      if (level > 1) {
+        final prev = mergeConfigForLevel(level - 1);
+        expect(cfg.target, greaterThanOrEqualTo(prev.target));
+        expect(cfg.fourChance, greaterThanOrEqualTo(prev.fourChance));
+      }
 
       // Exactly two opening tiles, each a 2 or a 4.
       final tiles = [
@@ -1628,6 +1678,46 @@ void main() {
     expect(find.text('No mistakes so far!'), findsOneWidget);
   });
 
+  testWidgets('Memory Match: the 21-pair board still fits a small phone',
+      (tester) async {
+    // Raising the ceiling from 15 to 21 pairs adds two rows, and the screen sizes
+    // cards to fit rather than scrolling — so the failure mode is cards quietly
+    // shrinking below what this audience can tap, not an overflow error.
+    //
+    // Measured card widths at 1.3x text scale, all layouts having 6 columns so
+    // width is normally the binding constraint:
+    //   411x868 -> 53dp   393x873 -> 50dp   360x800 -> 45dp   360x720 -> 45dp
+    // The one exception is a 360x640 screen (roughly a 2015 phone), where 7 rows
+    // becomes height-bound and cards drop to 36dp. Judged acceptable rather than
+    // capping the game for every modern device; 360x720 is the conservative bar.
+    tester.view.physicalSize = const Size(720, 1440);
+    tester.view.devicePixelRatio = 2.0; // 360x720 logical
+    tester.platformDispatcher.textScaleFactorTestValue = 1.3;
+    addTearDown(tester.view.reset);
+    addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+
+    await tester.pumpWidget(localizedApp(const MemoryMatchScreen(startLevel: 9)));
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+
+    final board = MemoryBoard.generate(9);
+    expect(board.cards.length, 42, reason: '7x6 = 21 pairs');
+
+    // Every card must be at least a 44dp tap target — the platform minimum, and
+    // the reason the layout grows rows instead of columns past 5x6. Found by key
+    // rather than by type: GestureDetector also matches the header's icon
+    // buttons, which sit earlier in the tree and would make this assertion
+    // measure a 48dp back button and pass regardless.
+    for (final card in board.cards) {
+      final finder = find.byKey(ValueKey('memory-card-${card.id}'));
+      expect(finder.hitTestable(), findsOneWidget,
+          reason: 'card ${card.id} is not tappable');
+      final size = tester.getSize(finder);
+      expect(size.shortestSide, greaterThanOrEqualTo(44.0),
+          reason: 'card ${card.id} shrank to ${size.width}x${size.height}dp');
+    }
+  });
+
   testWidgets('Nonogram: the board fits a small phone at the largest text scale',
       (tester) async {
     // The clue gutters plus the Check button plus the hint line are the tight
@@ -1732,6 +1822,865 @@ void main() {
       expect(gotIt, findsNothing, reason: 'the sheet should have closed');
     }
   });
+  test('Saved boards: round-trip, and every reason to refuse one', () {
+    final store = ProgressStore.instance;
+    expect(store.loadBoard('merge', 1), isNull, reason: 'nothing saved yet');
+    expect(store.hasSavedBoard('merge', 1), isFalse);
+
+    store.saveBoard('merge', 3, {'grid': 'x', 'n': 7});
+    expect(store.loadBoard('merge', 3), {'grid': 'x', 'n': 7});
+    expect(store.hasSavedBoard('merge', 3), isTrue);
+
+    // Keyed to its level: picking a different level from the picker must not
+    // resurrect a half-finished board from somewhere else.
+    expect(store.loadBoard('merge', 4), isNull);
+    expect(store.loadBoard('merge', 2), isNull);
+    // ...and to its game.
+    expect(store.loadBoard('nonogram', 3), isNull);
+
+    store.clearBoard('merge');
+    expect(store.loadBoard('merge', 3), isNull);
+
+    // One slot per game: a second save replaces the first rather than
+    // accumulating a board per level forever.
+    store.saveBoard('merge', 5, {'a': 1});
+    store.saveBoard('merge', 6, {'b': 2});
+    expect(store.loadBoard('merge', 5), isNull);
+    expect(store.loadBoard('merge', 6), {'b': 2});
+  });
+
+  test('Saved boards: corrupt or stale data is refused, never thrown', () async {
+    Future<void> seedRaw(String value) async {
+      SharedPreferences.setMockInitialValues({'flutter.board_merge': value});
+      await ProgressStore.init();
+    }
+
+    // Prove the seeding mechanism works before relying on it: every assertion
+    // below expects null, which is also what an un-seeded store returns, so
+    // without this the whole test could pass while writing nothing at all.
+    await seedRaw('{"v":1,"level":1,"state":{"ok":true}}');
+    expect(ProgressStore.instance.loadBoard('merge', 1), {'ok': true},
+        reason: 'raw seeding must actually reach the store');
+
+    await seedRaw('not json {{');
+    expect(ProgressStore.instance.loadBoard('merge', 1), isNull);
+
+    await seedRaw('[1,2,3]'); // valid JSON, wrong shape
+    expect(ProgressStore.instance.loadBoard('merge', 1), isNull);
+
+    await seedRaw('{"v":999,"level":1,"state":{"a":1}}'); // other format version
+    expect(ProgressStore.instance.loadBoard('merge', 1), isNull);
+
+    await seedRaw('{"v":1,"level":1,"state":42}'); // payload not an object
+    expect(ProgressStore.instance.loadBoard('merge', 1), isNull);
+  });
+
+  test('2048: a board survives a JSON round-trip', () {
+    final game = MergeGame.generate(12);
+    game.move(MergeDirection.left);
+    final before = game.grid.toString();
+    final score = game.score;
+
+    // Through a real encode/decode, not just the Dart map: jsonDecode hands back
+    // List<dynamic>/num rather than List<int>/int, which is where a lazy cast
+    // would blow up on a real device but not in a unit test.
+    final wire = jsonDecode(jsonEncode(game.toJson())) as Map<String, dynamic>;
+    final restored = MergeGame.fromJson(wire)!;
+    expect(restored.grid.toString(), before);
+    expect(restored.score, score);
+    expect(restored.target, game.target);
+    // The restored game is playable, not just readable.
+    expect(restored.hasMoves, isTrue);
+  });
+
+  test('2048: a malformed saved board is refused rather than half-loaded', () {
+    expect(MergeGame.fromJson({}), isNull);
+    expect(MergeGame.fromJson({'grid': 'nope', 'target': 32, 'score': 0}),
+        isNull);
+    // Ragged rows.
+    expect(
+        MergeGame.fromJson({
+          'grid': [
+            [0, 0],
+            [0]
+          ],
+          'target': 32,
+          'score': 0
+        }),
+        isNull);
+    // A tile that isn't a power of two could never be produced by play, and
+    // could never be merged away either.
+    expect(
+        MergeGame.fromJson({
+          'grid': [
+            [6, 0],
+            [0, 0]
+          ],
+          'target': 32,
+          'score': 0
+        }),
+        isNull);
+    expect(
+        MergeGame.fromJson({
+          'grid': [
+            [-2, 0],
+            [0, 0]
+          ],
+          'target': 32,
+          'score': 0
+        }),
+        isNull);
+    // A valid 2x2 board is accepted, so the rejections above aren't vacuous.
+    expect(
+        MergeGame.fromJson({
+          'grid': [
+            [2, 4],
+            [0, 8]
+          ],
+          'target': 32,
+          'score': 12
+        }),
+        isNotNull);
+  });
+
+  test('Picture Logic: marks survive a round-trip and mismatches are refused',
+      () {
+    final board = NonogramBoard.generate(6);
+    expect(board.hasProgress, isFalse);
+    board.cycle(0, 0); // filled
+    board.cycle(1, 1);
+    board.cycle(1, 1); // crossed
+    expect(board.hasProgress, isTrue);
+
+    final json = board.marksJson();
+    final fresh = NonogramBoard.generate(6);
+    expect(fresh.applyMarksJson(json), isTrue);
+    expect(fresh.marks[0][0], NonogramMark.filled);
+    expect(fresh.marks[1][1], NonogramMark.crossed);
+    expect(fresh.marks[2][2], NonogramMark.blank);
+
+    // A save from a different-sized board is refused outright.
+    final other = NonogramBoard.generate(1); // 5x5 vs level 6's 8x8
+    expect(other.width == board.width, isFalse, reason: 'sizes must differ');
+    expect(other.applyMarksJson(json), isFalse);
+    expect(other.hasProgress, isFalse, reason: 'refusal must change nothing');
+
+    // Garbage characters and wrong lengths are refused too.
+    expect(fresh.applyMarksJson({'w': fresh.width, 'h': fresh.height, 'marks': 'zz'}),
+        isFalse);
+    final bad = 'q' * (fresh.width * fresh.height);
+    expect(
+        fresh.applyMarksJson(
+            {'w': fresh.width, 'h': fresh.height, 'marks': bad}),
+        isFalse);
+  });
+
+  testWidgets('Picture Logic: an interrupted board comes back on re-entry',
+      (tester) async {
+    tester.view.physicalSize = const Size(1080, 2280);
+    tester.view.devicePixelRatio = 2.625;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(localizedApp(const NonogramScreen(startLevel: 4)));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('nonogram-0-0')));
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('nonogram-2-3')));
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('nonogram-2-3')));
+    await tester.pump(); // now crossed
+
+    // The phone rings: Android backgrounds the app. This is the moment the save
+    // has to happen, because the process may never get another chance.
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+    await tester.pump();
+    expect(ProgressStore.instance.hasSavedBoard('nonogram', 4), isTrue);
+
+    // Tear the screen down and come back to the same level.
+    await tester.pumpWidget(const SizedBox());
+    await tester.pumpAndSettle();
+    await tester.pumpWidget(localizedApp(const NonogramScreen(startLevel: 4)));
+    await tester.pumpAndSettle();
+
+    final board = NonogramBoard.generate(4);
+    expect(board.applyMarksJson(ProgressStore.instance.loadBoard('nonogram', 4)!),
+        isTrue);
+    expect(board.marks[0][0], NonogramMark.filled);
+    expect(board.marks[2][3], NonogramMark.crossed);
+
+    // The cross is visible on the restored screen, which is what the player sees.
+    expect(find.byIcon(Icons.close_rounded), findsOneWidget);
+  });
+
+  testWidgets('Picture Logic: restarting a level throws the save away',
+      (tester) async {
+    tester.view.physicalSize = const Size(1080, 2280);
+    tester.view.devicePixelRatio = 2.625;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(localizedApp(const NonogramScreen(startLevel: 4)));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('nonogram-0-0')));
+    await tester.pump();
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+    await tester.pump();
+    expect(ProgressStore.instance.hasSavedBoard('nonogram', 4), isTrue);
+
+    await tester.tap(find.byIcon(Icons.refresh_rounded));
+    await tester.pumpAndSettle();
+    expect(ProgressStore.instance.hasSavedBoard('nonogram', 4), isFalse,
+        reason: 'restart must not leave the old board resumable');
+  });
+
+  testWidgets('2048: a played board is saved, and winning clears it',
+      (tester) async {
+    tester.view.physicalSize = const Size(1080, 2280);
+    tester.view.devicePixelRatio = 2.625;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(localizedApp(const MergeScreen(startLevel: 1)));
+    await tester.pumpAndSettle();
+
+    // Play until something merges — captureBoard deliberately ignores a board
+    // with no score yet, since a fresh one is a tap away from regenerating.
+    for (final key in ['merge_left', 'merge_up', 'merge_right', 'merge_down']) {
+      await tester.tap(find.byKey(ValueKey(key)));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 200));
+      await tester.pumpAndSettle();
+    }
+
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+    await tester.pump();
+    final saved = ProgressStore.instance.loadBoard('merge', 1);
+    expect(saved, isNotNull,
+        reason: 'four moves should have merged something and saved');
+    final restored = MergeGame.fromJson(saved!);
+    expect(restored, isNotNull);
+    expect(restored!.score, greaterThan(0));
+  });
+  test('Mini Sudoku: entries round-trip, and givens are never overwritten', () {
+    final board = MiniSudokuBoard.generate(5);
+    expect(board.hasProgress, isFalse);
+
+    // Enter the solution into the first two blanks.
+    final blanks = [
+      for (var r = 0; r < board.size; r++)
+        for (var c = 0; c < board.size; c++)
+          if (!board.cells[r][c].given) (r, c)
+    ];
+    expect(blanks.length, greaterThan(2));
+    for (final (r, c) in blanks.take(2)) {
+      board.cells[r][c].entered = board.cells[r][c].solution;
+    }
+    expect(board.hasProgress, isTrue);
+
+    final wire =
+        jsonDecode(jsonEncode(board.entriesJson())) as Map<String, dynamic>;
+    final fresh = MiniSudokuBoard.generate(5);
+    expect(fresh.applyEntriesJson(wire), isTrue);
+    for (final (r, c) in blanks.take(2)) {
+      expect(fresh.cells[r][c].entered, fresh.cells[r][c].solution,
+          reason: 'entry at ($r,$c) should be restored');
+    }
+    // Untouched blanks stay empty.
+    final (ur, uc) = blanks.last;
+    expect(fresh.cells[ur][uc].entered, isNull);
+
+    // A save from a differently-sized board is refused outright.
+    final small = MiniSudokuBoard.generate(1); // 4x4 vs level 5's 6x6
+    expect(small.size == board.size, isFalse, reason: 'sizes must differ');
+    expect(small.applyEntriesJson(wire), isFalse);
+    expect(small.hasProgress, isFalse, reason: 'refusal must change nothing');
+
+    // A digit outside the board's range is refused rather than stored.
+    final bad = '9' * (fresh.size * fresh.size);
+    expect(fresh.applyEntriesJson({'size': fresh.size, 'entries': bad}), isFalse,
+        reason: '9 is not a legal value on a 6x6 board');
+  });
+
+  test('Number Cross: placements round-trip and the pool is rebuilt', () {
+    final board = NumberCrossBoard.generate(6);
+    expect(board.hasProgress, isFalse);
+    final poolBefore = [...board.pool];
+    expect(poolBefore, isNotEmpty);
+
+    // Place the first pool number into the first empty slot.
+    final slot = [
+      for (final row in board.cells)
+        for (final cell in row)
+          if (cell.kind == NcKind.number && !cell.fixed) cell
+    ].first;
+    final placedValue = poolBefore.first;
+    slot.placed = placedValue;
+    board.pool.remove(placedValue);
+    expect(board.hasProgress, isTrue);
+
+    final wire =
+        jsonDecode(jsonEncode(board.placementsJson())) as Map<String, dynamic>;
+    final fresh = NumberCrossBoard.generate(6);
+    expect(fresh.pool.length, poolBefore.length, reason: 'fresh pool is full');
+    expect(fresh.applyPlacementsJson(wire), isTrue);
+
+    final freshSlot = [
+      for (final row in fresh.cells)
+        for (final cell in row)
+          if (cell.kind == NcKind.number && !cell.fixed) cell
+    ].first;
+    expect(freshSlot.placed, placedValue);
+    // The pool is derived from the placements rather than stored, so the two can
+    // never disagree — placing one number must remove exactly one tile.
+    expect(fresh.pool.length, poolBefore.length - 1);
+
+    // A save claiming a number the pool doesn't hold is refused, or the player
+    // would end up with more tiles than the puzzle has.
+    final tooMany = {
+      'rows': fresh.cells.length,
+      'cols': fresh.cells.first.length,
+      'placed': [
+        for (var i = 0; i < (wire['placed'] as List).length; i++) 99999,
+      ],
+    };
+    final other = NumberCrossBoard.generate(6);
+    expect(other.applyPlacementsJson(tooMany), isFalse);
+    expect(other.hasProgress, isFalse, reason: 'refusal must change nothing');
+
+    // Wrong slot count is refused too.
+    expect(
+        other.applyPlacementsJson({
+          'rows': other.cells.length,
+          'cols': other.cells.first.length,
+          'placed': [1],
+        }),
+        isFalse);
+  });
+
+  test('Every game that autosaves declines to save a finished board', () {
+    // captureBoard() returning null on a won board is what stops a beaten level
+    // being resumed: a win clears the slot and dispose() then runs, so a won
+    // board that still captured state would write itself straight back.
+    final sudoku = MiniSudokuBoard.generate(3);
+    for (final row in sudoku.cells) {
+      for (final cell in row) {
+        if (!cell.given) cell.entered = cell.solution;
+      }
+    }
+    expect(sudoku.isSolved, isTrue);
+
+    final nono = NonogramBoard.generate(2);
+    for (var r = 0; r < nono.height; r++) {
+      for (var c = 0; c < nono.width; c++) {
+        if (nono.solution[r][c]) nono.marks[r][c] = NonogramMark.filled;
+      }
+    }
+    expect(nono.isSolved, isTrue);
+    // Both report progress, so the screens' null-return has to come from the
+    // isSolved check rather than from hasProgress being false by luck.
+    expect(sudoku.hasProgress, isTrue);
+    expect(nono.hasProgress, isTrue);
+  });
+  test('Arrow games: the escaped set round-trips, and junk is refused', () {
+    final board = SnakeBoard.generate(8);
+    expect(board.hasProgress, isFalse);
+
+    // Clear the first two arrows that can legally go.
+    final cleared = <int>[];
+    for (final a in board.arrows) {
+      if (cleared.length == 2) break;
+      if (board.isPathClear(a)) {
+        a.escaped = true;
+        cleared.add(a.id);
+      }
+    }
+    expect(cleared.length, 2, reason: 'level 8 should open with a legal move');
+    expect(board.hasProgress, isTrue);
+
+    final wire =
+        jsonDecode(jsonEncode(board.escapedJson())) as Map<String, dynamic>;
+    final fresh = SnakeBoard.generate(8);
+    expect(fresh.applyEscapedJson(wire), isTrue);
+    for (final a in fresh.arrows) {
+      expect(a.escaped, cleared.contains(a.id), reason: 'arrow ${a.id}');
+    }
+
+    // Wrong arrow count (a save from another level with a different board).
+    expect(
+        SnakeBoard.generate(8)
+            .applyEscapedJson({'count': 999, 'escaped': cleared}),
+        isFalse);
+    // An id that isn't on this board at all.
+    expect(
+        SnakeBoard.generate(8)
+            .applyEscapedJson({'count': board.arrows.length, 'escaped': [99999]}),
+        isFalse);
+    // Not a list.
+    expect(
+        SnakeBoard.generate(8)
+            .applyEscapedJson({'count': board.arrows.length, 'escaped': 3}),
+        isFalse);
+
+    // A refusal must leave the board untouched, not half-applied.
+    final untouched = SnakeBoard.generate(8);
+    expect(
+        untouched.applyEscapedJson({
+          'count': untouched.arrows.length,
+          'escaped': [untouched.arrows.first.id, 99999]
+        }),
+        isFalse);
+    expect(untouched.hasProgress, isFalse);
+  });
+
+  test('Arrow games: any partly-cleared board is still winnable', () {
+    // This invariant is why `applyEscapedJson` does *not* verify winnability. If
+    // a board is solvable, removing arrows only opens paths: take the original
+    // solution order, skip the removed arrows, and each remaining arrow still
+    // finds its path clear because the blockers present are a subset of those
+    // present before. A runtime check could therefore never reject anything —
+    // measured at 600 random subsets, zero rejections — so the guarantee is
+    // asserted here rather than paid for on every resume.
+    final rng = math.Random(20260810);
+    for (final level in [1, 5, 12, 20, 35]) {
+      final template = SnakeBoard.generate(level);
+      final ids = [for (final a in template.arrows) a.id];
+      for (var trial = 0; trial < 8; trial++) {
+        final subset = [
+          for (final id in ids)
+            if (rng.nextBool()) id
+        ];
+        final board = SnakeBoard.generate(level);
+        expect(
+            board.applyEscapedJson({'count': ids.length, 'escaped': subset}),
+            isTrue);
+
+        // Greedily fire whatever can go; everything must eventually leave.
+        var progress = true;
+        while (progress) {
+          progress = false;
+          for (final a in board.arrows) {
+            if (!a.escaped && board.isPathClear(a)) {
+              a.escaped = true;
+              progress = true;
+            }
+          }
+        }
+        expect(board.isSolved, isTrue,
+            reason: 'level $level stranded an arrow after clearing $subset');
+      }
+    }
+  });
+
+  testWidgets('Arrow Maze: an interrupted board comes back, hearts and all',
+      (tester) async {
+    tester.view.physicalSize = const Size(1080, 2280);
+    tester.view.devicePixelRatio = 2.625;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(localizedApp(const SnakeArrowsScreen(startLevel: 3)));
+    await tester.pumpAndSettle();
+
+    final board = SnakeBoard.generate(3); // same seed as the screen
+    final rect = tester.getRect(find.byKey(const ValueKey('arrow_maze_board')));
+    final cellSize = rect.width / board.cols;
+    // The board is painted, not built from widgets, so taps go by position.
+    Future<void> tapCell(Cell c) async {
+      await tester.tapAt(rect.topLeft +
+          Offset((c.col + 0.5) * cellSize, (c.row + 0.5) * cellSize));
+      await tester.pumpAndSettle();
+    }
+
+    // A blocked arrow costs a heart, so the saved hearts differ from full.
+    final maxHearts = snakeConfigForLevel(3).hearts;
+    final blocked = board.arrows.firstWhere((a) => !board.isPathClear(a));
+    await tapCell(blocked.cells.first);
+    expect(find.byIcon(Icons.favorite_border_rounded), findsWidgets,
+        reason: 'a blocked tap should cost a heart');
+
+    // Then clear one that can legally go, so there is progress worth saving.
+    final free = board.arrows.firstWhere(board.isPathClear);
+    await tapCell(free.cells.first);
+
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+    await tester.pump();
+
+    final saved = ProgressStore.instance.loadBoard('arrow_maze', 3);
+    expect(saved, isNotNull);
+    expect(saved!['hearts'], maxHearts - 1,
+        reason: 'the lost heart must survive the interruption too');
+    expect(saved['escaped'], contains(free.id));
+
+    // Re-entering restores both the cleared arrow and the missing heart.
+    await tester.pumpWidget(const SizedBox());
+    await tester.pumpAndSettle();
+    await tester.pumpWidget(localizedApp(const SnakeArrowsScreen(startLevel: 3)));
+    await tester.pumpAndSettle();
+    expect(find.byIcon(Icons.favorite_border_rounded), findsWidgets,
+        reason: 'hearts should come back as they were, not reset to full');
+  });
+  test('Personal records: first finish sets a best, later ones can beat it', () {
+    final store = ProgressStore.instance;
+    expect(store.bestResult('memory_match', 4), isNull);
+
+    // A first completion sets the best but is NOT a new record: there was nothing
+    // to beat, and congratulating someone for merely finishing would make the
+    // message meaningless the one time it matters.
+    expect(store.recordBest('memory_match', 4, 20, lowerIsBetter: true), isFalse);
+    expect(store.bestResult('memory_match', 4), 20);
+
+    // Worse than the best: not a record, and the best is left alone.
+    expect(store.recordBest('memory_match', 4, 25, lowerIsBetter: true), isFalse);
+    expect(store.bestResult('memory_match', 4), 20);
+
+    // Equal is not better either — "beat" has to mean beat.
+    expect(store.recordBest('memory_match', 4, 20, lowerIsBetter: true), isFalse);
+
+    // Fewer moves wins.
+    expect(store.recordBest('memory_match', 4, 14, lowerIsBetter: true), isTrue);
+    expect(store.bestResult('memory_match', 4), 14);
+
+    // Higher-is-better runs the other way, for scores.
+    expect(store.recordBest('merge', 2, 500, lowerIsBetter: false), isFalse);
+    expect(store.recordBest('merge', 2, 400, lowerIsBetter: false), isFalse);
+    expect(store.bestResult('merge', 2), 500);
+    expect(store.recordBest('merge', 2, 900, lowerIsBetter: false), isTrue);
+    expect(store.bestResult('merge', 2), 900);
+
+    // Records are per level and per game — "fewest moves" only means something
+    // against the same board.
+    expect(store.bestResult('memory_match', 5), isNull);
+    expect(store.bestResult('merge', 4), isNull);
+  });
+
+  testWidgets('Personal records: beating one shows the badge on the win dialog',
+      (tester) async {
+    tester.view.physicalSize = const Size(1080, 2280);
+    tester.view.devicePixelRatio = 2.625;
+    addTearDown(tester.view.reset);
+
+    // Pre-load a beatable best for Mini Sudoku level 1 (metric: mistakes).
+    ProgressStore.instance
+        .recordBest('mini_sudoku', 1, 5, lowerIsBetter: true);
+
+    await tester.pumpWidget(localizedApp(const MiniSudokuScreen(startLevel: 1)));
+    await tester.pumpAndSettle();
+
+    // Solve it cleanly: 0 mistakes beats the stored 5.
+    final board = MiniSudokuBoard.generate(1);
+    for (var r = 0; r < board.size; r++) {
+      for (var c = 0; c < board.size; c++) {
+        if (board.cells[r][c].given) continue;
+        await tester.tap(find.byKey(ValueKey('sudoku_cell_${r}_$c')));
+        await tester.pump();
+        await tester.tap(find.byKey(
+            ValueKey('sudoku_pad_${board.cells[r][c].solution}')));
+        await tester.pump();
+      }
+    }
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Well done!'), findsOneWidget);
+    expect(find.text('New personal best!'), findsOneWidget);
+    expect(find.text('Your best: no mistakes'), findsOneWidget);
+    expect(ProgressStore.instance.bestResult('mini_sudoku', 1), 0);
+  });
+  test('Word of the day: same date gives the same word, no server needed',
+      () async {
+    final repo = await WordRepository.forLanguage(wordleLanguages.first);
+
+    // Deterministic in the date, which is what lets two people compare grids.
+    final a = repo.wordOfTheDay(DateTime(2026, 3, 14));
+    final b = repo.wordOfTheDay(DateTime(2026, 3, 14, 23, 59));
+    expect(a, b, reason: 'time of day must not change the word');
+    expect(a.length, wordLength);
+    expect(repo.isValid(a), isTrue, reason: 'the daily word must be guessable');
+
+    // Consecutive days must not walk the list in order — that would hand out
+    // alphabetically adjacent words (ABACK, ABASE, ABATE...).
+    final week = [
+      for (var d = 1; d <= 14; d++) repo.wordOfTheDay(DateTime(2026, 5, d))
+    ];
+    expect(week.toSet().length, greaterThan(10),
+        reason: 'a fortnight should be mostly distinct words');
+    // Walking the answer list in order would come out alphabetically sorted, which
+    // is exactly the bug the index scramble exists to prevent. (An earlier version
+    // of this check compared adjacent words with compareTo().abs() == 1, which is
+    // true for *any* two different strings and so proved nothing.)
+    final sorted = [...week]..sort();
+    expect(week, isNot(sorted), reason: 'daily words are in alphabetical order');
+
+    // Puzzle numbers advance by one per day and are what the share text quotes.
+    expect(WordRepository.dailyPuzzleNumber(DateTime(2026, 3, 15)) -
+        WordRepository.dailyPuzzleNumber(DateTime(2026, 3, 14)), 1);
+    expect(WordRepository.dailyPuzzleNumber(DateTime(2026, 1, 1)), 1);
+
+    // Each language has its own daily word.
+    final nb = await WordRepository.forLanguage(wordleLanguages[1]);
+    expect(nb.wordOfTheDay(DateTime(2026, 3, 14)),
+        isNot(repo.wordOfTheDay(DateTime(2026, 3, 14))));
+  });
+
+  test('Word of the day: the shared grid never leaks the answer', () {
+    final rows = [
+      [
+        LetterState.absent,
+        LetterState.present,
+        LetterState.absent,
+        LetterState.absent,
+        LetterState.correct,
+      ],
+      List.filled(wordLength, LetterState.correct),
+    ];
+    final text = dailyShareText(
+        title: 'Brain Workout — Word 42', rows: rows, solved: true);
+
+    expect(text, contains('Word 42'));
+    expect(text, contains('2/$maxGuesses'));
+    expect(text, contains('⬜🟨⬜⬜🟩'));
+    expect(text, contains('🟩🟩🟩🟩🟩'));
+    // The whole point of the format: colours only, so a friend who has not played
+    // can see how it went without the word being spoiled.
+    expect(RegExp(r'[A-Za-zÆØÅæøå]').allMatches(text.replaceAll('Brain Workout — Word', '')),
+        isEmpty,
+        reason: 'no letters may appear outside the title');
+
+    // A failed day is marked X, not 6/6.
+    final lost = dailyShareText(
+        title: 'T', rows: List.filled(maxGuesses, rows.first), solved: false);
+    expect(lost, contains('X/$maxGuesses'));
+  });
+
+  test('Word of the day: a finished day is remembered, and only that day', () {
+    final store = ProgressStore.instance;
+    expect(store.dailyWordResult('en', 42), isNull);
+
+    store.recordDailyWord('en', 42, solved: true, rows: ['aapca', 'ccccc']);
+    final got = store.dailyWordResult('en', 42);
+    expect(got, isNotNull);
+    expect(got!.solved, isTrue);
+    expect(got.rows, ['aapca', 'ccccc']);
+
+    // Yesterday's result must never read as today's.
+    expect(store.dailyWordResult('en', 41), isNull);
+    expect(store.dailyWordResult('en', 43), isNull);
+    // Per language, since the words differ.
+    expect(store.dailyWordResult('nb', 42), isNull);
+  });
+
+  testWidgets('Word of the day: finishing it offers share and copy',
+      (tester) async {
+    tester.view.physicalSize = const Size(1080, 2280);
+    tester.view.devicePixelRatio = 2.625;
+    addTearDown(tester.view.reset);
+
+    // Pre-file today's result so the screen opens straight onto the card.
+    final puzzle = WordRepository.dailyPuzzleNumber(DateTime.now());
+    ProgressStore.instance.recordDailyWord('en', puzzle,
+        solved: true, rows: ['aapca', 'ccccc']);
+
+    await tester.pumpWidget(localizedApp(const WordleScreen()));
+    await tester.pumpAndSettle();
+
+    expect(find.text("Today's word is done!"), findsOneWidget);
+    expect(find.byKey(const ValueKey('wordle_share')).hitTestable(),
+        findsOneWidget);
+    expect(find.byKey(const ValueKey('wordle_copy')).hitTestable(),
+        findsOneWidget);
+
+    // Copy puts the spoiler-free grid on the clipboard. The channel is mocked
+    // rather than read back: the test binding does not carry a real clipboard, so
+    // asserting via Clipboard.getData would be testing the harness, not the app.
+    String? copied;
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform, (call) async {
+      if (call.method == 'Clipboard.setData') {
+        copied = (call.arguments as Map)['text'] as String;
+      }
+      return null;
+    });
+    addTearDown(() => tester.binding.defaultBinaryMessenger
+        .setMockMethodCallHandler(SystemChannels.platform, null));
+
+    await tester.tap(find.byKey(const ValueKey('wordle_copy')));
+    await tester.pumpAndSettle();
+    expect(copied, isNotNull, reason: 'Copy should write to the clipboard');
+    expect(copied, contains('🟩🟩🟩🟩🟩'));
+    expect(copied, contains('2/$maxGuesses'));
+
+    // A practice word is still available, and is not the daily.
+    await tester.tap(find.byKey(const ValueKey('wordle_practice')));
+    await tester.pumpAndSettle();
+    expect(find.text("Today's word is done!"), findsNothing);
+  });
+  test('Arrow Maze bonus arrows: well-formed, stuck at the start, and fair', () {
+    for (final level in [1, 8, 12, 20, 40, 60]) {
+      final cfg = snakeConfigForLevel(level);
+      final board = SnakeBoard.generate(level);
+      final bonus = board.bonusArrow;
+
+      if (cfg.bonusFrees == 0) {
+        expect(bonus, isNull, reason: 'level $level should have no bonus arrow');
+        continue;
+      }
+      // A board can legitimately lack a bonus if too few arrows start stuck, but
+      // the dense late boards should always manage one.
+      if (level >= 20) {
+        expect(bonus, isNotNull, reason: 'level $level should have a bonus arrow');
+      }
+      if (bonus == null) continue;
+
+      expect(bonus.frees.length, cfg.bonusFrees, reason: 'level $level link count');
+      expect(bonus.frees, isNot(contains(bonus.id)),
+          reason: 'a bonus arrow must not free itself');
+      expect(bonus.frees.toSet().length, bonus.frees.length,
+          reason: 'duplicate links');
+      final ids = {for (final a in board.arrows) a.id};
+      expect(bonus.frees.every(ids.contains), isTrue,
+          reason: 'links must point at real arrows');
+
+      // Both ends start blocked: a tappable bonus arrow would be a free opening
+      // move, and freeing arrows that were never stuck would be no gift at all.
+      expect(board.isPathClear(bonus), isFalse,
+          reason: 'level $level bonus arrow is clear at the start');
+      for (final id in bonus.frees) {
+        final linked = board.arrows.firstWhere((a) => a.id == id);
+        expect(board.isPathClear(linked), isFalse,
+            reason: 'level $level frees arrow $id which was never stuck');
+      }
+
+      // Still winnable playing normally — the cascade only ever removes arrows,
+      // so it cannot strand anything, but the board must be solvable *without*
+      // relying on the bonus too.
+      var progress = true;
+      while (progress) {
+        progress = false;
+        for (final a in board.arrows) {
+          if (!a.escaped && board.isPathClear(a)) {
+            a.escaped = true;
+            progress = true;
+          }
+        }
+      }
+      expect(board.isSolved, isTrue,
+          reason: 'level $level must be solvable ignoring the bonus');
+    }
+  });
+
+  test('Arrow Maze bonus arrows: the cascade fires once and skips the gone', () {
+    final board = SnakeBoard.generate(25);
+    final bonus = board.bonusArrow!;
+    expect(board.bonusFreedBy(bonus).length, bonus.frees.length);
+
+    // An already-escaped link is not freed twice.
+    final first = board.arrows.firstWhere((a) => a.id == bonus.frees.first);
+    first.escaped = true;
+    expect(board.bonusFreedBy(bonus).length, bonus.frees.length - 1);
+    expect(board.bonusFreedBy(bonus), isNot(contains(first)));
+
+    // Clearing the bonus last wastes it entirely, which is the decision the
+    // mechanic exists to create.
+    for (final id in bonus.frees) {
+      board.arrows.firstWhere((a) => a.id == id).escaped = true;
+    }
+    expect(board.bonusFreedBy(bonus), isEmpty);
+
+    // A normal arrow frees nothing.
+    final plain = board.arrows.firstWhere((a) => !a.isBonus);
+    expect(board.bonusFreedBy(plain), isEmpty);
+  });
+  testWidgets('Win dialog: closeLabel dismisses without leaving the screen',
+      (tester) async {
+    // The reported bug: solving the daily word put the win dialog over the result
+    // card, and its only non-Home button was "New word" — which replaced the
+    // finished daily with a practice word, so the share buttons could never be
+    // reached. The fix is this `closeLabel` route, which Wordle passes on a daily
+    // win together with "Share" as the primary action.
+    //
+    // Tested at the dialog level. Driving a whole daily solve through the Wordle
+    // screen hangs inside this file for reasons I could not pin down — the same
+    // sequence completes in about a second in a standalone test file — so the
+    // end-to-end path is verified by hand rather than here. See
+    // docs/plans/word-of-the-day.md.
+    tester.view.physicalSize = const Size(1080, 2280);
+    tester.view.devicePixelRatio = 2.625;
+    addTearDown(tester.view.reset);
+
+    WinAction? got;
+    await tester.pumpWidget(localizedApp(Builder(
+      builder: (context) => Scaffold(
+        body: Center(
+          child: ElevatedButton(
+            onPressed: () async {
+              got = await showWinDialog(context,
+                  level: 3,
+                  accent: Colors.green,
+                  stars: 3,
+                  nextLabel: 'Share',
+                  closeLabel: 'Close');
+            },
+            child: const Text('open'),
+          ),
+        ),
+      ),
+    )));
+    await tester.tap(find.text('open'));
+    for (var i = 0; i < 16; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+
+    // With closeLabel set, the secondary button is Close rather than Home — so
+    // dismissing cannot navigate away from a screen that still has work to offer.
+    expect(find.text('Close'), findsOneWidget);
+    expect(find.text('Home'), findsNothing);
+    expect(find.text('Share'), findsOneWidget);
+
+    await tester.tap(find.text('Close'));
+    for (var i = 0; i < 8; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+    expect(got, WinAction.close,
+        reason: 'Close must report itself distinctly from Home, or the caller '
+            'cannot tell "stay here" from "leave"');
+    // Still on the screen behind the dialog.
+    expect(find.text('open'), findsOneWidget);
+  });
+
+  testWidgets('Win dialog: without closeLabel the old Home button is unchanged',
+      (tester) async {
+    // Guards the other 14 games: adding WinAction.close must not change what any
+    // existing caller sees, since they all treat "not next" as "go home".
+    tester.view.physicalSize = const Size(1080, 2280);
+    tester.view.devicePixelRatio = 2.625;
+    addTearDown(tester.view.reset);
+
+    WinAction? got;
+    await tester.pumpWidget(localizedApp(Builder(
+      builder: (context) => Scaffold(
+        body: Center(
+          child: ElevatedButton(
+            onPressed: () async {
+              got = await showWinDialog(context,
+                  level: 1, accent: Colors.blue, stars: 2);
+            },
+            child: const Text('open'),
+          ),
+        ),
+      ),
+    )));
+    await tester.tap(find.text('open'));
+    for (var i = 0; i < 16; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+    expect(find.text('Home'), findsOneWidget);
+    expect(find.text('Next level'), findsOneWidget);
+
+    await tester.tap(find.text('Home'));
+    for (var i = 0; i < 8; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+    expect(got, WinAction.home);
+  });
+
 }
 
 /// Counts solutions of a nonogram by row-wise backtracking, stopping at [limit].

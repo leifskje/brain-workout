@@ -85,6 +85,30 @@ List<LetterState> scoreGuess(String guess, String target) {
   return result;
 }
 
+/// The shareable result of a daily puzzle: a grid of coloured squares, never the
+/// word itself and never the letters.
+///
+/// That restriction is the whole point of the format — a friend who hasn't played
+/// yet can see how you did without having the answer spoiled. [title] is passed in
+/// already localised; the emoji rows carry the rest, so the text reads the same in
+/// any language.
+String dailyShareText({
+  required String title,
+  required List<List<LetterState>> rows,
+  required bool solved,
+}) {
+  final score = solved ? '${rows.length}/$maxGuesses' : 'X/$maxGuesses';
+  final grid = [
+    for (final row in rows)
+      row.map((s) => switch (s) {
+            LetterState.correct => '🟩',
+            LetterState.present => '🟨',
+            LetterState.absent => '⬜',
+          }).join(),
+  ].join('\n');
+  return '$title $score\n\n$grid';
+}
+
 /// Stars for solving in [guesses] tries: ≤3 → 3, ≤4 → 2, else 1.
 int wordleStars(int guesses) {
   if (guesses <= 3) return 3;

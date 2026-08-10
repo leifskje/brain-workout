@@ -222,7 +222,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get helpArrowMaze =>
-      'The long arrows slide off the board head-first. Tap one to send it out — the path in front of its head must be clear. Clear the whole board to win.';
+      'The long arrows slide off the board head-first. Tap one to send it out — the path in front of its head must be clear. Clear the whole board to win. From level 12 one arrow is golden: when it gets away it takes the paler golden arrows with it, so it pays to free the golden one while they are still stuck.';
 
   @override
   String get helpWord =>
@@ -271,6 +271,53 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get helpNonogram =>
       'The numbers along the top and the left tell you how many squares in a row are filled, in order. A line marked 4 2 has four filled squares, at least one gap, then two more. A line marked 0 is empty. Tap a square to fill it, tap again to put a cross where you are sure it stays empty, and once more to clear it. Fill in every correct square to reveal the picture. Nothing is timed and a wrong square costs you nothing — just fix it.';
+
+  @override
+  String get newRecord => 'New personal best!';
+
+  @override
+  String bestMoves(int count) {
+    return 'Your best: $count moves';
+  }
+
+  @override
+  String bestScore(int value) {
+    return 'Your best score: $value';
+  }
+
+  @override
+  String bestMistakes(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Your best: $count mistakes',
+      one: 'Your best: 1 mistake',
+      zero: 'Your best: no mistakes',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String bestGuesses(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Your best: $count guesses',
+      one: 'Your best: 1 guess',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String bonusArrowFreed(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'The golden arrow freed $count more!',
+      one: 'The golden arrow freed 1 more!',
+    );
+    return '$_temp0';
+  }
 
   @override
   String get outOfHearts => 'Out of hearts';
@@ -421,6 +468,49 @@ class AppLocalizationsEn extends AppLocalizations {
     );
     return '$_temp0';
   }
+
+  @override
+  String dailyShareTitle(int number) {
+    return 'Brain Workout — Word $number';
+  }
+
+  @override
+  String wordOfTheDay(int number) {
+    return 'Word of the day #$number';
+  }
+
+  @override
+  String get dailyDoneTitle => 'Today\'s word is done!';
+
+  @override
+  String get dailyDoneBody =>
+      'A new word appears every day — come back tomorrow.';
+
+  @override
+  String get dailyNotSolved => 'You didn\'t get today\'s word.';
+
+  @override
+  String get closeAction => 'Close';
+
+  @override
+  String get shareResult => 'Share';
+
+  @override
+  String get shareUnavailable =>
+      'Sharing isn\'t available here — copied to the clipboard instead.';
+
+  @override
+  String get copyResult => 'Copy';
+
+  @override
+  String get copiedToClipboard => 'Copied to the clipboard';
+
+  @override
+  String get practiceWord => 'Play another word';
+
+  @override
+  String get practiceWordNote =>
+      'As many as you like — these are just for practice.';
 
   @override
   String get notEnoughLetters => 'Not enough letters';

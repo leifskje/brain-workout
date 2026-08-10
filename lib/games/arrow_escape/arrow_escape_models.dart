@@ -94,6 +94,43 @@ class ArrowBoard {
 
   bool get isSolved => pieces.every((p) => p.escaped);
 
+  /// Which arrows have already left, for resuming after an interruption. Only the
+  /// escaped ids need saving — the board regenerates from the level number.
+  Map<String, dynamic> escapedJson() => {
+        'count': pieces.length,
+        'escaped': [
+          for (final p in pieces)
+            if (p.escaped) p.id
+        ],
+      };
+
+  /// Restores an escaped set written by [escapedJson]. Returns false and changes
+  /// nothing if the save doesn't describe this board.
+  ///
+  /// No winnability check — see the note on the Arrow Maze equivalent. Removing
+  /// arrows from a solvable board can only open paths, so every subset is
+  /// solvable and such a check could never reject anything. The invariant is
+  /// asserted in the tests instead.
+  bool applyEscapedJson(Map<String, dynamic> json) {
+    if (json['count'] != pieces.length) return false;
+    final raw = json['escaped'];
+    if (raw is! List) return false;
+
+    final ids = <int>{};
+    final valid = {for (final p in pieces) p.id};
+    for (final v in raw) {
+      if (v is! int || !valid.contains(v)) return false;
+      ids.add(v);
+    }
+    for (final p in pieces) {
+      p.escaped = ids.contains(p.id);
+    }
+    return true;
+  }
+
+  /// Whether the player has cleared anything yet.
+  bool get hasProgress => pieces.any((p) => p.escaped);
+
   /// Builds a guaranteed-solvable board for [level].
   ///
   /// Pieces are placed in reverse-solve order: each new arrow is only placed

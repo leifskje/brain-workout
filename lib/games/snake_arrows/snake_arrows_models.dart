@@ -42,6 +42,17 @@ class SnakeArrow {
   final Dir exitDir;
   bool escaped = false;
 
+  /// Ids this arrow sweeps off the board with it when it escapes.
+  ///
+  /// A **bonus arrow** (non-empty [frees]) is the one mechanic here that rewards
+  /// choosing an *order* rather than just finding any legal move: the arrows it
+  /// frees are ones that are stuck at the start, so clearing the bonus early is
+  /// worth far more than clearing it last. That is the property the difficulty
+  /// metric has always been reaching for — see docs/plans/arrow-maze-depth.md.
+  List<int> frees = const [];
+
+  bool get isBonus => frees.isNotEmpty;
+
   Cell get head => cells.last;
 
   bool occupies(int r, int c) {
@@ -61,6 +72,7 @@ class SnakeLevelConfig {
     required this.maxLength,
     required this.hearts,
     required this.fillTarget,
+    this.bonusFrees = 0,
   });
 
   final int rows;
@@ -71,6 +83,10 @@ class SnakeLevelConfig {
 
   /// Fraction of the grid to fill with arrows (denser = harder).
   final double fillTarget;
+
+  /// How many stuck arrows the board's bonus arrow sweeps out with it. 0 = no
+  /// bonus arrow on this level.
+  final int bonusFrees;
 }
 
 SnakeLevelConfig snakeConfigForLevel(int level) {
@@ -88,9 +104,17 @@ SnakeLevelConfig snakeConfigForLevel(int level) {
   // Longer snakes tangle more without needing a bigger grid, and raising the
   // floor removes trivial 2-cell filler that was padding late levels.
   final maxLen = (4 + level ~/ 2).clamp(4, 14);
-  final minLen = level >= 30 ? 4 : (level >= 15 ? 3 : 2);
+  // Raising the floor again at 45 removes the last of the short filler arrows,
+  // so every arrow on a late board is long enough to block several others. This
+  // is the only *config* knob left at 14x20 that isn't already maxed out.
+  final minLen = level >= 45 ? 5 : (level >= 30 ? 4 : (level >= 15 ? 3 : 2));
   // Less margin for error once the boards genuinely require planning.
   final hearts = level >= 35 ? 3 : (level >= 20 ? 4 : 5);
+  // Bonus arrows start at 12, once boards are dense enough that being stuck is a
+  // real state rather than a rarity, and grow to four freed arrows late on. This
+  // is the first difficulty axis in the game that isn't a knob on the generator —
+  // see docs/plans/arrow-maze-depth.md.
+  final bonusFrees = level < 12 ? 0 : (level < 40 ? 3 : 4);
   return SnakeLevelConfig(
     rows: rows,
     cols: cols,
@@ -98,6 +122,7 @@ SnakeLevelConfig snakeConfigForLevel(int level) {
     maxLength: maxLen,
     hearts: hearts,
     fillTarget: fill,
+    bonusFrees: bonusFrees,
   );
 }
 
@@ -149,8 +174,32 @@ class SnakeDifficulty {
 /// The 2.3 floor is the measured limit of what the generator reaches at high
 /// levels, not a design preference: asking for 2.0 just made every late level
 /// miss by 0.3-0.9 with nothing to show for it.
-double snakeTargetBranchingForLevel(int level) =>
-    (4.0 - level * 0.05).clamp(2.3, 4.0);
+/// Wanted mean branching for [level] — *lower is harder*, because a low
+/// branching factor is what forces the player to plan ahead.
+///
+/// Two segments, and the second exists because of a tester report: the old curve
+/// hit its 2.3 floor at level 34, so a player at level 50 was handed a board
+/// config-identical to level 35. The same plateau bug as before, just further out.
+///
+/// The tail is bounded by measurement, not taste. `analyze_snake_difficulty`
+/// samples all 768 seeds at 14x20 and prints the achievable spread: with the
+/// level-45 `minLength` floor the lowest branching *any* seed reaches is ~2.1, so
+/// 2.15 is the honest end of the ramp. An earlier attempt at 2.05 sat below that
+/// and simply degraded to "closest available" — the silent flattening this whole
+/// metric exists to prevent.
+///
+/// The slope is deliberately gentle (0.005/level) so the remaining headroom is
+/// spread over ~30 levels rather than spent in five.
+///
+/// **The real conclusion is that 14x20 is close to exhausted as a difficulty
+/// source.** This retune buys roughly two notches (measured: branching 2.5 ->
+/// 2.2, forced steps 26% -> 32% between levels 35 and 60). Genuine depth past
+/// here needs a bigger board — which needs zoom — or a new mechanic, not more
+/// tuning. See docs/plans/arrow-maze-depth.md.
+double snakeTargetBranchingForLevel(int level) {
+  if (level <= 34) return (4.0 - level * 0.05).clamp(2.3, 4.0);
+  return (2.3 - (level - 34) * 0.005).clamp(2.15, 2.3);
+}
 
 /// The snake-arrow board: holds the arrows and the rules for clearing them.
 class SnakeBoard {
@@ -184,6 +233,85 @@ class SnakeBoard {
   }
 
   bool get isSolved => arrows.every((a) => a.escaped);
+
+  /// Arrows freed as a side effect of [arrow] leaving. Empty for a normal arrow.
+  ///
+  /// Already-escaped links are skipped, so clearing a bonus arrow late simply
+  /// wastes the bonus — which is exactly the decision the mechanic exists to
+  /// create.
+  List<SnakeArrow> bonusFreedBy(SnakeArrow arrow) => [
+        for (final a in arrows)
+          if (!a.escaped && a.id != arrow.id && arrow.frees.contains(a.id)) a
+      ];
+
+  /// The bonus arrow, if this board has one.
+  SnakeArrow? get bonusArrow =>
+      arrows.where((a) => a.isBonus).cast<SnakeArrow?>().firstWhere(
+            (a) => true,
+            orElse: () => null,
+          );
+
+  /// Assigns one bonus arrow and the arrows it frees, deterministically.
+  ///
+  /// Both ends are chosen from arrows that are **blocked at the start**: a bonus
+  /// arrow that could be tapped immediately would be a free opening move, and
+  /// freeing arrows that were never stuck would be no gift at all. Does nothing
+  /// unless there are enough blocked arrows to make it meaningful, so an unusually
+  /// open board simply has no bonus rather than a token one.
+  void assignBonus(Random rng, {required int freeCount}) {
+    if (freeCount <= 0) return;
+    final blocked = [for (final a in arrows) if (!isPathClear(a)) a];
+    // The bonus arrow itself plus the arrows it frees, all from the blocked set.
+    if (blocked.length < freeCount + 1) return;
+
+    final pool = [...blocked]..shuffle(rng);
+    final bonus = pool.removeLast();
+    bonus.frees = [for (final a in pool.take(freeCount)) a.id];
+  }
+
+  /// Which arrows have already left, for resuming after an interruption.
+  ///
+  /// The board itself regenerates from the level number, so all that has to be
+  /// saved is the set of ids that escaped.
+  Map<String, dynamic> escapedJson() => {
+        'count': arrows.length,
+        'escaped': [
+          for (final a in arrows)
+            if (a.escaped) a.id
+        ],
+      };
+
+  /// Restores an escaped set written by [escapedJson]. Returns false and changes
+  /// nothing if the save doesn't describe this board.
+  ///
+  /// **No winnability check, deliberately.** An earlier version verified the
+  /// remaining arrows could still all escape, on the theory that a corrupt save
+  /// might strand them. It cannot: if a board is solvable, removing arrows only
+  /// ever *opens* paths, so every subset is solvable too. (Take the original
+  /// solution order and skip the removed arrows — when each remaining arrow
+  /// fires, the blockers present are a subset of the ones present originally, and
+  /// its path was clear then.) Measured before deleting it: 600 random subsets
+  /// across both arrow games, zero rejections. The invariant is asserted in
+  /// `test/widget_test.dart` instead, which is where it belongs.
+  bool applyEscapedJson(Map<String, dynamic> json) {
+    if (json['count'] != arrows.length) return false;
+    final raw = json['escaped'];
+    if (raw is! List) return false;
+
+    final ids = <int>{};
+    final valid = {for (final a in arrows) a.id};
+    for (final v in raw) {
+      if (v is! int || !valid.contains(v)) return false;
+      ids.add(v);
+    }
+    for (final a in arrows) {
+      a.escaped = ids.contains(a.id);
+    }
+    return true;
+  }
+
+  /// Whether the player has cleared anything yet.
+  bool get hasProgress => arrows.any((a) => a.escaped);
 
   /// Fraction of the grid covered by arrow cells. A patchy board looks unfinished
   /// even when it plays well, so generation scores this alongside difficulty.
@@ -259,7 +387,14 @@ class SnakeBoard {
         break;
       }
       branching.add(clear.length);
-      clear.first.escaped = true;
+      final fired = clear.first;
+      fired.escaped = true;
+      // Bonus arrows have to be simulated, or the metric would be measuring a
+      // game nobody plays: a cascade removes several obstacles at once and
+      // genuinely changes how the rest of the board opens up.
+      for (final freed in bonusFreedBy(fired)) {
+        freed.escaped = true;
+      }
     }
 
     for (final a in arrows) {
@@ -309,6 +444,11 @@ class SnakeBoard {
     for (var attempt = 0; attempt < maxGenerationAttempts; attempt++) {
       final board = _build(cfg, _seedFor(level, attempt));
       if (board.arrows.isEmpty) continue;
+
+      // Assign the bonus *before* measuring, so the difficulty gate scores the
+      // board the player will actually get rather than a bonus-free version of it.
+      board.assignBonus(Random(_seedFor(level, attempt) ^ 0x5EED),
+          freeCount: cfg.bonusFrees);
 
       final d = board.measureDifficulty();
       // Reverse-solve order should prevent this.

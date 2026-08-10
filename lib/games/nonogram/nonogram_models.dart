@@ -412,6 +412,62 @@ class NonogramBoard {
   bool isWrongFill(int r, int c) =>
       marks[r][c] == NonogramMark.filled && !solution[r][c];
 
+  /// The player's marks as JSON, for resuming after an interruption.
+  ///
+  /// Only the marks are stored, never the solution or the clues: those are
+  /// regenerated deterministically from the level number, so persisting them
+  /// would duplicate the generator's output and let a stale save disagree with
+  /// it. The board's dimensions go in purely so [applyMarksJson] can reject a
+  /// save that doesn't fit the board it is handed.
+  Map<String, dynamic> marksJson() => {
+        'w': width,
+        'h': height,
+        // One character per cell, row-major: '.' blank, '#' filled, 'x' crossed.
+        // A 12x12 board is 144 characters, which is far smaller and easier to
+        // eyeball than nested JSON arrays.
+        'marks': [
+          for (final row in marks)
+            String.fromCharCodes([
+              for (final m in row)
+                switch (m) {
+                  NonogramMark.blank => 0x2E, // .
+                  NonogramMark.filled => 0x23, // #
+                  NonogramMark.crossed => 0x78, // x
+                }
+            ])
+        ].join(),
+      };
+
+  /// Restores marks previously written by [marksJson]. Returns false and changes
+  /// nothing if the save doesn't match this board, so a partial restore can never
+  /// leave a half-populated grid.
+  bool applyMarksJson(Map<String, dynamic> json) {
+    if (json['w'] != width || json['h'] != height) return false;
+    final packed = json['marks'];
+    if (packed is! String || packed.length != width * height) return false;
+
+    final parsed = List.generate(
+        height, (_) => List<NonogramMark>.filled(width, NonogramMark.blank));
+    for (var i = 0; i < packed.length; i++) {
+      final mark = switch (packed[i]) {
+        '.' => NonogramMark.blank,
+        '#' => NonogramMark.filled,
+        'x' => NonogramMark.crossed,
+        _ => null,
+      };
+      if (mark == null) return false;
+      parsed[i ~/ width][i % width] = mark;
+    }
+    for (var r = 0; r < height; r++) {
+      marks[r].setAll(0, parsed[r]);
+    }
+    return true;
+  }
+
+  /// Whether the player has put anything on the board at all.
+  bool get hasProgress =>
+      marks.any((row) => row.any((m) => m != NonogramMark.blank));
+
   /// Tap cycles blank -> filled -> crossed -> blank. One gesture, no mode
   /// toggle and no long-press: nothing hidden for the player to discover.
   void cycle(int r, int c) {

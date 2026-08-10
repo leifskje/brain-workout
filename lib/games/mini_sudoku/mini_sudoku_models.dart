@@ -101,6 +101,54 @@ class MiniSudokuBoard {
     return false;
   }
 
+  /// The player's entries, for resuming after an interruption.
+  ///
+  /// Only what the player typed is stored: the puzzle and its givens regenerate
+  /// deterministically from the level number, so saving them would duplicate the
+  /// generator and let a stale save contradict it. One character per cell,
+  /// row-major, '.' for empty — a 9x9 board is 81 characters.
+  Map<String, dynamic> entriesJson() => {
+        'size': size,
+        'entries': [
+          for (final row in cells)
+            String.fromCharCodes([
+              for (final cell in row)
+                cell.given || cell.entered == null
+                    ? 0x2E // .
+                    : 0x30 + cell.entered!.clamp(0, 9)
+            ])
+        ].join(),
+      };
+
+  /// Restores entries written by [entriesJson]. Returns false and changes nothing
+  /// if the save doesn't fit this board, so a partial restore is impossible.
+  bool applyEntriesJson(Map<String, dynamic> json) {
+    if (json['size'] != size) return false;
+    final packed = json['entries'];
+    if (packed is! String || packed.length != size * size) return false;
+
+    final parsed = List.generate(size, (_) => List<int?>.filled(size, null));
+    for (var i = 0; i < packed.length; i++) {
+      final ch = packed[i];
+      if (ch == '.') continue;
+      final v = int.tryParse(ch);
+      if (v == null || v < 1 || v > size) return false;
+      parsed[i ~/ size][i % size] = v;
+    }
+    for (var r = 0; r < size; r++) {
+      for (var c = 0; c < size; c++) {
+        // Never write into a given: the generator owns those, and a save that
+        // disagreed would otherwise silently corrupt the puzzle.
+        if (!cells[r][c].given) cells[r][c].entered = parsed[r][c];
+      }
+    }
+    return true;
+  }
+
+  /// Whether the player has entered anything yet.
+  bool get hasProgress =>
+      cells.any((row) => row.any((c) => !c.given && c.entered != null));
+
   /// Builds a board for [level], seeded so a retry gives the same puzzle.
   static MiniSudokuBoard generate(int level) {
     final cfg = miniSudokuConfigForLevel(level);

@@ -196,6 +196,19 @@ A pre-commit hook (`.githooks/pre-commit`, enabled via `core.hooksPath`) runs
   `Flexible` never shrinks, the button lands below the fold, and **no overflow
   error is reported at all**. Assert `finder.hitTestable()`, not just
   `findsOneWidget`, or the test will pass on a silently unreachable button.
+- **A cold asset read inside `testWidgets` never finishes — warm it in
+  `setUpAll`.** `testWidgets` runs its body in a fake-async zone, so the real file
+  I/O behind `rootBundle.loadString` never progresses and the test hangs until it
+  times out. Tests that seem to work are usually riding on a static cache warmed by
+  an earlier plain `test()` in the same run, which makes the failure look random and
+  file-dependent — it cost most of an afternoon on the Wordle daily-word tests.
+  `setUpAll` runs outside that zone; warm the asset there and in-test calls become
+  cache hits. Two corollaries from the same hunt: **`pumpAndSettle` never settles
+  while an indeterminate `CircularProgressIndicator` (or this app's win dialog) is
+  on screen**, so it dies by timeout rather than by assertion — use bounded
+  `pump(Duration)` loops; and **`debugPrint` is buffered per test and never flushed
+  for a test that doesn't complete**, so prints tell you nothing about a hang. Split
+  the flow into several small tests and let the hang isolate itself.
 - **Never set text scale in a test with `MediaQuery(data: MediaQueryData(textScaler: …))`.**
   That constructor replaces *all* of `MediaQueryData`, so `size` becomes
   `Size.zero` and the widget under test is laid out on a zero-height screen —

@@ -34,6 +34,7 @@ final Map<String, String Function(int)> games = {
     final c = snakeConfigForLevel(l);
     return '${c.cols}x${c.rows} len=${c.minLength}-${c.maxLength} '
         'fill=${c.fillTarget.toStringAsFixed(2)} hearts=${c.hearts} '
+        'bonus=${c.bonusFrees} '
         'branchTarget=${snakeTargetBranchingForLevel(l).toStringAsFixed(2)}';
   },
   'Crack the Code': (l) {
@@ -46,7 +47,8 @@ final Map<String, String Function(int)> games = {
   },
   '2048 (Merge)': (l) {
     final c = mergeConfigForLevel(l);
-    return 'size=${c.size} target=${c.target}';
+    return 'size=${c.size} target=${c.target} '
+        'four=${c.fourChance.toStringAsFixed(2)}';
   },
   'Mini Sudoku': (l) {
     final c = miniSudokuConfigForLevel(l);

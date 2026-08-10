@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../l10n/generated/app_localizations.dart';
+import '../../services/board_autosave.dart';
 import '../../services/progress_store.dart';
 import '../../widgets/game_header.dart';
 import '../../widgets/how_to_play.dart';
@@ -22,7 +23,8 @@ class MiniSudokuScreen extends StatefulWidget {
   State<MiniSudokuScreen> createState() => _MiniSudokuScreenState();
 }
 
-class _MiniSudokuScreenState extends State<MiniSudokuScreen> {
+class _MiniSudokuScreenState extends State<MiniSudokuScreen>
+    with WidgetsBindingObserver, BoardAutosave<MiniSudokuScreen> {
   static const _gameId = 'mini_sudoku';
   static const _accent = Color(0xFF5C6BC0);
   static const _givenBg = Color(0xFFEDEAF6); // light lavender for givens
@@ -36,6 +38,7 @@ class _MiniSudokuScreenState extends State<MiniSudokuScreen> {
   @override
   void initState() {
     super.initState();
+    startAutosave();
     _loadLevel(widget.startLevel);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
@@ -47,18 +50,52 @@ class _MiniSudokuScreenState extends State<MiniSudokuScreen> {
     });
   }
 
-  void _loadLevel(int level) {
+  /// Loads [level], replaying a saved board for it when one exists. The puzzle
+  /// itself is always regenerated from the level number — it is deterministic, so
+  /// only the player's own entries need saving.
+  void _loadLevel(int level, {bool allowResume = true}) {
     ProgressStore.instance.recordReached(_gameId, level);
+    final board = MiniSudokuBoard.generate(level);
+    final saved =
+        allowResume ? ProgressStore.instance.loadBoard(_gameId, level) : null;
+    // A save that doesn't fit is dropped silently: a fresh puzzle is a fine
+    // outcome, an exception on opening a game is not.
+    if (saved != null) board.applyEntriesJson(saved);
     setState(() {
       _level = level;
-      _board = MiniSudokuBoard.generate(level);
+      _board = board;
       _selected = null;
       _mistakes = 0;
       _busy = false;
     });
   }
 
-  void _restart() => _loadLevel(_level);
+  void _restart() {
+    ProgressStore.instance.clearBoard(_gameId);
+    _loadLevel(_level, allowResume: false);
+  }
+
+  @override
+  void dispose() {
+    saveBoardNow();
+    stopAutosave();
+    super.dispose();
+  }
+
+  // ---- BoardAutosave ----
+
+  @override
+  String get autosaveGameId => _gameId;
+
+  @override
+  int get autosaveLevel => _level;
+
+  @override
+  Map<String, dynamic>? captureBoard() {
+    if (_board.isSolved) return null; // finished
+    if (!_board.hasProgress) return null; // untouched
+    return _board.entriesJson();
+  }
 
   void _onCellTap(int r, int c) {
     if (_busy || _board.cells[r][c].given) return;
@@ -91,12 +128,25 @@ class _MiniSudokuScreenState extends State<MiniSudokuScreen> {
 
   void _showWin() {
     if (!mounted) return;
+    ProgressStore.instance.clearBoard(_gameId);
     HapticFeedback.heavyImpact();
     final stars = _mistakes == 0 ? 3 : (_mistakes <= 2 ? 2 : 1);
     ProgressStore.instance
       ..registerPlay(_gameId)
       ..recordStars(_gameId, _level, stars);
-    showWinDialog(context, level: _level, accent: _accent, stars: stars)
+    // Local-only personal best. This is save data, not analytics: it lives in
+    // SharedPreferences on the device and nothing about it is ever sent anywhere.
+    final beat = ProgressStore.instance
+        .recordBest(_gameId, _level, _mistakes, lowerIsBetter: true);
+    final best = ProgressStore.instance.bestResult(_gameId, _level);
+    showWinDialog(context,
+            level: _level,
+            accent: _accent,
+            stars: stars,
+            newRecord: beat,
+            bestText: best == null
+                ? null
+                : AppLocalizations.of(context).bestMistakes(best))
         .then((action) {
       if (!mounted || action == null) return;
       if (action == WinAction.next) {
@@ -190,6 +240,8 @@ class _MiniSudokuScreenState extends State<MiniSudokuScreen> {
                 : Colors.white;
 
     return GestureDetector(
+      // Keyed for tests: a by-type finder also matches the header's icon buttons.
+      key: ValueKey('sudoku_cell_${r}_$c'),
       behavior: HitTestBehavior.opaque,
       onTap: () => _onCellTap(r, c),
       child: Container(
@@ -246,6 +298,7 @@ class _MiniSudokuScreenState extends State<MiniSudokuScreen> {
 
   Widget _padButton(String? label, VoidCallback onTap, {IconData? icon}) {
     return Material(
+      key: ValueKey('sudoku_pad_${label ?? 'erase'}'),
       color: Colors.white,
       borderRadius: BorderRadius.circular(12),
       elevation: 1,

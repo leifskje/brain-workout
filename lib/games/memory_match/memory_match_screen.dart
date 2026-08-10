@@ -110,6 +110,11 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen> {
     ProgressStore.instance
       ..registerPlay(_gameId)
       ..recordStars(_gameId, _level, stars);
+    // Local-only personal best. This is save data, not analytics: it lives in
+    // SharedPreferences on the device and nothing about it is ever sent anywhere.
+    final beat = ProgressStore.instance
+        .recordBest(_gameId, _level, _moves, lowerIsBetter: true);
+    final best = ProgressStore.instance.bestResult(_gameId, _level);
     showWinDialog(
       context,
       level: _level,
@@ -117,6 +122,10 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen> {
       stars: stars,
       message:
           AppLocalizations.of(context).clearedLevelInMoves(_level, _moves),
+      newRecord: beat,
+      bestText: best == null
+          ? null
+          : AppLocalizations.of(context).bestMoves(best),
     ).then((action) {
       if (!mounted || action == null) return;
       if (action == WinAction.next) {
@@ -210,6 +219,9 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen> {
     return Padding(
       padding: const EdgeInsets.all(5),
       child: GestureDetector(
+        // Keyed so tests can measure a *card* — a by-type finder also matches the
+        // header's icon buttons, which sit earlier in the tree.
+        key: ValueKey('memory-card-${card.id}'),
         onTap: () => _onTapCard(card),
         child: TweenAnimationBuilder<double>(
           tween: Tween(begin: 0, end: up ? 1.0 : 0.0),

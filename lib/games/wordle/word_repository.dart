@@ -80,6 +80,46 @@ class WordRepository {
   int get commonAnswerCount => _commonAnswers.length;
   int get rarerAnswerCount => _rarerAnswers.length;
 
+  /// The puzzle number for [date] — days since [dailyEpoch], and the number shown
+  /// in the shared result so two people can tell they played the same puzzle.
+  ///
+  /// Built from the *local* calendar date, so "today's word" changes at the
+  /// player's midnight rather than UTC's.
+  static int dailyPuzzleNumber(DateTime date) =>
+      DateTime(date.year, date.month, date.day).difference(dailyEpoch).inDays + 1;
+
+  static final DateTime dailyEpoch = DateTime(2026, 1, 1);
+
+  /// The word of the day for [date]: the same word for every player of this
+  /// language, with no server involved because it is a pure function of the date.
+  ///
+  /// The index is scrambled with an explicit integer hash rather than `Random`.
+  /// Walking the list in order would hand out alphabetically adjacent words on
+  /// consecutive days (ABACK, ABASE, ABATE…), and `Random`'s algorithm is not a
+  /// specified part of Dart, so seeding it would risk two app versions disagreeing
+  /// about today's word — which is exactly the thing sharing depends on.
+  String wordOfTheDay(DateTime date) {
+    final day = dailyPuzzleNumber(date);
+    if (_commonAnswers.isEmpty) {
+      return _words[_scramble(day) % _words.length];
+    }
+    // Keep the same roughly one-in-five rarer-word rhythm as a random draw, so a
+    // strong vocabulary still gets an occasional hard day.
+    if (_rarerAnswers.isNotEmpty && day % _rareEvery == 0) {
+      return _rarerAnswers[_scramble(day) % _rarerAnswers.length];
+    }
+    return _commonAnswers[_scramble(day) % _commonAnswers.length];
+  }
+
+  /// A cheap, explicit avalanche hash. Deterministic across Dart versions and
+  /// platforms, which `Random` is not promised to be.
+  static int _scramble(int n) {
+    var x = n & 0x3FFFFFFF;
+    x = ((x ^ (x >> 15)) * 0x2545F49) & 0x3FFFFFFF;
+    x = ((x ^ (x >> 13)) * 0x27220A9) & 0x3FFFFFFF;
+    return (x ^ (x >> 16)) & 0x3FFFFFFF;
+  }
+
   /// A random answer word. Pass a seeded [rng] for deterministic picks.
   ///
   /// Mostly common words, with roughly one in [_rareEvery] drawn from the rarer

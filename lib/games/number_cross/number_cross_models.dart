@@ -94,8 +94,12 @@ NumberCrossConfig numberCrossConfigForLevel(int level) {
     5 => (9, 9),
     _ => (11, 9),
   };
-  final blanks = (3 + level ~/ 2).clamp(3, 9);
-  final decoys = level < 4 ? 0 : (level < 8 ? 1 : 2);
+  // Blanks and decoys are the two knobs that still have room at 11x9 — the grid
+  // itself is at the portrait limit. More blanks means fewer anchored numbers to
+  // reason from; more decoys means the tray no longer tells you what fits.
+  // Both caps used to be reached by level 12, which is where the plateau was.
+  final blanks = (3 + level ~/ 2).clamp(3, 13);
+  final decoys = level < 4 ? 0 : (level < 8 ? 1 : (2 + (level - 8) ~/ 6).clamp(2, 5));
   return NumberCrossConfig(
     equations: equations,
     rows: rows,
@@ -144,6 +148,66 @@ class NumberCrossBoard {
   }
 
   bool get isSolved => runs.every(runValid);
+
+  /// The numbers the player has placed, for resuming after an interruption.
+  ///
+  /// Board and pool both regenerate from the level number, so the save carries
+  /// only the placements — one entry per to-place cell, in row-major order, with
+  /// null for "still empty". The pool is then rebuilt by removing what is placed,
+  /// rather than being stored, so the two can never disagree.
+  Map<String, dynamic> placementsJson() => {
+        'rows': cells.length,
+        'cols': cells.first.length,
+        'placed': [
+          for (final row in cells)
+            for (final cell in row)
+              if (cell.kind == NcKind.number && !cell.fixed) cell.placed,
+        ],
+      };
+
+  /// Restores placements written by [placementsJson], rebuilding the pool to
+  /// match. Returns false and changes nothing if the save doesn't fit.
+  bool applyPlacementsJson(Map<String, dynamic> json) {
+    if (json['rows'] != cells.length) return false;
+    if (json['cols'] != cells.first.length) return false;
+    final placed = json['placed'];
+    if (placed is! List) return false;
+
+    final slots = [
+      for (final row in cells)
+        for (final cell in row)
+          if (cell.kind == NcKind.number && !cell.fixed) cell,
+    ];
+    if (placed.length != slots.length) return false;
+    for (final v in placed) {
+      if (v != null && v is! int) return false;
+    }
+
+    // Every placed number has to come out of the pool, or the player could end
+    // up with more tiles than the puzzle has.
+    final remaining = [...pool];
+    final toPlace = <int?>[];
+    for (final v in placed) {
+      if (v == null) {
+        toPlace.add(null);
+        continue;
+      }
+      if (!remaining.remove(v as int)) return false;
+      toPlace.add(v);
+    }
+
+    for (var i = 0; i < slots.length; i++) {
+      slots[i].placed = toPlace[i];
+    }
+    pool
+      ..clear()
+      ..addAll(remaining);
+    return true;
+  }
+
+  /// Whether the player has placed anything yet.
+  bool get hasProgress => cells.any((row) => row.any(
+      (c) => c.kind == NcKind.number && !c.fixed && c.placed != null));
 
   /// Finds every equation on the grid by scanning for maximal across/down
   /// segments of non-blank cells. Any segment of two or more cells must be

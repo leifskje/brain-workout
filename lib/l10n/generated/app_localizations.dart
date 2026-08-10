@@ -473,7 +473,7 @@ abstract class AppLocalizations {
   /// No description provided for @helpArrowMaze.
   ///
   /// In en, this message translates to:
-  /// **'The long arrows slide off the board head-first. Tap one to send it out — the path in front of its head must be clear. Clear the whole board to win.'**
+  /// **'The long arrows slide off the board head-first. Tap one to send it out — the path in front of its head must be clear. Clear the whole board to win. From level 12 one arrow is golden: when it gets away it takes the paler golden arrows with it, so it pays to free the golden one while they are still stuck.'**
   String get helpArrowMaze;
 
   /// No description provided for @helpWord.
@@ -547,6 +547,42 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'The numbers along the top and the left tell you how many squares in a row are filled, in order. A line marked 4 2 has four filled squares, at least one gap, then two more. A line marked 0 is empty. Tap a square to fill it, tap again to put a cross where you are sure it stays empty, and once more to clear it. Fill in every correct square to reveal the picture. Nothing is timed and a wrong square costs you nothing — just fix it.'**
   String get helpNonogram;
+
+  /// No description provided for @newRecord.
+  ///
+  /// In en, this message translates to:
+  /// **'New personal best!'**
+  String get newRecord;
+
+  /// No description provided for @bestMoves.
+  ///
+  /// In en, this message translates to:
+  /// **'Your best: {count} moves'**
+  String bestMoves(int count);
+
+  /// No description provided for @bestScore.
+  ///
+  /// In en, this message translates to:
+  /// **'Your best score: {value}'**
+  String bestScore(int value);
+
+  /// No description provided for @bestMistakes.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =0{Your best: no mistakes} =1{Your best: 1 mistake} other{Your best: {count} mistakes}}'**
+  String bestMistakes(int count);
+
+  /// No description provided for @bestGuesses.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{Your best: 1 guess} other{Your best: {count} guesses}}'**
+  String bestGuesses(int count);
+
+  /// No description provided for @bonusArrowFreed.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{The golden arrow freed 1 more!} other{The golden arrow freed {count} more!}}'**
+  String bonusArrowFreed(int count);
 
   /// No description provided for @outOfHearts.
   ///
@@ -763,6 +799,78 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{count, plural, =1{1 filled square is wrong} other{{count} filled squares are wrong}}'**
   String nonogramCheckFound(int count);
+
+  /// No description provided for @dailyShareTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Brain Workout — Word {number}'**
+  String dailyShareTitle(int number);
+
+  /// No description provided for @wordOfTheDay.
+  ///
+  /// In en, this message translates to:
+  /// **'Word of the day #{number}'**
+  String wordOfTheDay(int number);
+
+  /// No description provided for @dailyDoneTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Today\'s word is done!'**
+  String get dailyDoneTitle;
+
+  /// No description provided for @dailyDoneBody.
+  ///
+  /// In en, this message translates to:
+  /// **'A new word appears every day — come back tomorrow.'**
+  String get dailyDoneBody;
+
+  /// No description provided for @dailyNotSolved.
+  ///
+  /// In en, this message translates to:
+  /// **'You didn\'t get today\'s word.'**
+  String get dailyNotSolved;
+
+  /// No description provided for @closeAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Close'**
+  String get closeAction;
+
+  /// No description provided for @shareResult.
+  ///
+  /// In en, this message translates to:
+  /// **'Share'**
+  String get shareResult;
+
+  /// No description provided for @shareUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Sharing isn\'t available here — copied to the clipboard instead.'**
+  String get shareUnavailable;
+
+  /// No description provided for @copyResult.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy'**
+  String get copyResult;
+
+  /// No description provided for @copiedToClipboard.
+  ///
+  /// In en, this message translates to:
+  /// **'Copied to the clipboard'**
+  String get copiedToClipboard;
+
+  /// No description provided for @practiceWord.
+  ///
+  /// In en, this message translates to:
+  /// **'Play another word'**
+  String get practiceWord;
+
+  /// No description provided for @practiceWordNote.
+  ///
+  /// In en, this message translates to:
+  /// **'As many as you like — these are just for practice.'**
+  String get practiceWordNote;
 
   /// No description provided for @notEnoughLetters.
   ///

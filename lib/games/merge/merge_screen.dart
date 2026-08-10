@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../l10n/generated/app_localizations.dart';
+import '../../services/board_autosave.dart';
 import '../../services/progress_store.dart';
 import '../../widgets/game_header.dart';
 import '../../widgets/how_to_play.dart';
@@ -23,7 +24,10 @@ class MergeScreen extends StatefulWidget {
 }
 
 class _MergeScreenState extends State<MergeScreen>
-    with SingleTickerProviderStateMixin {
+    with
+        SingleTickerProviderStateMixin,
+        WidgetsBindingObserver,
+        BoardAutosave<MergeScreen> {
   static const _gameId = 'merge';
   static const _accent = Color(0xFFEDB22E);
   static const _boardBg = Color(0xFFBBADA0);
@@ -53,6 +57,7 @@ class _MergeScreenState extends State<MergeScreen>
       ..addStatusListener((status) {
         if (status == AnimationStatus.completed && mounted) _onSlideDone();
       });
+    startAutosave();
     _loadLevel(widget.startLevel);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
@@ -66,22 +71,54 @@ class _MergeScreenState extends State<MergeScreen>
 
   @override
   void dispose() {
+    saveBoardNow();
+    stopAutosave();
     _slide.dispose();
     super.dispose();
   }
 
-  void _loadLevel(int level) {
+  // ---- BoardAutosave ----
+
+  @override
+  String get autosaveGameId => _gameId;
+
+  @override
+  int get autosaveLevel => _level;
+
+  @override
+  Map<String, dynamic>? captureBoard() {
+    // Nothing worth keeping once the board is decided, or before the first move:
+    // a fresh board is one tap from being regenerated anyway, and re-saving a
+    // finished one would resume a level the player already beat.
+    if (_game.reachedTarget || !_game.hasMoves) return null;
+    if (_game.score == 0) return null;
+    return _game.toJson();
+  }
+
+  /// Loads [level], resuming a saved board for it when one exists.
+  ///
+  /// Resuming is silent rather than a "continue?" prompt: the save is keyed to
+  /// this level, so the board on screen is the one the player left, and asking
+  /// would only add a decision for an audience that doesn't want one.
+  void _loadLevel(int level, {bool allowResume = true}) {
     ProgressStore.instance.recordReached(_gameId, level);
+    final saved = allowResume
+        ? ProgressStore.instance.loadBoard(_gameId, level)
+        : null;
+    final resumed = saved == null ? null : MergeGame.fromJson(saved);
     setState(() {
       _level = level;
-      _game = MergeGame.generate(level);
+      _game = resumed ?? MergeGame.generate(level);
       _slides = const [];
       _popCells = const {};
       _animating = false;
     });
   }
 
-  void _restart() => _loadLevel(_level);
+  void _restart() {
+    ProgressStore.instance.clearBoard(_gameId);
+    _loadLevel(_level, allowResume: false);
+  }
 
   void _move(MergeDirection dir) {
     if (_animating || !willChange(_game.grid, dir)) return;
@@ -141,12 +178,24 @@ class _MergeScreenState extends State<MergeScreen>
   void _showWin() {
     if (!mounted) return;
     HapticFeedback.heavyImpact();
+    // The board is finished, so the save has served its purpose. Dropping it here
+    // rather than relying on dispose keeps a beaten board from sitting on disk.
+    ProgressStore.instance.clearBoard(_gameId);
     final empty = _game.emptyCount;
     final stars = empty >= 8 ? 3 : (empty >= 4 ? 2 : 1);
     ProgressStore.instance
       ..registerPlay(_gameId)
       ..recordStars(_gameId, _level, stars);
-    showWinDialog(context, level: _level, accent: _accent, stars: stars)
+    // Local-only personal best. This is save data, not analytics: it lives in
+    // SharedPreferences on the device and nothing about it is ever sent anywhere.
+    final beat = ProgressStore.instance.recordBest(_gameId, _level, _game.score,
+        lowerIsBetter: false);
+    final best = ProgressStore.instance.bestResult(_gameId, _level);
+    showWinDialog(context, level: _level, accent: _accent, stars: stars,
+            newRecord: beat,
+            bestText: best == null
+                ? null
+                : AppLocalizations.of(context).bestScore(best))
         .then((action) {
       if (!mounted || action == null) return;
       if (action == WinAction.next) {
@@ -160,6 +209,7 @@ class _MergeScreenState extends State<MergeScreen>
   void _showLose() {
     if (!mounted) return;
     HapticFeedback.heavyImpact();
+    ProgressStore.instance.clearBoard(_gameId);
     final t = AppLocalizations.of(context);
     showDialog<void>(
       context: context,

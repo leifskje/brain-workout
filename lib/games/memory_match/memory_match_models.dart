@@ -22,6 +22,14 @@ class MemoryLevelConfig {
 
 // Board shapes by level (always an even number of cards). Clamped at the last
 // entry for higher levels.
+// Rows grow rather than columns past 5x6: the screen sizes cards to fit, so
+// widening to 7 columns would shrink them below the ~60dp this audience needs,
+// whereas an extra row costs vertical space the portrait layout still has.
+// 7x6 is the end of that road — 8 rows starts squeezing cards again.
+//
+// 21 pairs is close to the structural ceiling for this mechanic, not a
+// placeholder. The next real difficulty axis is *triples* (match three of a kind
+// rather than two), which is a mechanic change; see docs/plans/backlog.md.
 const _layouts = <List<int>>[
   [2, 3], // L1 — 3 pairs
   [2, 4], // L2 — 4 pairs
@@ -29,7 +37,9 @@ const _layouts = <List<int>>[
   [4, 4], // L4 — 8 pairs
   [4, 5], // L5 — 10 pairs
   [4, 6], // L6 — 12 pairs
-  [5, 6], // L7+ — 15 pairs
+  [5, 6], // L7 — 15 pairs
+  [6, 6], // L8 — 18 pairs
+  [7, 6], // L9+ — 21 pairs
 ];
 
 MemoryLevelConfig memoryConfigForLevel(int level) {
@@ -41,7 +51,7 @@ MemoryLevelConfig memoryConfigForLevel(int level) {
 const _symbols = <String>[
   '🍎', '🍌', '🍇', '🍊', '🍓', '🍒', '🍋', '🍉',
   '🐶', '🐱', '🐰', '🐻', '🌸', '🌟', '⚽', '🚗',
-  '🎈', '🍰',
+  '🎈', '🍰', '🔔', '🦋', '🌲',
 ];
 
 /// The memory board: a shuffled deck of matching pairs. Always winnable;

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../l10n/generated/app_localizations.dart';
+import '../../services/board_autosave.dart';
 import '../../services/progress_store.dart';
 import '../../theme/motion.dart';
 import '../../widgets/game_header.dart';
@@ -26,7 +27,10 @@ class ArrowEscapeScreen extends StatefulWidget {
 }
 
 class _ArrowEscapeScreenState extends State<ArrowEscapeScreen>
-    with SingleTickerProviderStateMixin {
+    with
+        SingleTickerProviderStateMixin,
+        WidgetsBindingObserver,
+        BoardAutosave<ArrowEscapeScreen> {
   /// Fallback only: replaced from the layout once the cell size is known. A
   /// fixed duration meant the *speed* varied with the device, because a piece
   /// slides the full width of the board and that distance scales with the screen.
@@ -52,6 +56,7 @@ class _ArrowEscapeScreenState extends State<ArrowEscapeScreen>
   @override
   void initState() {
     super.initState();
+    startAutosave();
     // Create eagerly in initState (not as a lazy `late final`): if it were
     // created lazily, a play-through with no blocked tap would never construct
     // it, and dispose()'s _shake.dispose() would lazily build it mid-teardown,
@@ -76,22 +81,55 @@ class _ArrowEscapeScreenState extends State<ArrowEscapeScreen>
 
   @override
   void dispose() {
+    saveBoardNow();
+    stopAutosave();
     _shake.dispose();
     super.dispose();
   }
 
-  void _loadLevel(int level) {
+  /// Loads [level], resuming a saved position for it when one exists.
+  ///
+  /// Hearts travel with the save: coming back with a full board but no lives
+  /// left, or a cleared board with lives restored, would both feel like a bug.
+  void _loadLevel(int level, {bool allowResume = true}) {
     ProgressStore.instance.recordReached(_gameId, level);
+    final board = ArrowBoard.generate(level);
+    var hearts = configForLevel(level).hearts;
+    final saved =
+        allowResume ? ProgressStore.instance.loadBoard(_gameId, level) : null;
+    if (saved != null && board.applyEscapedJson(saved)) {
+      final h = saved['hearts'];
+      if (h is int && h > 0 && h <= hearts) hearts = h;
+    }
     setState(() {
       _level = level;
-      _board = ArrowBoard.generate(level);
-      _hearts = configForLevel(level).hearts;
+      _board = board;
+      _hearts = hearts;
       _blockedId = null;
       _busy = false;
     });
   }
 
-  void _restart() => _loadLevel(_level);
+  void _restart() {
+    ProgressStore.instance.clearBoard(_gameId);
+    _loadLevel(_level, allowResume: false);
+  }
+
+  // ---- BoardAutosave ----
+
+  @override
+  String get autosaveGameId => _gameId;
+
+  @override
+  int get autosaveLevel => _level;
+
+  @override
+  Map<String, dynamic>? captureBoard() {
+    if (_board.isSolved) return null; // finished
+    if (_hearts <= 0) return null; // lost; the level restarts anyway
+    if (!_board.hasProgress) return null; // untouched
+    return {..._board.escapedJson(), 'hearts': _hearts};
+  }
 
   void _onTapPiece(ArrowPiece p) {
     if (_busy || p.escaped) return;
@@ -123,6 +161,7 @@ class _ArrowEscapeScreenState extends State<ArrowEscapeScreen>
 
   void _showWin() {
     if (!mounted) return;
+    ProgressStore.instance.clearBoard(_gameId);
     HapticFeedback.heavyImpact();
     final lost = configForLevel(_level).hearts - _hearts;
     final stars = lost == 0 ? 3 : (lost <= 2 ? 2 : 1);
