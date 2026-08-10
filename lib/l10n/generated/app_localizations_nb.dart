@@ -460,6 +460,38 @@ class AppLocalizationsNb extends AppLocalizations {
   }
 
   @override
+  String dailyShareTitle(int number) {
+    return 'Hjernetrim — Ord $number';
+  }
+
+  @override
+  String wordOfTheDay(int number) {
+    return 'Dagens ord #$number';
+  }
+
+  @override
+  String get dailyDoneTitle => 'Dagens ord er ferdig!';
+
+  @override
+  String get dailyDoneBody =>
+      'Et nytt ord kommer hver dag — kom tilbake i morgen.';
+
+  @override
+  String get dailyNotSolved => 'Du klarte ikke dagens ord.';
+
+  @override
+  String get shareResult => 'Del';
+
+  @override
+  String get copyResult => 'Kopier';
+
+  @override
+  String get copiedToClipboard => 'Kopiert til utklippstavlen';
+
+  @override
+  String get practiceWord => 'Øvingsord';
+
+  @override
   String get notEnoughLetters => 'For få bokstaver';
 
   @override

@@ -129,6 +129,16 @@
   "nonogramCheckClean": "Ingen feil så langt!",
   "nonogramCheckFound": "{count, plural, =1{1 fylt rute er feil} other{{count} fylte ruter er feil}}",
 
+  "dailyShareTitle": "Hjernetrim — Ord {number}",
+  "wordOfTheDay": "Dagens ord #{number}",
+  "dailyDoneTitle": "Dagens ord er ferdig!",
+  "dailyDoneBody": "Et nytt ord kommer hver dag — kom tilbake i morgen.",
+  "dailyNotSolved": "Du klarte ikke dagens ord.",
+  "shareResult": "Del",
+  "copyResult": "Kopier",
+  "copiedToClipboard": "Kopiert til utklippstavlen",
+  "practiceWord": "Øvingsord",
+
   "notEnoughLetters": "For få bokstaver",
   "notInWordList": "Ordet er ikke i ordlisten",
   "solvedInGuesses": "{count, plural, =1{Løst på 1 forsøk!} other{Løst på {count} forsøk!}}",

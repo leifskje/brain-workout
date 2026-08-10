@@ -459,6 +459,38 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String dailyShareTitle(int number) {
+    return 'Brain Workout — Word $number';
+  }
+
+  @override
+  String wordOfTheDay(int number) {
+    return 'Word of the day #$number';
+  }
+
+  @override
+  String get dailyDoneTitle => 'Today\'s word is done!';
+
+  @override
+  String get dailyDoneBody =>
+      'A new word appears every day — come back tomorrow.';
+
+  @override
+  String get dailyNotSolved => 'You didn\'t get today\'s word.';
+
+  @override
+  String get shareResult => 'Share';
+
+  @override
+  String get copyResult => 'Copy';
+
+  @override
+  String get copiedToClipboard => 'Copied to the clipboard';
+
+  @override
+  String get practiceWord => 'Practice word';
+
+  @override
   String get notEnoughLetters => 'Not enough letters';
 
   @override

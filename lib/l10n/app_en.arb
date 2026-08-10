@@ -155,6 +155,18 @@
   "nonogramCheckFound": "{count, plural, =1{1 filled square is wrong} other{{count} filled squares are wrong}}",
   "@nonogramCheckFound": {"placeholders": {"count": {"type": "int"}}},
 
+  "dailyShareTitle": "Brain Workout — Word {number}",
+  "@dailyShareTitle": {"placeholders": {"number": {"type": "int"}}},
+  "wordOfTheDay": "Word of the day #{number}",
+  "@wordOfTheDay": {"placeholders": {"number": {"type": "int"}}},
+  "dailyDoneTitle": "Today's word is done!",
+  "dailyDoneBody": "A new word appears every day — come back tomorrow.",
+  "dailyNotSolved": "You didn't get today's word.",
+  "shareResult": "Share",
+  "copyResult": "Copy",
+  "copiedToClipboard": "Copied to the clipboard",
+  "practiceWord": "Practice word",
+
   "notEnoughLetters": "Not enough letters",
   "notInWordList": "Not in word list",
   "solvedInGuesses": "{count, plural, =1{Solved in 1 guess!} other{Solved in {count} guesses!}}",

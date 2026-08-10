@@ -26,6 +26,9 @@ We deliberately spread games across domains for a rounded "workout," and want
   Wired for 2048, Picture Logic, Mini Sudoku, Number Cross, Arrow Maze and Arrow
   Escape. Short-round games (Simon, Trail, What Comes Next, Crack the Code, Word
   Scramble, Memory Match, Wordle) are deliberately excluded.
+- ✅ Word of the day + sharing — see [word-of-the-day.md](word-of-the-day.md).
+  Date-seeded so there is no server; spoiler-free emoji grid; share sheet *and*
+  copy-to-clipboard. Practice words stay available but are never shareable.
 - 💡 Daily reminder notification (local notifications)
 - ✅ Personal records ("New personal best!") — local only, per game *and* per
   level. Wired for 2048 (score), Memory Match (moves), Mini Sudoku and Picture

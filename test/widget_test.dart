@@ -4,6 +4,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart' show RenderParagraph;
+import 'package:flutter/services.dart';
 import 'package:flutter/semantics.dart' show debugSemanticsDisableAnimations;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -41,6 +42,8 @@ import 'package:brain_workout/games/wordle/wordle_models.dart';
 import 'package:brain_workout/l10n/generated/app_localizations.dart';
 import 'package:brain_workout/main.dart';
 import 'package:brain_workout/screens/home_screen.dart';
+import 'package:brain_workout/games/wordle/word_repository.dart';
+import 'package:brain_workout/games/wordle/wordle_screen.dart';
 import 'package:brain_workout/services/app_locale.dart';
 import 'package:brain_workout/widgets/how_to_play.dart';
 import 'package:brain_workout/services/progress_store.dart';
@@ -2379,6 +2382,134 @@ void main() {
     expect(find.text('New personal best!'), findsOneWidget);
     expect(find.text('Your best: no mistakes'), findsOneWidget);
     expect(ProgressStore.instance.bestResult('mini_sudoku', 1), 0);
+  });
+  test('Word of the day: same date gives the same word, no server needed',
+      () async {
+    final repo = await WordRepository.forLanguage(wordleLanguages.first);
+
+    // Deterministic in the date, which is what lets two people compare grids.
+    final a = repo.wordOfTheDay(DateTime(2026, 3, 14));
+    final b = repo.wordOfTheDay(DateTime(2026, 3, 14, 23, 59));
+    expect(a, b, reason: 'time of day must not change the word');
+    expect(a.length, wordLength);
+    expect(repo.isValid(a), isTrue, reason: 'the daily word must be guessable');
+
+    // Consecutive days must not walk the list in order — that would hand out
+    // alphabetically adjacent words (ABACK, ABASE, ABATE...).
+    final week = [
+      for (var d = 1; d <= 14; d++) repo.wordOfTheDay(DateTime(2026, 5, d))
+    ];
+    expect(week.toSet().length, greaterThan(10),
+        reason: 'a fortnight should be mostly distinct words');
+    // Walking the answer list in order would come out alphabetically sorted, which
+    // is exactly the bug the index scramble exists to prevent. (An earlier version
+    // of this check compared adjacent words with compareTo().abs() == 1, which is
+    // true for *any* two different strings and so proved nothing.)
+    final sorted = [...week]..sort();
+    expect(week, isNot(sorted), reason: 'daily words are in alphabetical order');
+
+    // Puzzle numbers advance by one per day and are what the share text quotes.
+    expect(WordRepository.dailyPuzzleNumber(DateTime(2026, 3, 15)) -
+        WordRepository.dailyPuzzleNumber(DateTime(2026, 3, 14)), 1);
+    expect(WordRepository.dailyPuzzleNumber(DateTime(2026, 1, 1)), 1);
+
+    // Each language has its own daily word.
+    final nb = await WordRepository.forLanguage(wordleLanguages[1]);
+    expect(nb.wordOfTheDay(DateTime(2026, 3, 14)),
+        isNot(repo.wordOfTheDay(DateTime(2026, 3, 14))));
+  });
+
+  test('Word of the day: the shared grid never leaks the answer', () {
+    final rows = [
+      [
+        LetterState.absent,
+        LetterState.present,
+        LetterState.absent,
+        LetterState.absent,
+        LetterState.correct,
+      ],
+      List.filled(wordLength, LetterState.correct),
+    ];
+    final text = dailyShareText(
+        title: 'Brain Workout — Word 42', rows: rows, solved: true);
+
+    expect(text, contains('Word 42'));
+    expect(text, contains('2/$maxGuesses'));
+    expect(text, contains('⬜🟨⬜⬜🟩'));
+    expect(text, contains('🟩🟩🟩🟩🟩'));
+    // The whole point of the format: colours only, so a friend who has not played
+    // can see how it went without the word being spoiled.
+    expect(RegExp(r'[A-Za-zÆØÅæøå]').allMatches(text.replaceAll('Brain Workout — Word', '')),
+        isEmpty,
+        reason: 'no letters may appear outside the title');
+
+    // A failed day is marked X, not 6/6.
+    final lost = dailyShareText(
+        title: 'T', rows: List.filled(maxGuesses, rows.first), solved: false);
+    expect(lost, contains('X/$maxGuesses'));
+  });
+
+  test('Word of the day: a finished day is remembered, and only that day', () {
+    final store = ProgressStore.instance;
+    expect(store.dailyWordResult('en', 42), isNull);
+
+    store.recordDailyWord('en', 42, solved: true, rows: ['aapca', 'ccccc']);
+    final got = store.dailyWordResult('en', 42);
+    expect(got, isNotNull);
+    expect(got!.solved, isTrue);
+    expect(got.rows, ['aapca', 'ccccc']);
+
+    // Yesterday's result must never read as today's.
+    expect(store.dailyWordResult('en', 41), isNull);
+    expect(store.dailyWordResult('en', 43), isNull);
+    // Per language, since the words differ.
+    expect(store.dailyWordResult('nb', 42), isNull);
+  });
+
+  testWidgets('Word of the day: finishing it offers share and copy',
+      (tester) async {
+    tester.view.physicalSize = const Size(1080, 2280);
+    tester.view.devicePixelRatio = 2.625;
+    addTearDown(tester.view.reset);
+
+    // Pre-file today's result so the screen opens straight onto the card.
+    final puzzle = WordRepository.dailyPuzzleNumber(DateTime.now());
+    ProgressStore.instance.recordDailyWord('en', puzzle,
+        solved: true, rows: ['aapca', 'ccccc']);
+
+    await tester.pumpWidget(localizedApp(const WordleScreen()));
+    await tester.pumpAndSettle();
+
+    expect(find.text("Today's word is done!"), findsOneWidget);
+    expect(find.byKey(const ValueKey('wordle_share')).hitTestable(),
+        findsOneWidget);
+    expect(find.byKey(const ValueKey('wordle_copy')).hitTestable(),
+        findsOneWidget);
+
+    // Copy puts the spoiler-free grid on the clipboard. The channel is mocked
+    // rather than read back: the test binding does not carry a real clipboard, so
+    // asserting via Clipboard.getData would be testing the harness, not the app.
+    String? copied;
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform, (call) async {
+      if (call.method == 'Clipboard.setData') {
+        copied = (call.arguments as Map)['text'] as String;
+      }
+      return null;
+    });
+    addTearDown(() => tester.binding.defaultBinaryMessenger
+        .setMockMethodCallHandler(SystemChannels.platform, null));
+
+    await tester.tap(find.byKey(const ValueKey('wordle_copy')));
+    await tester.pumpAndSettle();
+    expect(copied, isNotNull, reason: 'Copy should write to the clipboard');
+    expect(copied, contains('🟩🟩🟩🟩🟩'));
+    expect(copied, contains('2/$maxGuesses'));
+
+    // A practice word is still available, and is not the daily.
+    await tester.tap(find.byKey(const ValueKey('wordle_practice')));
+    await tester.pumpAndSettle();
+    expect(find.text("Today's word is done!"), findsNothing);
   });
 }
 

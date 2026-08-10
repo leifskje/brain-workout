@@ -75,6 +75,46 @@ class ProgressStore {
   /// When the game was last opened (epoch millis; 0 = never).
   int lastOpened(String gameId) => _prefs.getInt(_openedKey(gameId)) ?? 0;
 
+  // ---------------------------------------------------------- word of the day ---
+
+  String _dailyKey(String language) => 'daily_word_$language';
+
+  /// Records that today's word puzzle is finished, keeping the score rows so the
+  /// result and its shareable grid can be shown again without replaying.
+  ///
+  /// [rows] is one string per guess of the characters `c`/`p`/`a` — compact, and
+  /// it survives a format change more gracefully than serialised enums would.
+  void recordDailyWord(String language, int puzzleNumber,
+      {required bool solved, required List<String> rows}) {
+    _prefs.setString(
+        _dailyKey(language),
+        jsonEncode({
+          'puzzle': puzzleNumber,
+          'solved': solved,
+          'rows': rows,
+        }));
+  }
+
+  /// Today's finished daily result for [language], or null if it hasn't been
+  /// played yet. Keyed on [puzzleNumber] rather than a stored date string, so
+  /// yesterday's result can never be mistaken for today's.
+  ({bool solved, List<String> rows})? dailyWordResult(
+      String language, int puzzleNumber) {
+    final raw = _prefs.getString(_dailyKey(language));
+    if (raw == null) return null;
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is! Map<String, dynamic>) return null;
+      if (decoded['puzzle'] != puzzleNumber) return null;
+      final rows = decoded['rows'];
+      final solved = decoded['solved'];
+      if (rows is! List || solved is! bool) return null;
+      return (solved: solved, rows: [for (final r in rows) '$r']);
+    } on FormatException {
+      return null;
+    }
+  }
+
   // ------------------------------------------------------- personal records ---
 
   String _bestKey(String gameId, int level) => 'best_${gameId}_$level';

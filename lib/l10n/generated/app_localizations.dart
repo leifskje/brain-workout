@@ -794,6 +794,60 @@ abstract class AppLocalizations {
   /// **'{count, plural, =1{1 filled square is wrong} other{{count} filled squares are wrong}}'**
   String nonogramCheckFound(int count);
 
+  /// No description provided for @dailyShareTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Brain Workout — Word {number}'**
+  String dailyShareTitle(int number);
+
+  /// No description provided for @wordOfTheDay.
+  ///
+  /// In en, this message translates to:
+  /// **'Word of the day #{number}'**
+  String wordOfTheDay(int number);
+
+  /// No description provided for @dailyDoneTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Today\'s word is done!'**
+  String get dailyDoneTitle;
+
+  /// No description provided for @dailyDoneBody.
+  ///
+  /// In en, this message translates to:
+  /// **'A new word appears every day — come back tomorrow.'**
+  String get dailyDoneBody;
+
+  /// No description provided for @dailyNotSolved.
+  ///
+  /// In en, this message translates to:
+  /// **'You didn\'t get today\'s word.'**
+  String get dailyNotSolved;
+
+  /// No description provided for @shareResult.
+  ///
+  /// In en, this message translates to:
+  /// **'Share'**
+  String get shareResult;
+
+  /// No description provided for @copyResult.
+  ///
+  /// In en, this message translates to:
+  /// **'Copy'**
+  String get copyResult;
+
+  /// No description provided for @copiedToClipboard.
+  ///
+  /// In en, this message translates to:
+  /// **'Copied to the clipboard'**
+  String get copiedToClipboard;
+
+  /// No description provided for @practiceWord.
+  ///
+  /// In en, this message translates to:
+  /// **'Practice word'**
+  String get practiceWord;
+
   /// No description provided for @notEnoughLetters.
   ///
   /// In en, this message translates to:
