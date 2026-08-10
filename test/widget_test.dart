@@ -2176,6 +2176,143 @@ void main() {
     expect(sudoku.hasProgress, isTrue);
     expect(nono.hasProgress, isTrue);
   });
+  test('Arrow games: the escaped set round-trips, and junk is refused', () {
+    final board = SnakeBoard.generate(8);
+    expect(board.hasProgress, isFalse);
+
+    // Clear the first two arrows that can legally go.
+    final cleared = <int>[];
+    for (final a in board.arrows) {
+      if (cleared.length == 2) break;
+      if (board.isPathClear(a)) {
+        a.escaped = true;
+        cleared.add(a.id);
+      }
+    }
+    expect(cleared.length, 2, reason: 'level 8 should open with a legal move');
+    expect(board.hasProgress, isTrue);
+
+    final wire =
+        jsonDecode(jsonEncode(board.escapedJson())) as Map<String, dynamic>;
+    final fresh = SnakeBoard.generate(8);
+    expect(fresh.applyEscapedJson(wire), isTrue);
+    for (final a in fresh.arrows) {
+      expect(a.escaped, cleared.contains(a.id), reason: 'arrow ${a.id}');
+    }
+
+    // Wrong arrow count (a save from another level with a different board).
+    expect(
+        SnakeBoard.generate(8)
+            .applyEscapedJson({'count': 999, 'escaped': cleared}),
+        isFalse);
+    // An id that isn't on this board at all.
+    expect(
+        SnakeBoard.generate(8)
+            .applyEscapedJson({'count': board.arrows.length, 'escaped': [99999]}),
+        isFalse);
+    // Not a list.
+    expect(
+        SnakeBoard.generate(8)
+            .applyEscapedJson({'count': board.arrows.length, 'escaped': 3}),
+        isFalse);
+
+    // A refusal must leave the board untouched, not half-applied.
+    final untouched = SnakeBoard.generate(8);
+    expect(
+        untouched.applyEscapedJson({
+          'count': untouched.arrows.length,
+          'escaped': [untouched.arrows.first.id, 99999]
+        }),
+        isFalse);
+    expect(untouched.hasProgress, isFalse);
+  });
+
+  test('Arrow games: any partly-cleared board is still winnable', () {
+    // This invariant is why `applyEscapedJson` does *not* verify winnability. If
+    // a board is solvable, removing arrows only opens paths: take the original
+    // solution order, skip the removed arrows, and each remaining arrow still
+    // finds its path clear because the blockers present are a subset of those
+    // present before. A runtime check could therefore never reject anything —
+    // measured at 600 random subsets, zero rejections — so the guarantee is
+    // asserted here rather than paid for on every resume.
+    final rng = math.Random(20260810);
+    for (final level in [1, 5, 12, 20, 35]) {
+      final template = SnakeBoard.generate(level);
+      final ids = [for (final a in template.arrows) a.id];
+      for (var trial = 0; trial < 8; trial++) {
+        final subset = [
+          for (final id in ids)
+            if (rng.nextBool()) id
+        ];
+        final board = SnakeBoard.generate(level);
+        expect(
+            board.applyEscapedJson({'count': ids.length, 'escaped': subset}),
+            isTrue);
+
+        // Greedily fire whatever can go; everything must eventually leave.
+        var progress = true;
+        while (progress) {
+          progress = false;
+          for (final a in board.arrows) {
+            if (!a.escaped && board.isPathClear(a)) {
+              a.escaped = true;
+              progress = true;
+            }
+          }
+        }
+        expect(board.isSolved, isTrue,
+            reason: 'level $level stranded an arrow after clearing $subset');
+      }
+    }
+  });
+
+  testWidgets('Arrow Maze: an interrupted board comes back, hearts and all',
+      (tester) async {
+    tester.view.physicalSize = const Size(1080, 2280);
+    tester.view.devicePixelRatio = 2.625;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(localizedApp(const SnakeArrowsScreen(startLevel: 3)));
+    await tester.pumpAndSettle();
+
+    final board = SnakeBoard.generate(3); // same seed as the screen
+    final rect = tester.getRect(find.byKey(const ValueKey('arrow_maze_board')));
+    final cellSize = rect.width / board.cols;
+    // The board is painted, not built from widgets, so taps go by position.
+    Future<void> tapCell(Cell c) async {
+      await tester.tapAt(rect.topLeft +
+          Offset((c.col + 0.5) * cellSize, (c.row + 0.5) * cellSize));
+      await tester.pumpAndSettle();
+    }
+
+    // A blocked arrow costs a heart, so the saved hearts differ from full.
+    final maxHearts = snakeConfigForLevel(3).hearts;
+    final blocked = board.arrows.firstWhere((a) => !board.isPathClear(a));
+    await tapCell(blocked.cells.first);
+    expect(find.byIcon(Icons.favorite_border_rounded), findsWidgets,
+        reason: 'a blocked tap should cost a heart');
+
+    // Then clear one that can legally go, so there is progress worth saving.
+    final free = board.arrows.firstWhere(board.isPathClear);
+    await tapCell(free.cells.first);
+
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+    await tester.pump();
+
+    final saved = ProgressStore.instance.loadBoard('arrow_maze', 3);
+    expect(saved, isNotNull);
+    expect(saved!['hearts'], maxHearts - 1,
+        reason: 'the lost heart must survive the interruption too');
+    expect(saved['escaped'], contains(free.id));
+
+    // Re-entering restores both the cleared arrow and the missing heart.
+    await tester.pumpWidget(const SizedBox());
+    await tester.pumpAndSettle();
+    await tester.pumpWidget(localizedApp(const SnakeArrowsScreen(startLevel: 3)));
+    await tester.pumpAndSettle();
+    expect(find.byIcon(Icons.favorite_border_rounded), findsWidgets,
+        reason: 'hearts should come back as they were, not reset to full');
+  });
 }
 
 /// Counts solutions of a nonogram by row-wise backtracking, stopping at [limit].

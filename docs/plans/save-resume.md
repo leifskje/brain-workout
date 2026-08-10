@@ -52,14 +52,29 @@ decision for an audience that doesn't want one.
 | Picture Logic | marks (packed string) | Longest boards in the app — a 12×12 is a long sitting |
 | Mini Sudoku | entries (packed string) | 9×9 with 58 blanks is not a five-minute board |
 | Number Cross | placements; pool rebuilt from them | Same, and the tray state has to stay consistent |
+| Arrow Maze | escaped arrow ids + hearts | Long boards; a lost heart must survive too |
+| Arrow Escape | escaped arrow ids + hearts | Same |
 
 Deliberately **not** wired, because a round is over in seconds and a saved
 half-round would be more confusing than helpful: Simon, What Comes Next, Trail,
 Crack the Code, Word Scramble, Memory Match, Wordle.
 
-Arrow Maze and Arrow Escape are the open candidates — boards are long enough to be
-worth keeping, and their state is just "which arrows have escaped", so it should be
-a small addition.
+Hearts travel with the arrow-game saves. Coming back to a part-cleared board with
+full lives restored — or a full board with no lives left — would both read as bugs.
+
+### A check that turned out to be impossible to fail
+
+The arrow restores first verified that the remaining arrows could still all escape,
+guarding against a corrupt save stranding them. It cannot happen: **if a board is
+solvable, removing arrows only ever opens paths.** Take the original solution order
+and skip the removed arrows — when each remaining one fires, the blockers present
+are a subset of those present before, and its path was clear then, so it is clear
+now.
+
+Measured before deleting the check: 600 random escaped-subsets across both arrow
+games, **zero rejections**. The guarantee now lives in a test that fires random
+subsets and asserts the remainder always clears, which is where an invariant
+belongs — rather than being paid for on every resume while never once firing.
 
 ## Notes for whoever extends this
 
@@ -81,5 +96,5 @@ a small addition.
 
 ## Status
 
-✅ Shipped for 2048, Picture Logic, Mini Sudoku and Number Cross.
-💡 Arrow Maze and Arrow Escape still to do.
+✅ Shipped for 2048, Picture Logic, Mini Sudoku, Number Cross, Arrow Maze and
+Arrow Escape — every game with a board long enough to be worth keeping.

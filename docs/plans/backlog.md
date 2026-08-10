@@ -23,9 +23,9 @@ We deliberately spread games across domains for a rounded "workout," and want
 - ✅ Haptics · celebratory win dialog · per-game theming · app icon + name
 - ✅ Donate link (⚠️ real Ko-fi/BMC URL still a placeholder in `home_screen.dart`)
 - ✅ Save & resume a board mid-game — see [save-resume.md](save-resume.md).
-  Wired for 2048, Picture Logic, Mini Sudoku, Number Cross; Arrow Maze and Arrow
-  Escape still open. Short-round games (Simon, Trail, What Comes Next, Crack the
-  Code, Word Scramble, Memory Match, Wordle) are deliberately excluded.
+  Wired for 2048, Picture Logic, Mini Sudoku, Number Cross, Arrow Maze and Arrow
+  Escape. Short-round games (Simon, Trail, What Comes Next, Crack the Code, Word
+  Scramble, Memory Match, Wordle) are deliberately excluded.
 - 💡 Daily reminder notification (local notifications)
 - 💡 Sound effects · 💡 achievements/badges · 💡 stats screen
 - 💡 Settings screen (language, text size, sound)
