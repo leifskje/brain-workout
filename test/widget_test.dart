@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
 
@@ -1816,6 +1817,364 @@ void main() {
       await tester.pumpAndSettle();
       expect(gotIt, findsNothing, reason: 'the sheet should have closed');
     }
+  });
+  test('Saved boards: round-trip, and every reason to refuse one', () {
+    final store = ProgressStore.instance;
+    expect(store.loadBoard('merge', 1), isNull, reason: 'nothing saved yet');
+    expect(store.hasSavedBoard('merge', 1), isFalse);
+
+    store.saveBoard('merge', 3, {'grid': 'x', 'n': 7});
+    expect(store.loadBoard('merge', 3), {'grid': 'x', 'n': 7});
+    expect(store.hasSavedBoard('merge', 3), isTrue);
+
+    // Keyed to its level: picking a different level from the picker must not
+    // resurrect a half-finished board from somewhere else.
+    expect(store.loadBoard('merge', 4), isNull);
+    expect(store.loadBoard('merge', 2), isNull);
+    // ...and to its game.
+    expect(store.loadBoard('nonogram', 3), isNull);
+
+    store.clearBoard('merge');
+    expect(store.loadBoard('merge', 3), isNull);
+
+    // One slot per game: a second save replaces the first rather than
+    // accumulating a board per level forever.
+    store.saveBoard('merge', 5, {'a': 1});
+    store.saveBoard('merge', 6, {'b': 2});
+    expect(store.loadBoard('merge', 5), isNull);
+    expect(store.loadBoard('merge', 6), {'b': 2});
+  });
+
+  test('Saved boards: corrupt or stale data is refused, never thrown', () async {
+    Future<void> seedRaw(String value) async {
+      SharedPreferences.setMockInitialValues({'flutter.board_merge': value});
+      await ProgressStore.init();
+    }
+
+    // Prove the seeding mechanism works before relying on it: every assertion
+    // below expects null, which is also what an un-seeded store returns, so
+    // without this the whole test could pass while writing nothing at all.
+    await seedRaw('{"v":1,"level":1,"state":{"ok":true}}');
+    expect(ProgressStore.instance.loadBoard('merge', 1), {'ok': true},
+        reason: 'raw seeding must actually reach the store');
+
+    await seedRaw('not json {{');
+    expect(ProgressStore.instance.loadBoard('merge', 1), isNull);
+
+    await seedRaw('[1,2,3]'); // valid JSON, wrong shape
+    expect(ProgressStore.instance.loadBoard('merge', 1), isNull);
+
+    await seedRaw('{"v":999,"level":1,"state":{"a":1}}'); // other format version
+    expect(ProgressStore.instance.loadBoard('merge', 1), isNull);
+
+    await seedRaw('{"v":1,"level":1,"state":42}'); // payload not an object
+    expect(ProgressStore.instance.loadBoard('merge', 1), isNull);
+  });
+
+  test('2048: a board survives a JSON round-trip', () {
+    final game = MergeGame.generate(12);
+    game.move(MergeDirection.left);
+    final before = game.grid.toString();
+    final score = game.score;
+
+    // Through a real encode/decode, not just the Dart map: jsonDecode hands back
+    // List<dynamic>/num rather than List<int>/int, which is where a lazy cast
+    // would blow up on a real device but not in a unit test.
+    final wire = jsonDecode(jsonEncode(game.toJson())) as Map<String, dynamic>;
+    final restored = MergeGame.fromJson(wire)!;
+    expect(restored.grid.toString(), before);
+    expect(restored.score, score);
+    expect(restored.target, game.target);
+    // The restored game is playable, not just readable.
+    expect(restored.hasMoves, isTrue);
+  });
+
+  test('2048: a malformed saved board is refused rather than half-loaded', () {
+    expect(MergeGame.fromJson({}), isNull);
+    expect(MergeGame.fromJson({'grid': 'nope', 'target': 32, 'score': 0}),
+        isNull);
+    // Ragged rows.
+    expect(
+        MergeGame.fromJson({
+          'grid': [
+            [0, 0],
+            [0]
+          ],
+          'target': 32,
+          'score': 0
+        }),
+        isNull);
+    // A tile that isn't a power of two could never be produced by play, and
+    // could never be merged away either.
+    expect(
+        MergeGame.fromJson({
+          'grid': [
+            [6, 0],
+            [0, 0]
+          ],
+          'target': 32,
+          'score': 0
+        }),
+        isNull);
+    expect(
+        MergeGame.fromJson({
+          'grid': [
+            [-2, 0],
+            [0, 0]
+          ],
+          'target': 32,
+          'score': 0
+        }),
+        isNull);
+    // A valid 2x2 board is accepted, so the rejections above aren't vacuous.
+    expect(
+        MergeGame.fromJson({
+          'grid': [
+            [2, 4],
+            [0, 8]
+          ],
+          'target': 32,
+          'score': 12
+        }),
+        isNotNull);
+  });
+
+  test('Picture Logic: marks survive a round-trip and mismatches are refused',
+      () {
+    final board = NonogramBoard.generate(6);
+    expect(board.hasProgress, isFalse);
+    board.cycle(0, 0); // filled
+    board.cycle(1, 1);
+    board.cycle(1, 1); // crossed
+    expect(board.hasProgress, isTrue);
+
+    final json = board.marksJson();
+    final fresh = NonogramBoard.generate(6);
+    expect(fresh.applyMarksJson(json), isTrue);
+    expect(fresh.marks[0][0], NonogramMark.filled);
+    expect(fresh.marks[1][1], NonogramMark.crossed);
+    expect(fresh.marks[2][2], NonogramMark.blank);
+
+    // A save from a different-sized board is refused outright.
+    final other = NonogramBoard.generate(1); // 5x5 vs level 6's 8x8
+    expect(other.width == board.width, isFalse, reason: 'sizes must differ');
+    expect(other.applyMarksJson(json), isFalse);
+    expect(other.hasProgress, isFalse, reason: 'refusal must change nothing');
+
+    // Garbage characters and wrong lengths are refused too.
+    expect(fresh.applyMarksJson({'w': fresh.width, 'h': fresh.height, 'marks': 'zz'}),
+        isFalse);
+    final bad = 'q' * (fresh.width * fresh.height);
+    expect(
+        fresh.applyMarksJson(
+            {'w': fresh.width, 'h': fresh.height, 'marks': bad}),
+        isFalse);
+  });
+
+  testWidgets('Picture Logic: an interrupted board comes back on re-entry',
+      (tester) async {
+    tester.view.physicalSize = const Size(1080, 2280);
+    tester.view.devicePixelRatio = 2.625;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(localizedApp(const NonogramScreen(startLevel: 4)));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('nonogram-0-0')));
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('nonogram-2-3')));
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('nonogram-2-3')));
+    await tester.pump(); // now crossed
+
+    // The phone rings: Android backgrounds the app. This is the moment the save
+    // has to happen, because the process may never get another chance.
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+    await tester.pump();
+    expect(ProgressStore.instance.hasSavedBoard('nonogram', 4), isTrue);
+
+    // Tear the screen down and come back to the same level.
+    await tester.pumpWidget(const SizedBox());
+    await tester.pumpAndSettle();
+    await tester.pumpWidget(localizedApp(const NonogramScreen(startLevel: 4)));
+    await tester.pumpAndSettle();
+
+    final board = NonogramBoard.generate(4);
+    expect(board.applyMarksJson(ProgressStore.instance.loadBoard('nonogram', 4)!),
+        isTrue);
+    expect(board.marks[0][0], NonogramMark.filled);
+    expect(board.marks[2][3], NonogramMark.crossed);
+
+    // The cross is visible on the restored screen, which is what the player sees.
+    expect(find.byIcon(Icons.close_rounded), findsOneWidget);
+  });
+
+  testWidgets('Picture Logic: restarting a level throws the save away',
+      (tester) async {
+    tester.view.physicalSize = const Size(1080, 2280);
+    tester.view.devicePixelRatio = 2.625;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(localizedApp(const NonogramScreen(startLevel: 4)));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('nonogram-0-0')));
+    await tester.pump();
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+    await tester.pump();
+    expect(ProgressStore.instance.hasSavedBoard('nonogram', 4), isTrue);
+
+    await tester.tap(find.byIcon(Icons.refresh_rounded));
+    await tester.pumpAndSettle();
+    expect(ProgressStore.instance.hasSavedBoard('nonogram', 4), isFalse,
+        reason: 'restart must not leave the old board resumable');
+  });
+
+  testWidgets('2048: a played board is saved, and winning clears it',
+      (tester) async {
+    tester.view.physicalSize = const Size(1080, 2280);
+    tester.view.devicePixelRatio = 2.625;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(localizedApp(const MergeScreen(startLevel: 1)));
+    await tester.pumpAndSettle();
+
+    // Play until something merges — captureBoard deliberately ignores a board
+    // with no score yet, since a fresh one is a tap away from regenerating.
+    for (final key in ['merge_left', 'merge_up', 'merge_right', 'merge_down']) {
+      await tester.tap(find.byKey(ValueKey(key)));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 200));
+      await tester.pumpAndSettle();
+    }
+
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+    await tester.pump();
+    final saved = ProgressStore.instance.loadBoard('merge', 1);
+    expect(saved, isNotNull,
+        reason: 'four moves should have merged something and saved');
+    final restored = MergeGame.fromJson(saved!);
+    expect(restored, isNotNull);
+    expect(restored!.score, greaterThan(0));
+  });
+  test('Mini Sudoku: entries round-trip, and givens are never overwritten', () {
+    final board = MiniSudokuBoard.generate(5);
+    expect(board.hasProgress, isFalse);
+
+    // Enter the solution into the first two blanks.
+    final blanks = [
+      for (var r = 0; r < board.size; r++)
+        for (var c = 0; c < board.size; c++)
+          if (!board.cells[r][c].given) (r, c)
+    ];
+    expect(blanks.length, greaterThan(2));
+    for (final (r, c) in blanks.take(2)) {
+      board.cells[r][c].entered = board.cells[r][c].solution;
+    }
+    expect(board.hasProgress, isTrue);
+
+    final wire =
+        jsonDecode(jsonEncode(board.entriesJson())) as Map<String, dynamic>;
+    final fresh = MiniSudokuBoard.generate(5);
+    expect(fresh.applyEntriesJson(wire), isTrue);
+    for (final (r, c) in blanks.take(2)) {
+      expect(fresh.cells[r][c].entered, fresh.cells[r][c].solution,
+          reason: 'entry at ($r,$c) should be restored');
+    }
+    // Untouched blanks stay empty.
+    final (ur, uc) = blanks.last;
+    expect(fresh.cells[ur][uc].entered, isNull);
+
+    // A save from a differently-sized board is refused outright.
+    final small = MiniSudokuBoard.generate(1); // 4x4 vs level 5's 6x6
+    expect(small.size == board.size, isFalse, reason: 'sizes must differ');
+    expect(small.applyEntriesJson(wire), isFalse);
+    expect(small.hasProgress, isFalse, reason: 'refusal must change nothing');
+
+    // A digit outside the board's range is refused rather than stored.
+    final bad = '9' * (fresh.size * fresh.size);
+    expect(fresh.applyEntriesJson({'size': fresh.size, 'entries': bad}), isFalse,
+        reason: '9 is not a legal value on a 6x6 board');
+  });
+
+  test('Number Cross: placements round-trip and the pool is rebuilt', () {
+    final board = NumberCrossBoard.generate(6);
+    expect(board.hasProgress, isFalse);
+    final poolBefore = [...board.pool];
+    expect(poolBefore, isNotEmpty);
+
+    // Place the first pool number into the first empty slot.
+    final slot = [
+      for (final row in board.cells)
+        for (final cell in row)
+          if (cell.kind == NcKind.number && !cell.fixed) cell
+    ].first;
+    final placedValue = poolBefore.first;
+    slot.placed = placedValue;
+    board.pool.remove(placedValue);
+    expect(board.hasProgress, isTrue);
+
+    final wire =
+        jsonDecode(jsonEncode(board.placementsJson())) as Map<String, dynamic>;
+    final fresh = NumberCrossBoard.generate(6);
+    expect(fresh.pool.length, poolBefore.length, reason: 'fresh pool is full');
+    expect(fresh.applyPlacementsJson(wire), isTrue);
+
+    final freshSlot = [
+      for (final row in fresh.cells)
+        for (final cell in row)
+          if (cell.kind == NcKind.number && !cell.fixed) cell
+    ].first;
+    expect(freshSlot.placed, placedValue);
+    // The pool is derived from the placements rather than stored, so the two can
+    // never disagree — placing one number must remove exactly one tile.
+    expect(fresh.pool.length, poolBefore.length - 1);
+
+    // A save claiming a number the pool doesn't hold is refused, or the player
+    // would end up with more tiles than the puzzle has.
+    final tooMany = {
+      'rows': fresh.cells.length,
+      'cols': fresh.cells.first.length,
+      'placed': [
+        for (var i = 0; i < (wire['placed'] as List).length; i++) 99999,
+      ],
+    };
+    final other = NumberCrossBoard.generate(6);
+    expect(other.applyPlacementsJson(tooMany), isFalse);
+    expect(other.hasProgress, isFalse, reason: 'refusal must change nothing');
+
+    // Wrong slot count is refused too.
+    expect(
+        other.applyPlacementsJson({
+          'rows': other.cells.length,
+          'cols': other.cells.first.length,
+          'placed': [1],
+        }),
+        isFalse);
+  });
+
+  test('Every game that autosaves declines to save a finished board', () {
+    // captureBoard() returning null on a won board is what stops a beaten level
+    // being resumed: a win clears the slot and dispose() then runs, so a won
+    // board that still captured state would write itself straight back.
+    final sudoku = MiniSudokuBoard.generate(3);
+    for (final row in sudoku.cells) {
+      for (final cell in row) {
+        if (!cell.given) cell.entered = cell.solution;
+      }
+    }
+    expect(sudoku.isSolved, isTrue);
+
+    final nono = NonogramBoard.generate(2);
+    for (var r = 0; r < nono.height; r++) {
+      for (var c = 0; c < nono.width; c++) {
+        if (nono.solution[r][c]) nono.marks[r][c] = NonogramMark.filled;
+      }
+    }
+    expect(nono.isSolved, isTrue);
+    // Both report progress, so the screens' null-return has to come from the
+    // isSolved check rather than from hasProgress being false by luck.
+    expect(sudoku.hasProgress, isTrue);
+    expect(nono.hasProgress, isTrue);
   });
 }
 

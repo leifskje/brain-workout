@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Persists per-game progress across app launches: furthest level reached,
@@ -72,6 +74,58 @@ class ProgressStore {
 
   /// When the game was last opened (epoch millis; 0 = never).
   int lastOpened(String gameId) => _prefs.getInt(_openedKey(gameId)) ?? 0;
+
+  // ------------------------------------------------------- saved board state ---
+
+  // Bump when a game's saved shape changes incompatibly. Old saves are then
+  // dropped instead of being fed to a parser that no longer understands them —
+  // a half-restored board is worse than a fresh one, and an exception on resume
+  // is worst of all.
+  static const _saveVersion = 1;
+
+  String _boardKey(String gameId) => 'board_$gameId';
+
+  /// Stores the in-progress board for [gameId] at [level].
+  ///
+  /// One slot per game, not per level: the player is in the middle of exactly one
+  /// board, and keeping every level's abandoned attempt around would grow without
+  /// bound. The level is recorded *inside* the slot so [loadBoard] can refuse a
+  /// save belonging to a different level — otherwise picking level 3 from the
+  /// picker would resurrect your half-finished level 20.
+  void saveBoard(String gameId, int level, Map<String, dynamic> state) {
+    _prefs.setString(
+        _boardKey(gameId),
+        jsonEncode({
+          'v': _saveVersion,
+          'level': level,
+          'state': state,
+        }));
+  }
+
+  /// The saved board for [gameId] at [level], or null if there isn't a usable
+  /// one. Returns null rather than throwing on anything unexpected — a corrupt
+  /// or stale save must never be able to stop a game from opening.
+  Map<String, dynamic>? loadBoard(String gameId, int level) {
+    final raw = _prefs.getString(_boardKey(gameId));
+    if (raw == null) return null;
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is! Map<String, dynamic>) return null;
+      if (decoded['v'] != _saveVersion) return null;
+      if (decoded['level'] != level) return null;
+      final state = decoded['state'];
+      return state is Map<String, dynamic> ? state : null;
+    } on FormatException {
+      return null;
+    }
+  }
+
+  /// Whether a resumable board exists for [gameId] at [level].
+  bool hasSavedBoard(String gameId, int level) =>
+      loadBoard(gameId, level) != null;
+
+  /// Drops the saved board — call on win, on restart, and on giving up.
+  void clearBoard(String gameId) => _prefs.remove(_boardKey(gameId));
 
   // ------------------------------------------------------------- how to play ---
 

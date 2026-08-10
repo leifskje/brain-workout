@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../l10n/generated/app_localizations.dart';
+import '../../services/board_autosave.dart';
 import '../../services/progress_store.dart';
 import '../../widgets/game_header.dart';
 import '../../widgets/how_to_play.dart';
@@ -22,7 +23,8 @@ class NumberCrossScreen extends StatefulWidget {
   State<NumberCrossScreen> createState() => _NumberCrossScreenState();
 }
 
-class _NumberCrossScreenState extends State<NumberCrossScreen> {
+class _NumberCrossScreenState extends State<NumberCrossScreen>
+    with WidgetsBindingObserver, BoardAutosave<NumberCrossScreen> {
   static const _gameId = 'number_cross';
   static const _accent = Color(0xFFB5651D);
   static const _tile = Color(0xFFE8D8C3); // given-number tile (tan)
@@ -36,6 +38,7 @@ class _NumberCrossScreenState extends State<NumberCrossScreen> {
   @override
   void initState() {
     super.initState();
+    startAutosave();
     _loadLevel(widget.startLevel);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
@@ -47,18 +50,52 @@ class _NumberCrossScreenState extends State<NumberCrossScreen> {
     });
   }
 
-  void _loadLevel(int level) {
+  /// Loads [level], replaying a saved board for it when one exists. The puzzle
+  /// itself is always regenerated from the level number — it is deterministic, so
+  /// only the player's own placements need saving.
+  void _loadLevel(int level, {bool allowResume = true}) {
     ProgressStore.instance.recordReached(_gameId, level);
+    final board = NumberCrossBoard.generate(level);
+    final saved =
+        allowResume ? ProgressStore.instance.loadBoard(_gameId, level) : null;
+    // A save that doesn't fit is dropped silently: a fresh puzzle is a fine
+    // outcome, an exception on opening a game is not.
+    if (saved != null) board.applyPlacementsJson(saved);
     setState(() {
       _level = level;
-      _board = NumberCrossBoard.generate(level);
+      _board = board;
       _selectedPool = null;
       _placements = 0;
       _busy = false;
     });
   }
 
-  void _restart() => _loadLevel(_level);
+  void _restart() {
+    ProgressStore.instance.clearBoard(_gameId);
+    _loadLevel(_level, allowResume: false);
+  }
+
+  @override
+  void dispose() {
+    saveBoardNow();
+    stopAutosave();
+    super.dispose();
+  }
+
+  // ---- BoardAutosave ----
+
+  @override
+  String get autosaveGameId => _gameId;
+
+  @override
+  int get autosaveLevel => _level;
+
+  @override
+  Map<String, dynamic>? captureBoard() {
+    if (_board.isSolved) return null; // finished
+    if (!_board.hasProgress) return null; // untouched
+    return _board.placementsJson();
+  }
 
   void _onPoolTap(int index) {
     if (_busy) return;
@@ -102,6 +139,7 @@ class _NumberCrossScreenState extends State<NumberCrossScreen> {
 
   void _showWin() {
     if (!mounted) return;
+    ProgressStore.instance.clearBoard(_gameId);
     HapticFeedback.heavyImpact();
     final blanks = _board.blankCount;
     final wasted = _placements - blanks;

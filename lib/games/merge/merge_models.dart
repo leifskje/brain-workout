@@ -172,6 +172,50 @@ class MergeGame {
 
   int get size => grid.length;
 
+  /// The board as JSON, for resuming after an interruption.
+  ///
+  /// The RNG is deliberately not serialised: only the *next* spawn positions
+  /// depend on it, and a player cannot tell that those differ from what they
+  /// would have been. Persisting a seed would imply a guarantee the game never
+  /// made.
+  Map<String, dynamic> toJson() => {
+        'grid': [for (final row in grid) [...row]],
+        'score': score,
+        'target': target,
+        'four': _fourChance,
+      };
+
+  /// Rebuilds a game from [json], or null if it is not a board this code can
+  /// use. Every field is checked: a saved board is untrusted input, and the cost
+  /// of being wrong is a crash on opening a game rather than a bad move.
+  static MergeGame? fromJson(Map<String, dynamic> json, {int seed = 0}) {
+    final rawGrid = json['grid'];
+    final target = json['target'];
+    final score = json['score'];
+    if (rawGrid is! List || target is! int || score is! int) return null;
+    if (rawGrid.isEmpty) return null;
+
+    final grid = <List<int>>[];
+    for (final row in rawGrid) {
+      if (row is! List || row.length != rawGrid.length) return null;
+      final cells = <int>[];
+      for (final v in row) {
+        // Every tile must be 0 or a power of two — anything else would make the
+        // board unreachable by play and could never be merged away.
+        if (v is! int || v < 0) return null;
+        if (v != 0 && (v & (v - 1)) != 0) return null;
+        cells.add(v);
+      }
+      grid.add(cells);
+    }
+
+    final four = json['four'];
+    final game = MergeGame._(grid, target, Random(seed),
+        four is num ? four.toDouble() : 0.1);
+    game.score = score;
+    return game;
+  }
+
   bool get reachedTarget =>
       grid.any((row) => row.any((v) => v >= target));
 
