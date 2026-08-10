@@ -134,7 +134,19 @@ class _MiniSudokuScreenState extends State<MiniSudokuScreen>
     ProgressStore.instance
       ..registerPlay(_gameId)
       ..recordStars(_gameId, _level, stars);
-    showWinDialog(context, level: _level, accent: _accent, stars: stars)
+    // Local-only personal best. This is save data, not analytics: it lives in
+    // SharedPreferences on the device and nothing about it is ever sent anywhere.
+    final beat = ProgressStore.instance
+        .recordBest(_gameId, _level, _mistakes, lowerIsBetter: true);
+    final best = ProgressStore.instance.bestResult(_gameId, _level);
+    showWinDialog(context,
+            level: _level,
+            accent: _accent,
+            stars: stars,
+            newRecord: beat,
+            bestText: best == null
+                ? null
+                : AppLocalizations.of(context).bestMistakes(best))
         .then((action) {
       if (!mounted || action == null) return;
       if (action == WinAction.next) {
@@ -228,6 +240,8 @@ class _MiniSudokuScreenState extends State<MiniSudokuScreen>
                 : Colors.white;
 
     return GestureDetector(
+      // Keyed for tests: a by-type finder also matches the header's icon buttons.
+      key: ValueKey('sudoku_cell_${r}_$c'),
       behavior: HitTestBehavior.opaque,
       onTap: () => _onCellTap(r, c),
       child: Container(
@@ -284,6 +298,7 @@ class _MiniSudokuScreenState extends State<MiniSudokuScreen>
 
   Widget _padButton(String? label, VoidCallback onTap, {IconData? icon}) {
     return Material(
+      key: ValueKey('sudoku_pad_${label ?? 'erase'}'),
       color: Colors.white,
       borderRadius: BorderRadius.circular(12),
       elevation: 1,

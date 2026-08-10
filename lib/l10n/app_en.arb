@@ -92,6 +92,16 @@
   "helpMerge": "Swipe the board (or use the arrows) to slide all the tiles one way. When two tiles with the same number touch, they merge into one with double the value. Reach the target tile to win.",
   "helpNonogram": "The numbers along the top and the left tell you how many squares in a row are filled, in order. A line marked 4 2 has four filled squares, at least one gap, then two more. A line marked 0 is empty. Tap a square to fill it, tap again to put a cross where you are sure it stays empty, and once more to clear it. Fill in every correct square to reveal the picture. Nothing is timed and a wrong square costs you nothing — just fix it.",
 
+  "newRecord": "New personal best!",
+  "bestMoves": "Your best: {count} moves",
+  "@bestMoves": {"placeholders": {"count": {"type": "int"}}},
+  "bestScore": "Your best score: {value}",
+  "@bestScore": {"placeholders": {"value": {"type": "int"}}},
+  "bestMistakes": "{count, plural, =0{Your best: no mistakes} =1{Your best: 1 mistake} other{Your best: {count} mistakes}}",
+  "@bestMistakes": {"placeholders": {"count": {"type": "int"}}},
+  "bestGuesses": "{count, plural, =1{Your best: 1 guess} other{Your best: {count} guesses}}",
+  "@bestGuesses": {"placeholders": {"count": {"type": "int"}}},
+
   "outOfHearts": "Out of hearts",
   "outOfHeartsBody": "No hearts left. Want to try this level again?",
   "tryAgain": "Try again",

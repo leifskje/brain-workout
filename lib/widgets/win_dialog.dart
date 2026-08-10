@@ -18,6 +18,8 @@ Future<WinAction?> showWinDialog(
   required int stars,
   String? message,
   String? nextLabel,
+  bool newRecord = false,
+  String? bestText,
 }) {
   return showGeneralDialog<WinAction>(
     context: context,
@@ -30,7 +32,9 @@ Future<WinAction?> showWinDialog(
         accent: accent,
         stars: stars,
         message: message,
-        nextLabel: nextLabel),
+        nextLabel: nextLabel,
+        newRecord: newRecord,
+        bestText: bestText),
     transitionBuilder: (context, animation, _, child) {
       final curved =
           CurvedAnimation(parent: animation, curve: Curves.easeOutBack);
@@ -49,6 +53,8 @@ class _WinDialog extends StatefulWidget {
     required this.stars,
     this.message,
     this.nextLabel,
+    this.newRecord = false,
+    this.bestText,
   });
 
   final int level;
@@ -56,6 +62,14 @@ class _WinDialog extends StatefulWidget {
   final int stars;
   final String? message;
   final String? nextLabel;
+
+  /// Shows the "new personal best" badge. Only ever true when a *previous* best
+  /// was beaten — never on a first completion.
+  final bool newRecord;
+
+  /// The standing best, e.g. "Your best: 12 moves". Shown whether or not this
+  /// round beat it, so the number is something to aim at next time.
+  final String? bestText;
 
   @override
   State<_WinDialog> createState() => _WinDialogState();
@@ -146,6 +160,44 @@ class _WinDialogState extends State<_WinDialog>
                 textAlign: TextAlign.center,
                 style: const TextStyle(fontSize: 16, color: Colors.black54),
               ),
+              if (widget.newRecord) ...[
+                const SizedBox(height: 12),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: widget.accent.withValues(alpha: 0.14),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                        color: widget.accent.withValues(alpha: 0.5), width: 2),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.emoji_events_rounded,
+                          size: 22, color: widget.accent),
+                      const SizedBox(width: 8),
+                      Flexible(
+                        child: Text(
+                          AppLocalizations.of(context).newRecord,
+                          style: TextStyle(
+                              fontSize: 17,
+                              fontWeight: FontWeight.w700,
+                              color: widget.accent),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+              if (widget.bestText != null) ...[
+                const SizedBox(height: 8),
+                Text(
+                  widget.bestText!,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(fontSize: 15, color: Colors.black54),
+                ),
+              ],
               const SizedBox(height: 16),
               Row(
                 mainAxisAlignment: MainAxisAlignment.end,

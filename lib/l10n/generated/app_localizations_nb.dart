@@ -273,6 +273,42 @@ class AppLocalizationsNb extends AppLocalizations {
       'Tallene øverst og til venstre forteller hvor mange ruter på rad som er fylt, i rekkefølge. En linje merket 4 2 har fire fylte ruter, minst ett opphold, og så to til. En linje merket 0 er tom. Trykk på en rute for å fylle den, trykk igjen for å sette et kryss der du er sikker på at den skal være tom, og en gang til for å tømme den. Fyll alle de riktige rutene for å avsløre bildet. Ingenting er på tid, og en feil rute koster deg ingenting — bare rett den opp.';
 
   @override
+  String get newRecord => 'Ny personlig rekord!';
+
+  @override
+  String bestMoves(int count) {
+    return 'Din beste: $count trekk';
+  }
+
+  @override
+  String bestScore(int value) {
+    return 'Din beste poengsum: $value';
+  }
+
+  @override
+  String bestMistakes(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Din beste: $count feil',
+      one: 'Din beste: 1 feil',
+      zero: 'Din beste: ingen feil',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String bestGuesses(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Din beste: $count gjett',
+      one: 'Din beste: 1 gjett',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get outOfHearts => 'Tomt for hjerter';
 
   @override

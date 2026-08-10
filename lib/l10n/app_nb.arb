@@ -83,6 +83,12 @@
   "helpMerge": "Sveip på brettet (eller bruk pilene) for å skyve alle brikkene én vei. Når to brikker med samme tall møtes, slås de sammen til én med dobbelt verdi. Nå målbrikken for å vinne.",
   "helpNonogram": "Tallene øverst og til venstre forteller hvor mange ruter på rad som er fylt, i rekkefølge. En linje merket 4 2 har fire fylte ruter, minst ett opphold, og så to til. En linje merket 0 er tom. Trykk på en rute for å fylle den, trykk igjen for å sette et kryss der du er sikker på at den skal være tom, og en gang til for å tømme den. Fyll alle de riktige rutene for å avsløre bildet. Ingenting er på tid, og en feil rute koster deg ingenting — bare rett den opp.",
 
+  "newRecord": "Ny personlig rekord!",
+  "bestMoves": "Din beste: {count} trekk",
+  "bestScore": "Din beste poengsum: {value}",
+  "bestMistakes": "{count, plural, =0{Din beste: ingen feil} =1{Din beste: 1 feil} other{Din beste: {count} feil}}",
+  "bestGuesses": "{count, plural, =1{Din beste: 1 gjett} other{Din beste: {count} gjett}}",
+
   "outOfHearts": "Tomt for hjerter",
   "outOfHeartsBody": "Ingen hjerter igjen. Vil du prøve nivået på nytt?",
   "tryAgain": "Prøv igjen",

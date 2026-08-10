@@ -548,6 +548,36 @@ abstract class AppLocalizations {
   /// **'The numbers along the top and the left tell you how many squares in a row are filled, in order. A line marked 4 2 has four filled squares, at least one gap, then two more. A line marked 0 is empty. Tap a square to fill it, tap again to put a cross where you are sure it stays empty, and once more to clear it. Fill in every correct square to reveal the picture. Nothing is timed and a wrong square costs you nothing — just fix it.'**
   String get helpNonogram;
 
+  /// No description provided for @newRecord.
+  ///
+  /// In en, this message translates to:
+  /// **'New personal best!'**
+  String get newRecord;
+
+  /// No description provided for @bestMoves.
+  ///
+  /// In en, this message translates to:
+  /// **'Your best: {count} moves'**
+  String bestMoves(int count);
+
+  /// No description provided for @bestScore.
+  ///
+  /// In en, this message translates to:
+  /// **'Your best score: {value}'**
+  String bestScore(int value);
+
+  /// No description provided for @bestMistakes.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =0{Your best: no mistakes} =1{Your best: 1 mistake} other{Your best: {count} mistakes}}'**
+  String bestMistakes(int count);
+
+  /// No description provided for @bestGuesses.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{Your best: 1 guess} other{Your best: {count} guesses}}'**
+  String bestGuesses(int count);
+
   /// No description provided for @outOfHearts.
   ///
   /// In en, this message translates to:

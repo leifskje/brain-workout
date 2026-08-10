@@ -75,6 +75,38 @@ class ProgressStore {
   /// When the game was last opened (epoch millis; 0 = never).
   int lastOpened(String gameId) => _prefs.getInt(_openedKey(gameId)) ?? 0;
 
+  // ------------------------------------------------------- personal records ---
+
+  String _bestKey(String gameId, int level) => 'best_${gameId}_$level';
+
+  /// The player's best result for [gameId] at [level], or null if never finished.
+  ///
+  /// Stored per level rather than per game: "fewest moves" only means something
+  /// against the same board, and a 5x5 Picture Logic and a 12x12 are not
+  /// comparable. Deliberately *local only* — this is save data, not analytics;
+  /// nothing about it leaves the phone.
+  int? bestResult(String gameId, int level) =>
+      _prefs.getInt(_bestKey(gameId, level));
+
+  /// Files [value] as a completed result and reports whether it beat the previous
+  /// best.
+  ///
+  /// Returns false on a first completion. There is no record to beat the first
+  /// time, and congratulating someone for setting one by simply finishing would
+  /// make the message meaningless the one time it matters.
+  bool recordBest(String gameId, int level, int value,
+      {required bool lowerIsBetter}) {
+    final key = _bestKey(gameId, level);
+    final previous = _prefs.getInt(key);
+    if (previous == null) {
+      _prefs.setInt(key, value);
+      return false;
+    }
+    final beaten = lowerIsBetter ? value < previous : value > previous;
+    if (beaten) _prefs.setInt(key, value);
+    return beaten;
+  }
+
   // ------------------------------------------------------- saved board state ---
 
   // Bump when a game's saved shape changes incompatibly. Old saves are then

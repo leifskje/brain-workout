@@ -2313,6 +2313,73 @@ void main() {
     expect(find.byIcon(Icons.favorite_border_rounded), findsWidgets,
         reason: 'hearts should come back as they were, not reset to full');
   });
+  test('Personal records: first finish sets a best, later ones can beat it', () {
+    final store = ProgressStore.instance;
+    expect(store.bestResult('memory_match', 4), isNull);
+
+    // A first completion sets the best but is NOT a new record: there was nothing
+    // to beat, and congratulating someone for merely finishing would make the
+    // message meaningless the one time it matters.
+    expect(store.recordBest('memory_match', 4, 20, lowerIsBetter: true), isFalse);
+    expect(store.bestResult('memory_match', 4), 20);
+
+    // Worse than the best: not a record, and the best is left alone.
+    expect(store.recordBest('memory_match', 4, 25, lowerIsBetter: true), isFalse);
+    expect(store.bestResult('memory_match', 4), 20);
+
+    // Equal is not better either — "beat" has to mean beat.
+    expect(store.recordBest('memory_match', 4, 20, lowerIsBetter: true), isFalse);
+
+    // Fewer moves wins.
+    expect(store.recordBest('memory_match', 4, 14, lowerIsBetter: true), isTrue);
+    expect(store.bestResult('memory_match', 4), 14);
+
+    // Higher-is-better runs the other way, for scores.
+    expect(store.recordBest('merge', 2, 500, lowerIsBetter: false), isFalse);
+    expect(store.recordBest('merge', 2, 400, lowerIsBetter: false), isFalse);
+    expect(store.bestResult('merge', 2), 500);
+    expect(store.recordBest('merge', 2, 900, lowerIsBetter: false), isTrue);
+    expect(store.bestResult('merge', 2), 900);
+
+    // Records are per level and per game — "fewest moves" only means something
+    // against the same board.
+    expect(store.bestResult('memory_match', 5), isNull);
+    expect(store.bestResult('merge', 4), isNull);
+  });
+
+  testWidgets('Personal records: beating one shows the badge on the win dialog',
+      (tester) async {
+    tester.view.physicalSize = const Size(1080, 2280);
+    tester.view.devicePixelRatio = 2.625;
+    addTearDown(tester.view.reset);
+
+    // Pre-load a beatable best for Mini Sudoku level 1 (metric: mistakes).
+    ProgressStore.instance
+        .recordBest('mini_sudoku', 1, 5, lowerIsBetter: true);
+
+    await tester.pumpWidget(localizedApp(const MiniSudokuScreen(startLevel: 1)));
+    await tester.pumpAndSettle();
+
+    // Solve it cleanly: 0 mistakes beats the stored 5.
+    final board = MiniSudokuBoard.generate(1);
+    for (var r = 0; r < board.size; r++) {
+      for (var c = 0; c < board.size; c++) {
+        if (board.cells[r][c].given) continue;
+        await tester.tap(find.byKey(ValueKey('sudoku_cell_${r}_$c')));
+        await tester.pump();
+        await tester.tap(find.byKey(
+            ValueKey('sudoku_pad_${board.cells[r][c].solution}')));
+        await tester.pump();
+      }
+    }
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Well done!'), findsOneWidget);
+    expect(find.text('New personal best!'), findsOneWidget);
+    expect(find.text('Your best: no mistakes'), findsOneWidget);
+    expect(ProgressStore.instance.bestResult('mini_sudoku', 1), 0);
+  });
 }
 
 /// Counts solutions of a nonogram by row-wise backtracking, stopping at [limit].

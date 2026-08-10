@@ -273,6 +273,42 @@ class AppLocalizationsEn extends AppLocalizations {
       'The numbers along the top and the left tell you how many squares in a row are filled, in order. A line marked 4 2 has four filled squares, at least one gap, then two more. A line marked 0 is empty. Tap a square to fill it, tap again to put a cross where you are sure it stays empty, and once more to clear it. Fill in every correct square to reveal the picture. Nothing is timed and a wrong square costs you nothing — just fix it.';
 
   @override
+  String get newRecord => 'New personal best!';
+
+  @override
+  String bestMoves(int count) {
+    return 'Your best: $count moves';
+  }
+
+  @override
+  String bestScore(int value) {
+    return 'Your best score: $value';
+  }
+
+  @override
+  String bestMistakes(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Your best: $count mistakes',
+      one: 'Your best: 1 mistake',
+      zero: 'Your best: no mistakes',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String bestGuesses(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Your best: $count guesses',
+      one: 'Your best: 1 guess',
+    );
+    return '$_temp0';
+  }
+
+  @override
   String get outOfHearts => 'Out of hearts';
 
   @override

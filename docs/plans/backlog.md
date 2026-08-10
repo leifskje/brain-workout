@@ -27,6 +27,11 @@ We deliberately spread games across domains for a rounded "workout," and want
   Escape. Short-round games (Simon, Trail, What Comes Next, Crack the Code, Word
   Scramble, Memory Match, Wordle) are deliberately excluded.
 - 💡 Daily reminder notification (local notifications)
+- ✅ Personal records ("New personal best!") — local only, per game *and* per
+  level. Wired for 2048 (score), Memory Match (moves), Mini Sudoku and Picture
+  Logic (mistakes), Crack the Code (guesses). The arrow games and Trail are left
+  out on purpose: their only metric is hearts lost, which the stars already say.
+  A first completion sets the best but is never announced as a record.
 - 💡 Sound effects · 💡 achievements/badges · 💡 stats screen
 - 💡 Settings screen (language, text size, sound)
 
