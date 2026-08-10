@@ -166,6 +166,7 @@
   "dailyNotSolved": "You didn't get today's word.",
   "closeAction": "Close",
   "shareResult": "Share",
+  "shareUnavailable": "Sharing isn't available here — copied to the clipboard instead.",
   "copyResult": "Copy",
   "copiedToClipboard": "Copied to the clipboard",
   "practiceWord": "Practice word",

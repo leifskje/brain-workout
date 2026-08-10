@@ -497,6 +497,10 @@ class AppLocalizationsNb extends AppLocalizations {
   String get shareResult => 'Del';
 
   @override
+  String get shareUnavailable =>
+      'Deling er ikke tilgjengelig her — kopiert til utklippstavlen i stedet.';
+
+  @override
   String get copyResult => 'Kopier';
 
   @override

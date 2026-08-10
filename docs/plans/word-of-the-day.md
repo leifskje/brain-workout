@@ -69,23 +69,38 @@ just home/next and their `if (next) … else home` handling stays correct — th
 test for that specifically. The lose dialog got the same treatment, since a failed
 day is just as shareable.
 
-**Testing gap, stated plainly.** The end-to-end version of this — type today's word,
-press enter, assert the dialog offers Share — *hangs* inside `test/widget_test.dart`,
-burning the ten-minute `pumpAndSettle` timeout. Byte-identical logic in a standalone
-test file completes in about a second and passes, including reaching the dialog and
-finding the Share button, so the fix is verified; what is not understood is why the
-same sequence hangs in the big file. Two things learned while chasing it, both worth
-knowing:
+**Two follow-up bugs, both found on the device.**
 
-- `pumpAndSettle` does not settle while the win dialog is open, so it fails by
-  timeout rather than by assertion. Use bounded pump loops around it.
-- `debugPrint` is buffered per test and never flushed for a test that never
-  completes, so prints are useless for diagnosing a hang. Split the flow into
-  several small tests instead and let the hang isolate itself.
+*The share sheet threw.* `MissingPluginException(No implementation found for method
+share ...)`. Native plugin registration is generated at build time, so an app
+hot-reloaded after `flutter pub add share_plus` has the Dart half of the plugin and
+not the native half — a full rebuild fixes it. But it also showed that a failed share
+put a stack trace where the player expected their score, so `_shareResult` now falls
+back to the clipboard and says so. On a device with nothing registered to receive a
+share, that fallback is the difference between a broken button and a working one.
 
-The behaviour is covered at the dialog level instead, which is where the change
-actually lives. Worth another attempt at the end-to-end test if the hang is ever
-understood.
+*Why the tests appeared to hang.* Worth reading before adding a test here, because it
+cost most of an afternoon and looked like several different problems:
+
+- **A cold asset read inside `testWidgets` never finishes.** `testWidgets` runs its
+  body in a fake-async zone, so the real I/O behind `rootBundle.loadString` never
+  progresses. Every test that seemed to work was riding on a static cache warmed by
+  an earlier plain `test()` in the same run, which is why the failure looked random
+  and file-dependent. `setUpAll` runs outside that zone — warm the word list there.
+- **`pumpAndSettle` never settles** while an indeterminate `CircularProgressIndicator`
+  or the win dialog is on screen, so it fails by timeout rather than by assertion.
+  Bounded `pump(Duration)` loops instead.
+- **`debugPrint` is buffered per test** and never flushed for a test that doesn't
+  complete, so prints say nothing about a hang. Split the flow into small tests and
+  let the hang isolate itself.
+
+With those understood, the end-to-end path *is* covered in
+`test/wordle_daily_test.dart`: solve today's word, assert the dialog offers Share and
+not "New word", dismiss, and assert both share buttons are `hitTestable`. One honest
+limit remains — on a Windows test host `share_plus` resolves to a Dart implementation
+backed by url_launcher, so the Android `MissingPluginException` cannot be reproduced
+there; the test asserts the platform-independent guarantee (tapping Share never
+surfaces an exception) and the clipboard fallback is verified on the device.
 
 ## Status
 

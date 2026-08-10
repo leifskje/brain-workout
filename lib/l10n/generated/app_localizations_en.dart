@@ -496,6 +496,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get shareResult => 'Share';
 
   @override
+  String get shareUnavailable =>
+      'Sharing isn\'t available here — copied to the clipboard instead.';
+
+  @override
   String get copyResult => 'Copy';
 
   @override

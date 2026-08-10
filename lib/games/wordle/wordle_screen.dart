@@ -135,9 +135,28 @@ class _WordleScreenState extends State<WordleScreen> {
         solved: _dailyDone ? _dailySolved : true,
       );
 
+  /// Opens the system share sheet, falling back to the clipboard if it isn't
+  /// there.
+  ///
+  /// The fallback is not defensive padding. `share_plus` is a *native* plugin, and
+  /// plugin registration is generated at build time — so any app that picked up the
+  /// Dart side without a full rebuild throws
+  /// `MissingPluginException(No implementation found for method share ...)`. That
+  /// happened on the first real run. It can also fail on a device with nothing
+  /// registered to receive a share.
+  ///
+  /// Whatever the cause, the player's result must not be lost to a stack trace:
+  /// the text goes to the clipboard instead and they are told so, which is a
+  /// perfectly good way to send it to someone.
   Future<void> _shareResult() async {
     final text = _shareText(context);
-    await SharePlus.instance.share(ShareParams(text: text));
+    try {
+      await SharePlus.instance.share(ShareParams(text: text));
+    } on Object {
+      if (!mounted) return;
+      await Clipboard.setData(ClipboardData(text: text));
+      if (mounted) _toast(AppLocalizations.of(context).shareUnavailable);
+    }
   }
 
   Future<void> _copyResult() async {

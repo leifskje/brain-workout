@@ -842,6 +842,12 @@ abstract class AppLocalizations {
   /// **'Share'**
   String get shareResult;
 
+  /// No description provided for @shareUnavailable.
+  ///
+  /// In en, this message translates to:
+  /// **'Sharing isn\'t available here — copied to the clipboard instead.'**
+  String get shareUnavailable;
+
   /// No description provided for @copyResult.
   ///
   /// In en, this message translates to:

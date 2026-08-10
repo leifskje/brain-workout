@@ -137,6 +137,7 @@
   "dailyNotSolved": "Du klarte ikke dagens ord.",
   "closeAction": "Lukk",
   "shareResult": "Del",
+  "shareUnavailable": "Deling er ikke tilgjengelig her — kopiert til utklippstavlen i stedet.",
   "copyResult": "Kopier",
   "copiedToClipboard": "Kopiert til utklippstavlen",
   "practiceWord": "Øvingsord",
