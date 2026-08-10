@@ -135,6 +135,7 @@
   "dailyDoneTitle": "Dagens ord er ferdig!",
   "dailyDoneBody": "Et nytt ord kommer hver dag — kom tilbake i morgen.",
   "dailyNotSolved": "Du klarte ikke dagens ord.",
+  "closeAction": "Lukk",
   "shareResult": "Del",
   "copyResult": "Kopier",
   "copiedToClipboard": "Kopiert til utklippstavlen",

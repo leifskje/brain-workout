@@ -491,6 +491,9 @@ class AppLocalizationsNb extends AppLocalizations {
   String get dailyNotSolved => 'Du klarte ikke dagens ord.';
 
   @override
+  String get closeAction => 'Lukk';
+
+  @override
   String get shareResult => 'Del';
 
   @override

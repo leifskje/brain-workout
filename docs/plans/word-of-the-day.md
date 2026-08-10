@@ -55,6 +55,38 @@ yesterday's result can never be mistaken for today's.
   list edit.
 - Norwegian and English have independent daily words, since the lists differ.
 
+## The win dialog has to lead *to* the share
+
+Reported from the emulator: solving the daily word showed the win dialog over the
+result card, and its only non-Home button was "New word" — which replaced the
+finished daily with a practice word. The share buttons were therefore unreachable by
+any route. The dialog is `barrierDismissible: false`, so there was no way past it.
+
+On a daily puzzle the dialog now offers **Close** and **Share**. That needed a third
+`WinAction`: `close` means "dismiss and stay here", which `home` cannot express. Only
+dialogs given a `closeLabel` can return it, so the other fourteen games still see
+just home/next and their `if (next) … else home` handling stays correct — there is a
+test for that specifically. The lose dialog got the same treatment, since a failed
+day is just as shareable.
+
+**Testing gap, stated plainly.** The end-to-end version of this — type today's word,
+press enter, assert the dialog offers Share — *hangs* inside `test/widget_test.dart`,
+burning the ten-minute `pumpAndSettle` timeout. Byte-identical logic in a standalone
+test file completes in about a second and passes, including reaching the dialog and
+finding the Share button, so the fix is verified; what is not understood is why the
+same sequence hangs in the big file. Two things learned while chasing it, both worth
+knowing:
+
+- `pumpAndSettle` does not settle while the win dialog is open, so it fails by
+  timeout rather than by assertion. Use bounded pump loops around it.
+- `debugPrint` is buffered per test and never flushed for a test that never
+  completes, so prints are useless for diagnosing a hang. Split the flow into
+  several small tests instead and let the hang isolate itself.
+
+The behaviour is covered at the dialog level instead, which is where the change
+actually lives. Worth another attempt at the end-to-end test if the hang is ever
+understood.
+
 ## Status
 
 ✅ Shipped. Tested: same date → same word regardless of time of day; consecutive

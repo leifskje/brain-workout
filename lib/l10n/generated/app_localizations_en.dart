@@ -490,6 +490,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get dailyNotSolved => 'You didn\'t get today\'s word.';
 
   @override
+  String get closeAction => 'Close';
+
+  @override
   String get shareResult => 'Share';
 
   @override

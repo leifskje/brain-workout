@@ -164,6 +164,7 @@
   "dailyDoneTitle": "Today's word is done!",
   "dailyDoneBody": "A new word appears every day — come back tomorrow.",
   "dailyNotSolved": "You didn't get today's word.",
+  "closeAction": "Close",
   "shareResult": "Share",
   "copyResult": "Copy",
   "copiedToClipboard": "Copied to the clipboard",

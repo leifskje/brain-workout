@@ -46,6 +46,7 @@ import 'package:brain_workout/games/wordle/word_repository.dart';
 import 'package:brain_workout/games/wordle/wordle_screen.dart';
 import 'package:brain_workout/services/app_locale.dart';
 import 'package:brain_workout/widgets/how_to_play.dart';
+import 'package:brain_workout/widgets/win_dialog.dart';
 import 'package:brain_workout/services/progress_store.dart';
 import 'package:brain_workout/theme/motion.dart';
 
@@ -2587,6 +2588,99 @@ void main() {
     final plain = board.arrows.firstWhere((a) => !a.isBonus);
     expect(board.bonusFreedBy(plain), isEmpty);
   });
+  testWidgets('Win dialog: closeLabel dismisses without leaving the screen',
+      (tester) async {
+    // The reported bug: solving the daily word put the win dialog over the result
+    // card, and its only non-Home button was "New word" — which replaced the
+    // finished daily with a practice word, so the share buttons could never be
+    // reached. The fix is this `closeLabel` route, which Wordle passes on a daily
+    // win together with "Share" as the primary action.
+    //
+    // Tested at the dialog level. Driving a whole daily solve through the Wordle
+    // screen hangs inside this file for reasons I could not pin down — the same
+    // sequence completes in about a second in a standalone test file — so the
+    // end-to-end path is verified by hand rather than here. See
+    // docs/plans/word-of-the-day.md.
+    tester.view.physicalSize = const Size(1080, 2280);
+    tester.view.devicePixelRatio = 2.625;
+    addTearDown(tester.view.reset);
+
+    WinAction? got;
+    await tester.pumpWidget(localizedApp(Builder(
+      builder: (context) => Scaffold(
+        body: Center(
+          child: ElevatedButton(
+            onPressed: () async {
+              got = await showWinDialog(context,
+                  level: 3,
+                  accent: Colors.green,
+                  stars: 3,
+                  nextLabel: 'Share',
+                  closeLabel: 'Close');
+            },
+            child: const Text('open'),
+          ),
+        ),
+      ),
+    )));
+    await tester.tap(find.text('open'));
+    for (var i = 0; i < 16; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+
+    // With closeLabel set, the secondary button is Close rather than Home — so
+    // dismissing cannot navigate away from a screen that still has work to offer.
+    expect(find.text('Close'), findsOneWidget);
+    expect(find.text('Home'), findsNothing);
+    expect(find.text('Share'), findsOneWidget);
+
+    await tester.tap(find.text('Close'));
+    for (var i = 0; i < 8; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+    expect(got, WinAction.close,
+        reason: 'Close must report itself distinctly from Home, or the caller '
+            'cannot tell "stay here" from "leave"');
+    // Still on the screen behind the dialog.
+    expect(find.text('open'), findsOneWidget);
+  });
+
+  testWidgets('Win dialog: without closeLabel the old Home button is unchanged',
+      (tester) async {
+    // Guards the other 14 games: adding WinAction.close must not change what any
+    // existing caller sees, since they all treat "not next" as "go home".
+    tester.view.physicalSize = const Size(1080, 2280);
+    tester.view.devicePixelRatio = 2.625;
+    addTearDown(tester.view.reset);
+
+    WinAction? got;
+    await tester.pumpWidget(localizedApp(Builder(
+      builder: (context) => Scaffold(
+        body: Center(
+          child: ElevatedButton(
+            onPressed: () async {
+              got = await showWinDialog(context,
+                  level: 1, accent: Colors.blue, stars: 2);
+            },
+            child: const Text('open'),
+          ),
+        ),
+      ),
+    )));
+    await tester.tap(find.text('open'));
+    for (var i = 0; i < 16; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+    expect(find.text('Home'), findsOneWidget);
+    expect(find.text('Next level'), findsOneWidget);
+
+    await tester.tap(find.text('Home'));
+    for (var i = 0; i < 8; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+    expect(got, WinAction.home);
+  });
+
 }
 
 /// Counts solutions of a nonogram by row-wise backtracking, stopping at [limit].

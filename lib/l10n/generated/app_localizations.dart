@@ -830,6 +830,12 @@ abstract class AppLocalizations {
   /// **'You didn\'t get today\'s word.'**
   String get dailyNotSolved;
 
+  /// No description provided for @closeAction.
+  ///
+  /// In en, this message translates to:
+  /// **'Close'**
+  String get closeAction;
+
   /// No description provided for @shareResult.
   ///
   /// In en, this message translates to:

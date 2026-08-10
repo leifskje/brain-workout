@@ -3,7 +3,11 @@ import 'package:flutter/material.dart';
 import '../l10n/generated/app_localizations.dart';
 
 /// What the player chose on the level-complete dialog.
-enum WinAction { home, next }
+///
+/// [close] means "dismiss and stay on this screen". Only dialogs given a
+/// `closeLabel` can return it — every other game still sees just home/next, so
+/// their `if (next) … else home` handling stays correct.
+enum WinAction { home, next, close }
 
 /// Shows a celebratory "level complete" dialog: it pops in with an elastic
 /// scale, the 🎉 bursts, and a row of stars twinkles in. Returns the chosen
@@ -20,6 +24,7 @@ Future<WinAction?> showWinDialog(
   String? nextLabel,
   bool newRecord = false,
   String? bestText,
+  String? closeLabel,
 }) {
   return showGeneralDialog<WinAction>(
     context: context,
@@ -34,7 +39,8 @@ Future<WinAction?> showWinDialog(
         message: message,
         nextLabel: nextLabel,
         newRecord: newRecord,
-        bestText: bestText),
+        bestText: bestText,
+        closeLabel: closeLabel),
     transitionBuilder: (context, animation, _, child) {
       final curved =
           CurvedAnimation(parent: animation, curve: Curves.easeOutBack);
@@ -55,6 +61,7 @@ class _WinDialog extends StatefulWidget {
     this.nextLabel,
     this.newRecord = false,
     this.bestText,
+    this.closeLabel,
   });
 
   final int level;
@@ -70,6 +77,12 @@ class _WinDialog extends StatefulWidget {
   /// The standing best, e.g. "Your best: 12 moves". Shown whether or not this
   /// round beat it, so the number is something to aim at next time.
   final String? bestText;
+
+  /// When set, the secondary button dismisses the dialog *without leaving the
+  /// screen* instead of going home. Used where the screen behind the dialog still
+  /// has something to offer — the daily word's share buttons, which were
+  /// unreachable while the only ways out were "Home" and "New word".
+  final String? closeLabel;
 
   @override
   State<_WinDialog> createState() => _WinDialogState();
@@ -203,8 +216,13 @@ class _WinDialogState extends State<_WinDialog>
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
                   TextButton(
-                    onPressed: () => Navigator.pop(context, WinAction.home),
-                    child: Text(AppLocalizations.of(context).home),
+                    onPressed: () => Navigator.pop(
+                        context,
+                        widget.closeLabel == null
+                            ? WinAction.home
+                            : WinAction.close),
+                    child: Text(widget.closeLabel ??
+                        AppLocalizations.of(context).home),
                   ),
                   const SizedBox(width: 8),
                   FilledButton(

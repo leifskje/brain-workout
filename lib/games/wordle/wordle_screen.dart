@@ -249,19 +249,34 @@ class _WordleScreenState extends State<WordleScreen> {
     if (!mounted) return;
     HapticFeedback.heavyImpact();
     final n = _guesses.length;
+    final t = AppLocalizations.of(context);
+    // On the daily word the dialog sits on top of the result card, so its buttons
+    // have to lead *to* the share rather than away from it. Offering "New word"
+    // here was the bug: it was the only non-Home action, and taking it replaced
+    // the finished daily with a practice word — so the share buttons could never
+    // be reached at all.
     showWinDialog(
       context,
       level: n,
       accent: _accent,
       stars: wordleStars(n),
-      message: AppLocalizations.of(context).solvedInGuesses(n),
-      nextLabel: AppLocalizations.of(context).newWord,
+      message: t.solvedInGuesses(n),
+      nextLabel: _isDaily ? t.shareResult : t.newWord,
+      closeLabel: _isDaily ? t.closeAction : null,
     ).then((action) {
       if (!mounted || action == null) return;
-      if (action == WinAction.next) {
-        _startNewWord();
-      } else {
-        Navigator.popUntil(context, (route) => route.isFirst);
+      switch (action) {
+        case WinAction.next:
+          if (_isDaily) {
+            _shareResult();
+          } else {
+            _startNewWord();
+          }
+        // Stays on the result card, where Copy and the practice word live.
+        case WinAction.close:
+          break;
+        case WinAction.home:
+          Navigator.popUntil(context, (route) => route.isFirst);
       }
     });
   }
@@ -277,20 +292,32 @@ class _WordleScreenState extends State<WordleScreen> {
         title: Text(AppLocalizations.of(context).outOfGuesses),
         content: Text(AppLocalizations.of(context).theWordWas(_target)),
         actions: [
+          // Same reasoning as the win dialog: on the daily word, dismissing has to
+          // leave the player on the result card, not send them away from it.
           TextButton(
             onPressed: () {
               Navigator.pop(dialogContext);
-              Navigator.popUntil(context, (route) => route.isFirst);
+              if (!_isDaily) {
+                Navigator.popUntil(context, (route) => route.isFirst);
+              }
             },
-            child: Text(AppLocalizations.of(context).home),
+            child: Text(_isDaily
+                ? AppLocalizations.of(context).closeAction
+                : AppLocalizations.of(context).home),
           ),
           FilledButton(
             style: FilledButton.styleFrom(backgroundColor: _accent),
             onPressed: () {
               Navigator.pop(dialogContext);
-              _startNewWord();
+              if (_isDaily) {
+                _shareResult();
+              } else {
+                _startNewWord();
+              }
             },
-            child: Text(AppLocalizations.of(context).newWord),
+            child: Text(_isDaily
+                ? AppLocalizations.of(context).shareResult
+                : AppLocalizations.of(context).newWord),
           ),
         ],
       ),
@@ -583,6 +610,9 @@ class _WordleScreenState extends State<WordleScreen> {
       child: Padding(
         padding: const EdgeInsets.all(2.5),
         child: Material(
+          // Keyed because a by-text finder would also match the board tiles,
+          // which show the same letters.
+          key: ValueKey('wordle_key_$label'),
           color: color,
           borderRadius: BorderRadius.circular(6),
           child: InkWell(
