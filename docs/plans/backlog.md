@@ -29,19 +29,31 @@ We deliberately spread games across domains for a rounded "workout," and want
 ## Difficulty (audit with `dart run tool/analyze_level_curves.dart`)
 
 Every game once plateaued early — 11 of 12 were identical from level 20 onward,
-seven from level 12 — so level numbers above that were decorative. Six games have
-been uncapped since. What's left:
+seven from level 12 — so level numbers above that were decorative.
 
-- 💡 **Optional "harder" mode for Memory Match and 2048.** Both sit at a plateau
-  of 7, and both are close to structural ceilings: 2048 *is* the 2048 tile, and
-  Memory Match at 5×6 is 15 pairs, about the most that fits a phone. Rather than
-  stretching them, offer the player a way to go beyond — e.g. a toggle for a 6×6
-  Memory board, or a 4096 target. Deliberately deferred: the ceilings are honest,
-  so this is a feature, not a bug fix.
-- 📝 **What Comes Next** plateaus at 9 and needs new *pattern tiers*, which is
-  content work rather than config — the existing three tiers run out.
-- 📝 **Number Cross** plateaus at 12. Untried knobs: division, more decoys,
-  bigger grids.
+A second round followed a tester reaching Arrow Maze level 50 and finding it
+identical to the twenties. Plateaus after it:
+
+| game | before | after | what moved |
+|---|---|---|---|
+| Arrow Maze | 35 | **63** | branching tail to a measured-reachable 2.15; `minLength` 5 at L45 |
+| Number Cross | 12 | **26** | blanks 9→13, decoys 2→5 |
+| What Comes Next | 9 | **17** | tiers 4–5: sum-of-previous-two, interleaved sequences |
+| 2048 | 7 | **18** | target to 4096, then `fourChance` 0.1→0.3 |
+| Memory Match | 7 | **9** | 15 → 21 pairs (7×6) |
+
+What's left:
+
+- ⛔ **Arrow Maze is out of config knobs.** All are at their limits and the
+  measured branching floor at 14×20 is ~2.1. Real depth now needs a bigger board
+  (which needs zoom) or a new mechanic — see
+  [arrow-maze-depth.md](arrow-maze-depth.md).
+- 💡 **Memory Match needs *triples* to go further.** 21 pairs is the structural
+  ceiling: all layouts are 6 columns wide, so card size is width-bound at ~45dp
+  on a 360dp phone and rows are the only thing that can grow. Matching three of a
+  kind rather than two is the next real axis, and it is a mechanic change.
+- 💡 **Number Cross division.** Still untried, and now the main knob left; blanks
+  and decoys are spent.
 
 ### Word-game quality gaps
 

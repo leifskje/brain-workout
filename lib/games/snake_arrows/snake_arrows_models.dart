@@ -88,7 +88,10 @@ SnakeLevelConfig snakeConfigForLevel(int level) {
   // Longer snakes tangle more without needing a bigger grid, and raising the
   // floor removes trivial 2-cell filler that was padding late levels.
   final maxLen = (4 + level ~/ 2).clamp(4, 14);
-  final minLen = level >= 30 ? 4 : (level >= 15 ? 3 : 2);
+  // Raising the floor again at 45 removes the last of the short filler arrows,
+  // so every arrow on a late board is long enough to block several others. This
+  // is the only *config* knob left at 14x20 that isn't already maxed out.
+  final minLen = level >= 45 ? 5 : (level >= 30 ? 4 : (level >= 15 ? 3 : 2));
   // Less margin for error once the boards genuinely require planning.
   final hearts = level >= 35 ? 3 : (level >= 20 ? 4 : 5);
   return SnakeLevelConfig(
@@ -149,8 +152,32 @@ class SnakeDifficulty {
 /// The 2.3 floor is the measured limit of what the generator reaches at high
 /// levels, not a design preference: asking for 2.0 just made every late level
 /// miss by 0.3-0.9 with nothing to show for it.
-double snakeTargetBranchingForLevel(int level) =>
-    (4.0 - level * 0.05).clamp(2.3, 4.0);
+/// Wanted mean branching for [level] — *lower is harder*, because a low
+/// branching factor is what forces the player to plan ahead.
+///
+/// Two segments, and the second exists because of a tester report: the old curve
+/// hit its 2.3 floor at level 34, so a player at level 50 was handed a board
+/// config-identical to level 35. The same plateau bug as before, just further out.
+///
+/// The tail is bounded by measurement, not taste. `analyze_snake_difficulty`
+/// samples all 768 seeds at 14x20 and prints the achievable spread: with the
+/// level-45 `minLength` floor the lowest branching *any* seed reaches is ~2.1, so
+/// 2.15 is the honest end of the ramp. An earlier attempt at 2.05 sat below that
+/// and simply degraded to "closest available" — the silent flattening this whole
+/// metric exists to prevent.
+///
+/// The slope is deliberately gentle (0.005/level) so the remaining headroom is
+/// spread over ~30 levels rather than spent in five.
+///
+/// **The real conclusion is that 14x20 is close to exhausted as a difficulty
+/// source.** This retune buys roughly two notches (measured: branching 2.5 ->
+/// 2.2, forced steps 26% -> 32% between levels 35 and 60). Genuine depth past
+/// here needs a bigger board — which needs zoom — or a new mechanic, not more
+/// tuning. See docs/plans/arrow-maze-depth.md.
+double snakeTargetBranchingForLevel(int level) {
+  if (level <= 34) return (4.0 - level * 0.05).clamp(2.3, 4.0);
+  return (2.3 - (level - 34) * 0.005).clamp(2.15, 2.3);
+}
 
 /// The snake-arrow board: holds the arrows and the rules for clearing them.
 class SnakeBoard {

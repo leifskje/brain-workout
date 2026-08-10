@@ -9,16 +9,32 @@ import 'dart:math';
 enum MergeDirection { up, down, left, right }
 
 class MergeConfig {
-  const MergeConfig({required this.size, required this.target});
+  const MergeConfig({
+    required this.size,
+    required this.target,
+    this.fourChance = 0.1,
+  });
 
   final int size;
   final int target;
+
+  /// Probability a spawned tile is a 4 rather than a 2.
+  ///
+  /// The second difficulty axis, and the one that keeps the curve alive after the
+  /// target tile stops growing: 4s fill the board faster and leave fewer merge
+  /// options, so the same 4096 goal gets steadily tighter. Without this the game
+  /// plateaued at level 7, because "2048" is a fixed goal and the 4x4 board is a
+  /// structural ceiling — there was nothing else to turn.
+  final double fourChance;
 }
 
 MergeConfig mergeConfigForLevel(int level) {
-  // Target grows one power of two per level: 32 at level 1 up to 2048.
-  final exp = (5 + level - 1).clamp(5, 11);
-  return MergeConfig(size: 4, target: 1 << exp);
+  // Target grows one power of two per level: 32 at level 1 up to 4096. 4096 on a
+  // 4x4 board is already a serious ask; 8192 is not fun, so the ladder stops.
+  final exp = (5 + level - 1).clamp(5, 12);
+  // Once the target stops growing, the spawn mix takes over.
+  final fourChance = (0.1 + 0.02 * (level - 8)).clamp(0.1, 0.3);
+  return MergeConfig(size: 4, target: 1 << exp, fourChance: fourChance);
 }
 
 /// Collapses one line toward index 0: drop gaps, then merge equal neighbours
@@ -141,16 +157,17 @@ bool willChange(List<List<int>> grid, MergeDirection dir) =>
     planSlides(grid, dir).any((s) => s.merged || s.moves);
 
 class MergeGame {
-  MergeGame._(this.grid, this.target, this._rng);
+  MergeGame._(this.grid, this.target, this._rng, this._fourChance);
 
   /// For tests: build a game from an explicit grid (0 = empty).
   factory MergeGame.fromGrid(List<List<int>> grid,
-          {int target = 2048, int seed = 0}) =>
-      MergeGame._(grid, target, Random(seed));
+          {int target = 2048, int seed = 0, double fourChance = 0.1}) =>
+      MergeGame._(grid, target, Random(seed), fourChance);
 
   final List<List<int>> grid;
   final int target;
   final Random _rng;
+  final double _fourChance;
   int score = 0;
 
   int get size => grid.length;
@@ -183,7 +200,7 @@ class MergeGame {
     final empty = _emptyCells;
     if (empty.isEmpty) return;
     final (r, c) = empty[_rng.nextInt(empty.length)];
-    grid[r][c] = _rng.nextInt(10) == 0 ? 4 : 2; // 10% chance of a 4
+    grid[r][c] = _rng.nextDouble() < _fourChance ? 4 : 2;
   }
 
   /// Applies a move. Returns true if anything moved/merged (and then a new
@@ -276,7 +293,7 @@ class MergeGame {
     final rng = Random(level * 7333 + 19);
     final grid =
         List.generate(cfg.size, (_) => List<int>.filled(cfg.size, 0));
-    final game = MergeGame._(grid, cfg.target, rng);
+    final game = MergeGame._(grid, cfg.target, rng, cfg.fourChance);
     game._spawn();
     game._spawn();
     return game;

@@ -46,7 +46,8 @@ final Map<String, String Function(int)> games = {
   },
   '2048 (Merge)': (l) {
     final c = mergeConfigForLevel(l);
-    return 'size=${c.size} target=${c.target}';
+    return 'size=${c.size} target=${c.target} '
+        'four=${c.fourChance.toStringAsFixed(2)}';
   },
   'Mini Sudoku': (l) {
     final c = miniSudokuConfigForLevel(l);

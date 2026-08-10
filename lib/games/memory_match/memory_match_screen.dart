@@ -210,6 +210,9 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen> {
     return Padding(
       padding: const EdgeInsets.all(5),
       child: GestureDetector(
+        // Keyed so tests can measure a *card* — a by-type finder also matches the
+        // header's icon buttons, which sit earlier in the tree.
+        key: ValueKey('memory-card-${card.id}'),
         onTap: () => _onTapCard(card),
         child: TweenAnimationBuilder<double>(
           tween: Tween(begin: 0, end: up ? 1.0 : 0.0),

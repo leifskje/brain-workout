@@ -37,12 +37,17 @@ class WhatNextLevelConfig {
 
   final int questions;
   final int hearts;
-  final int tier; // 1 easy .. 3 hard
+  final int tier; // 1 easy .. 5 hard
 }
 
 WhatNextLevelConfig whatNextConfigForLevel(int level) {
   final questions = (4 + (level - 1) ~/ 2).clamp(4, 8);
-  final tier = (1 + (level - 1) ~/ 3).clamp(1, 3);
+  // Tiers 4 and 5 unlock the two harder rules (sum-of-previous-two, and two
+  // interleaved sequences). Both are standard puzzle fare for a well-read adult
+  // and neither is reachable by "spot the constant step", which is what the first
+  // three tiers all reduce to — the reason the curve went flat at level 9. Also
+  // slowed to one tier per four levels so the ladder isn't spent immediately.
+  final tier = (1 + (level - 1) ~/ 4).clamp(1, 5);
   return WhatNextLevelConfig(questions: questions, hearts: 5, tier: tier);
 }
 
@@ -68,7 +73,16 @@ class WhatNextRound {
   }
 
   static SequenceQuestion _numberQuestion(Random rng, int tier) {
-    final rule = tier == 1 ? 0 : rng.nextInt(tier == 2 ? 2 : 3);
+    // Each tier adds one rule to the pool it may draw from, so higher tiers stay
+    // varied rather than only ever showing the newest, hardest rule.
+    final rulePool = switch (tier) {
+      1 => 1, // constant step only
+      2 => 2,
+      3 => 3,
+      4 => 4, // + sum of the previous two
+      _ => 5, // + two interleaved sequences
+    };
+    final rule = tier == 1 ? 0 : rng.nextInt(rulePool);
 
     List<int> terms;
     switch (rule) {
@@ -84,6 +98,26 @@ class WhatNextRound {
           terms.add(terms.last + d);
           d += 1;
         }
+      case 3: // each term is the sum of the previous two (Fibonacci-like)
+        final a = rng.nextInt(3) + 1;
+        final b = a + rng.nextInt(3) + 1; // keep it ascending
+        terms = [a, b];
+        for (var i = 2; i <= _visible; i++) {
+          terms.add(terms[i - 2] + terms[i - 1]);
+        }
+      case 4: // two interleaved sequences: 3, 20, 6, 30, 9 -> 40
+        // The answer sits in whichever strand lands on the last slot, so both
+        // strands have to be tracked rather than one difference.
+        final startA = rng.nextInt(5) + 1;
+        final stepA = rng.nextInt(4) + 2;
+        final startB = (rng.nextInt(3) + 2) * 10;
+        final stepB = (rng.nextInt(2) + 1) * 10;
+        terms = [
+          for (var i = 0; i <= _visible; i++)
+            i.isEven
+                ? startA + (i ~/ 2) * stepA
+                : startB + (i ~/ 2) * stepB,
+        ];
       default: // arithmetic: constant positive step
         final start = rng.nextInt(9) + 1;
         final step = rng.nextInt(tier == 1 ? 5 : 9) + 1;

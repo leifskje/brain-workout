@@ -16,6 +16,7 @@ import 'package:brain_workout/games/crack_code/crack_code_models.dart';
 import 'package:brain_workout/games/crack_code/crack_code_screen.dart';
 import 'package:brain_workout/games/games_catalog.dart';
 import 'package:brain_workout/games/memory_match/memory_match_models.dart';
+import 'package:brain_workout/games/memory_match/memory_match_screen.dart';
 import 'package:brain_workout/games/nonogram/nonogram_models.dart';
 import 'package:brain_workout/games/nonogram/nonogram_screen.dart';
 import 'package:brain_workout/games/number_cross/number_cross_models.dart';
@@ -295,6 +296,25 @@ void main() {
     expect(configForLevel(21).rows, greaterThan(configForLevel(13).rows));
     expect(configForLevel(21).arrowCount,
         greaterThan(configForLevel(13).arrowCount));
+
+    // Uncapped after a tester reached level 50 in Arrow Maze and found it
+    // identical to level 35. Lower branching is harder, hence lessThan.
+    expect(snakeTargetBranchingForLevel(60),
+        lessThan(snakeTargetBranchingForLevel(40)));
+    expect(snakeConfigForLevel(50).minLength,
+        greaterThan(snakeConfigForLevel(35).minLength));
+    expect(memoryConfigForLevel(9).pairs,
+        greaterThan(memoryConfigForLevel(7).pairs));
+    // 2048's target tile is a structural ceiling, so the spawn mix carries the
+    // curve past it — that is the knob that has to keep moving.
+    expect(mergeConfigForLevel(18).fourChance,
+        greaterThan(mergeConfigForLevel(8).fourChance));
+    expect(numberCrossConfigForLevel(26).blanks,
+        greaterThan(numberCrossConfigForLevel(12).blanks));
+    expect(numberCrossConfigForLevel(26).decoys,
+        greaterThan(numberCrossConfigForLevel(12).decoys));
+    expect(whatNextConfigForLevel(17).tier,
+        greaterThan(whatNextConfigForLevel(9).tier));
   });
 
   test('Arrow Escape stays solvable at the new high levels', () {
@@ -345,7 +365,18 @@ void main() {
   });
 
   test('Snake arrow levels are always solvable', () {
-    for (var level = 1; level <= 30; level++) {
+    // 1-30 plus a sample of the *high* levels. The high ones matter because the
+    // level-45 minLength floor and the extended branching tail only take effect
+    // up there, and a generator change that strands an arrow would otherwise be
+    // invisible: this test used to stop at 30, i.e. before any of it.
+    // Sampled rather than exhaustive because a 14x20 board costs ~400ms.
+    for (final level in [
+      for (var l = 1; l <= 30; l++) l,
+      45,
+      60,
+      63,
+      80,
+    ]) {
       final board = SnakeBoard.generate(level);
       expect(board.arrows, isNotEmpty, reason: 'level $level produced no arrows');
 
@@ -537,6 +568,10 @@ void main() {
       }
       expect(counts.values.every((n) => n == 2), isTrue,
           reason: 'memory level $level has a non-paired symbol');
+      // The board grew to 21 pairs, so the symbol pool has to keep up. Without
+      // this, too few symbols would quietly shrink the deck instead of failing.
+      expect(counts.length, board.cards.length ~/ 2,
+          reason: 'memory level $level ran short of distinct symbols');
     }
   });
 
@@ -1218,7 +1253,17 @@ void main() {
       final cfg = mergeConfigForLevel(level);
       final game = MergeGame.generate(level);
       expect(game.size, cfg.size);
-      expect(game.target, 1 << (5 + level - 1).clamp(5, 11));
+      // Assert against the config rather than re-deriving the formula here: the
+      // old copy of it silently became the only thing pinning 2048 as the
+      // ceiling, and had to be edited to raise it.
+      expect(game.target, cfg.target);
+      expect(cfg.target, lessThanOrEqualTo(4096));
+      expect(cfg.fourChance, inInclusiveRange(0.1, 0.3));
+      if (level > 1) {
+        final prev = mergeConfigForLevel(level - 1);
+        expect(cfg.target, greaterThanOrEqualTo(prev.target));
+        expect(cfg.fourChance, greaterThanOrEqualTo(prev.fourChance));
+      }
 
       // Exactly two opening tiles, each a 2 or a 4.
       final tiles = [
@@ -1626,6 +1671,46 @@ void main() {
     await tester.tap(find.text('Check my squares'));
     await tester.pump();
     expect(find.text('No mistakes so far!'), findsOneWidget);
+  });
+
+  testWidgets('Memory Match: the 21-pair board still fits a small phone',
+      (tester) async {
+    // Raising the ceiling from 15 to 21 pairs adds two rows, and the screen sizes
+    // cards to fit rather than scrolling — so the failure mode is cards quietly
+    // shrinking below what this audience can tap, not an overflow error.
+    //
+    // Measured card widths at 1.3x text scale, all layouts having 6 columns so
+    // width is normally the binding constraint:
+    //   411x868 -> 53dp   393x873 -> 50dp   360x800 -> 45dp   360x720 -> 45dp
+    // The one exception is a 360x640 screen (roughly a 2015 phone), where 7 rows
+    // becomes height-bound and cards drop to 36dp. Judged acceptable rather than
+    // capping the game for every modern device; 360x720 is the conservative bar.
+    tester.view.physicalSize = const Size(720, 1440);
+    tester.view.devicePixelRatio = 2.0; // 360x720 logical
+    tester.platformDispatcher.textScaleFactorTestValue = 1.3;
+    addTearDown(tester.view.reset);
+    addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+
+    await tester.pumpWidget(localizedApp(const MemoryMatchScreen(startLevel: 9)));
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+
+    final board = MemoryBoard.generate(9);
+    expect(board.cards.length, 42, reason: '7x6 = 21 pairs');
+
+    // Every card must be at least a 44dp tap target — the platform minimum, and
+    // the reason the layout grows rows instead of columns past 5x6. Found by key
+    // rather than by type: GestureDetector also matches the header's icon
+    // buttons, which sit earlier in the tree and would make this assertion
+    // measure a 48dp back button and pass regardless.
+    for (final card in board.cards) {
+      final finder = find.byKey(ValueKey('memory-card-${card.id}'));
+      expect(finder.hitTestable(), findsOneWidget,
+          reason: 'card ${card.id} is not tappable');
+      final size = tester.getSize(finder);
+      expect(size.shortestSide, greaterThanOrEqualTo(44.0),
+          reason: 'card ${card.id} shrank to ${size.width}x${size.height}dp');
+    }
   });
 
   testWidgets('Nonogram: the board fits a small phone at the largest text scale',

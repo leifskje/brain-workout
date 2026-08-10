@@ -94,8 +94,12 @@ NumberCrossConfig numberCrossConfigForLevel(int level) {
     5 => (9, 9),
     _ => (11, 9),
   };
-  final blanks = (3 + level ~/ 2).clamp(3, 9);
-  final decoys = level < 4 ? 0 : (level < 8 ? 1 : 2);
+  // Blanks and decoys are the two knobs that still have room at 11x9 — the grid
+  // itself is at the portrait limit. More blanks means fewer anchored numbers to
+  // reason from; more decoys means the tray no longer tells you what fits.
+  // Both caps used to be reached by level 12, which is where the plateau was.
+  final blanks = (3 + level ~/ 2).clamp(3, 13);
+  final decoys = level < 4 ? 0 : (level < 8 ? 1 : (2 + (level - 8) ~/ 6).clamp(2, 5));
   return NumberCrossConfig(
     equations: equations,
     rows: rows,
