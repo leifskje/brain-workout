@@ -614,6 +614,30 @@ abstract class AppLocalizations {
   /// **'Tap a long arrow to send it off, head-first. The path ahead of its head must be clear.'**
   String get arrowMazeHint;
 
+  /// No description provided for @arrowMazeHintZoom.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap a long arrow to send it off, head-first. Pinch or use the buttons to zoom in for a closer look.'**
+  String get arrowMazeHintZoom;
+
+  /// No description provided for @zoomIn.
+  ///
+  /// In en, this message translates to:
+  /// **'Zoom in'**
+  String get zoomIn;
+
+  /// No description provided for @zoomOut.
+  ///
+  /// In en, this message translates to:
+  /// **'Zoom out'**
+  String get zoomOut;
+
+  /// No description provided for @zoomFit.
+  ///
+  /// In en, this message translates to:
+  /// **'Fit the whole board'**
+  String get zoomFit;
+
   /// No description provided for @numberCrossHint.
   ///
   /// In en, this message translates to:

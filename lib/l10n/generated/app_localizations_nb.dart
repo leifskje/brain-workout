@@ -338,6 +338,19 @@ class AppLocalizationsNb extends AppLocalizations {
       'Trykk på en lang pil for å sende den ut, hodet først. Banen foran hodet må være fri.';
 
   @override
+  String get arrowMazeHintZoom =>
+      'Trykk på en lang pil for å sende den ut, hodet først. Knip eller bruk knappene for å zoome inn.';
+
+  @override
+  String get zoomIn => 'Zoom inn';
+
+  @override
+  String get zoomOut => 'Zoom ut';
+
+  @override
+  String get zoomFit => 'Vis hele brettet';
+
+  @override
   String get numberCrossHint =>
       'Trykk på et tall og så en rute, eller dra det inn. Alle regnestykkene må stemme, både bortover og nedover.';
 

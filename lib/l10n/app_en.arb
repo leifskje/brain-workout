@@ -110,6 +110,10 @@
 
   "arrowEscapeHint": "Tap an arrow to send it off the board. It needs a clear path to the edge.",
   "arrowMazeHint": "Tap a long arrow to send it off, head-first. The path ahead of its head must be clear.",
+  "arrowMazeHintZoom": "Tap a long arrow to send it off, head-first. Pinch or use the buttons to zoom in for a closer look.",
+  "zoomIn": "Zoom in",
+  "zoomOut": "Zoom out",
+  "zoomFit": "Fit the whole board",
   "numberCrossHint": "Tap a number then a cell, or drag it in. Every across and down equation must be correct.",
   "memoryMatchHint": "Tap two cards to find a matching pair.",
   "pairsFound": "Pairs found: {matched} / {total}",

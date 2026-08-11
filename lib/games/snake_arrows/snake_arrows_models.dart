@@ -90,15 +90,25 @@ class SnakeLevelConfig {
 }
 
 SnakeLevelConfig snakeConfigForLevel(int level) {
-  // Portrait board: width (cols) grows with level, height (rows) ~1.45x wider
-  // to match a phone screen. Reaches ~10x15 then ~14x20 at high levels.
+  // Portrait board: width (cols) grows with level, height (rows) ~1.45x wider to
+  // match a phone screen.
   //
-  // 14x20 is a deliberate ceiling, not a placeholder: it is already only ~23dp
-  // per cell on a phone, so growing further shrinks the arrowheads past what old
-  // eyes can read and forces zoom/pan on an audience we don't want panning. Past
-  // this point difficulty has to come from the arrows and from the difficulty
-  // gate in SnakeBoard.generate, never from more cells.
-  final cols = (6 + (level - 1) ~/ 2).clamp(6, 14);
+  // The old 14-column ceiling was set by legibility — ~23dp per cell is the floor
+  // for this audience, and a wider board goes under it. The screen now offers
+  // zoom and pan, so the cap moved to 24 (24x35, 3x the old area, ~70 arrows).
+  // Two things keep it at 24 rather than higher:
+  //
+  //  - **Generation cost**, which scales with area and is superlinear because the
+  //    retry ceiling grows with it too: 24x35 lands a few hundred ms, 26x38 took
+  //    ~1.8s and 28x41 ~9.6s. A board nobody waits for is worth more than two
+  //    extra columns.
+  //  - **Zoom is an aid, not a requirement.** Every arrow must still be tappable
+  //    at fit-to-screen, which gets thin much past this.
+  //
+  // Growth is slower than the old one-column-per-two-levels so the jump to a very
+  // large board is gradual rather than a shock at level 30.
+  final cols = (6 + (level - 1) ~/ 2).clamp(6, 20) +
+      (level > 30 ? ((level - 30) ~/ 4).clamp(0, 4) : 0);
   final rows = (cols * 1.45).round();
   final fill = (0.6 + level * 0.04).clamp(0.6, 0.92);
   // Longer snakes tangle more without needing a bigger grid, and raising the

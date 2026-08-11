@@ -2681,6 +2681,188 @@ void main() {
     expect(got, WinAction.home);
   });
 
+  test('Arrow Maze boards grow past the old 14-column ceiling', () {
+    // The cap was 14 purely because a wider board is unreadable without zoom.
+    // Zoom exists now, so late boards are ~3x the old area.
+    expect(snakeConfigForLevel(17).cols, 14, reason: 'mid-game unchanged');
+    expect(snakeConfigForLevel(60).cols, greaterThan(20),
+        reason: 'late boards should be much wider now');
+    expect(snakeConfigForLevel(60).cols, lessThanOrEqualTo(24),
+        reason: 'past 24 columns generation gets too slow to wait for');
+    // Monotonic: a later level never hands back a smaller board.
+    for (var l = 2; l <= 80; l++) {
+      expect(snakeConfigForLevel(l).cols,
+          greaterThanOrEqualTo(snakeConfigForLevel(l - 1).cols),
+          reason: 'level $l shrank the board');
+    }
+    // Early levels are untouched, so the tuned early curve still holds.
+    for (var l = 1; l <= 17; l++) {
+      expect(snakeConfigForLevel(l).cols, lessThanOrEqualTo(14));
+    }
+  });
+
+  testWidgets('Arrow Maze: zoom controls appear only on boards that need them',
+      (tester) async {
+    tester.view.physicalSize = const Size(1080, 2280);
+    tester.view.devicePixelRatio = 2.625;
+    addTearDown(tester.view.reset);
+
+    // A narrow early board reads fine unaided, and the control row would only
+    // steal vertical space from the board.
+    await tester.pumpWidget(localizedApp(const SnakeArrowsScreen(startLevel: 1)));
+    await tester.pumpAndSettle();
+    expect(snakeConfigForLevel(1).cols, lessThanOrEqualTo(14));
+    expect(find.byKey(const ValueKey('arrow_maze_zoom_in')), findsNothing);
+
+    // A wide late board gets them.
+    await tester.pumpWidget(const SizedBox());
+    await tester.pumpAndSettle();
+    await tester.pumpWidget(localizedApp(const SnakeArrowsScreen(startLevel: 60)));
+    await tester.pumpAndSettle();
+    expect(snakeConfigForLevel(60).cols, greaterThan(14));
+    expect(find.byKey(const ValueKey('arrow_maze_zoom_in')).hitTestable(),
+        findsOneWidget);
+    expect(find.byKey(const ValueKey('arrow_maze_zoom_out')), findsOneWidget);
+    expect(find.byKey(const ValueKey('arrow_maze_zoom_fit')), findsOneWidget);
+  });
+
+  testWidgets('Arrow Maze: the whole board is visible and tappable at rest',
+      (tester) async {
+    // Zoom is an aid, never a requirement: at the default scale every arrow must
+    // already be reachable, or a player who never zooms is stuck.
+    tester.view.physicalSize = const Size(1080, 2280);
+    tester.view.devicePixelRatio = 2.625;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(localizedApp(const SnakeArrowsScreen(startLevel: 60)));
+    await tester.pumpAndSettle();
+
+    final viewer = find.byKey(const ValueKey('arrow_maze_viewer'));
+    final board = find.byKey(const ValueKey('arrow_maze_board'));
+    final viewerRect = tester.getRect(viewer);
+    final boardRect = tester.getRect(board);
+
+    // The painted board fits inside the viewport — nothing is clipped away at
+    // rest, so no arrow is unreachable without panning.
+    expect(boardRect.width, lessThanOrEqualTo(viewerRect.width + 0.5));
+    expect(boardRect.height, lessThanOrEqualTo(viewerRect.height + 0.5));
+
+    // Zooming out is already at its limit, so its button is disabled; zooming in
+    // is available.
+    final outButton = tester.widget<IconButton>(
+        find.byKey(const ValueKey('arrow_maze_zoom_out')));
+    expect(outButton.onPressed, isNull, reason: 'cannot zoom out below fit');
+    final inButton = tester.widget<IconButton>(
+        find.byKey(const ValueKey('arrow_maze_zoom_in')));
+    expect(inButton.onPressed, isNotNull);
+  });
+
+  testWidgets('Arrow Maze: taps still hit the right cell while zoomed in',
+      (tester) async {
+    // The real hazard of adding zoom: the InteractiveViewer sits *outside* the
+    // GestureDetector so the detector keeps receiving board-space coordinates. Get
+    // that backwards and every tap mis-targets once zoomed, while everything else
+    // in the suite still passes.
+    //
+    // Two choices make this test actually sensitive. The screen position of a cell
+    // is derived from `getRect` of the painted board, which already reflects the
+    // transform — deriving it from the zoom matrix instead would just check the
+    // maths against itself. And the assertion is on *which arrow escaped*, read
+    // back from the autosave: an earlier version asserted "a heart was lost",
+    // which passed even with the transform deliberately applied twice, because on
+    // a 93%-full board a mis-aimed tap usually hits some other blocked arrow.
+    tester.view.physicalSize = const Size(1080, 2280);
+    tester.view.devicePixelRatio = 2.625;
+    addTearDown(tester.view.reset);
+
+    const level = 60;
+    await tester
+        .pumpWidget(localizedApp(const SnakeArrowsScreen(startLevel: level)));
+    await tester.pumpAndSettle();
+
+    final board = SnakeBoard.generate(level); // same seed as the screen
+    // A clear arrow near the middle of the board, so it stays on screen once
+    // zoomed about the centre.
+    double distanceToCentre(SnakeArrow a) {
+      final cell = a.cells.first;
+      final dr = cell.row - board.rows / 2;
+      final dc = cell.col - board.cols / 2;
+      return dr * dr + dc * dc;
+    }
+
+    final clear = board.arrows.where(board.isPathClear).toList()
+      ..sort((a, b) => distanceToCentre(a).compareTo(distanceToCentre(b)));
+    expect(clear, isNotEmpty, reason: 'level $level should open with a legal move');
+    final target = clear.first;
+    final targetCell = target.cells.first;
+
+    await tester.tap(find.byKey(const ValueKey('arrow_maze_zoom_in')));
+    await tester.pumpAndSettle();
+
+    final rect = tester.getRect(find.byKey(const ValueKey('arrow_maze_board')));
+    final viewer =
+        tester.getRect(find.byKey(const ValueKey('arrow_maze_viewer')));
+    expect(rect.width, greaterThan(viewer.width),
+        reason: 'the board should be magnified beyond the viewport');
+
+    final cellW = rect.width / board.cols;
+    final cellH = rect.height / board.rows;
+    final point = rect.topLeft +
+        Offset((targetCell.col + 0.5) * cellW, (targetCell.row + 0.5) * cellH);
+    expect(viewer.contains(point), isTrue,
+        reason: 'the chosen arrow must still be on screen while zoomed');
+
+    await tester.tapAt(point);
+    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 700)); // the slide out
+
+    // Read back which arrow actually left.
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+    await tester.pump();
+    final saved = ProgressStore.instance.loadBoard('arrow_maze', level);
+    expect(saved, isNotNull, reason: 'an arrow should have escaped');
+    expect(saved!['escaped'], contains(target.id),
+        reason: 'the tap landed on a different arrow than the one aimed at');
+    expect(find.byIcon(Icons.favorite_border_rounded), findsNothing,
+        reason: 'a clear arrow costs no heart, so no other arrow was hit');
+  });
+
+  testWidgets('Arrow Maze: fit restores the whole board, and a new level resets',
+      (tester) async {
+    tester.view.physicalSize = const Size(1080, 2280);
+    tester.view.devicePixelRatio = 2.625;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(localizedApp(const SnakeArrowsScreen(startLevel: 60)));
+    await tester.pumpAndSettle();
+
+    final boardAtRest =
+        tester.getRect(find.byKey(const ValueKey('arrow_maze_board')));
+
+    await tester.tap(find.byKey(const ValueKey('arrow_maze_zoom_in')));
+    await tester.pumpAndSettle();
+    final zoomed =
+        tester.getRect(find.byKey(const ValueKey('arrow_maze_board')));
+    expect(zoomed.width, greaterThan(boardAtRest.width + 1),
+        reason: 'zoom in should actually magnify the board');
+
+    await tester.tap(find.byKey(const ValueKey('arrow_maze_zoom_fit')));
+    await tester.pumpAndSettle();
+    final refit = tester.getRect(find.byKey(const ValueKey('arrow_maze_board')));
+    expect(refit.width, closeTo(boardAtRest.width, 0.5),
+        reason: 'fit should return to showing the whole board');
+
+    // Restarting must also drop back to fit — landing in a corner of a fresh
+    // board would be disorienting.
+    await tester.tap(find.byKey(const ValueKey('arrow_maze_zoom_in')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byIcon(Icons.refresh_rounded));
+    await tester.pumpAndSettle();
+    final afterRestart =
+        tester.getRect(find.byKey(const ValueKey('arrow_maze_board')));
+    expect(afterRestart.width, closeTo(boardAtRest.width, 0.5),
+        reason: 'a new board should start fit to the screen');
+  });
 }
 
 /// Counts solutions of a nonogram by row-wise backtracking, stopping at [limit].

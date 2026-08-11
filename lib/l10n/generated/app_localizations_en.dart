@@ -337,6 +337,19 @@ class AppLocalizationsEn extends AppLocalizations {
       'Tap a long arrow to send it off, head-first. The path ahead of its head must be clear.';
 
   @override
+  String get arrowMazeHintZoom =>
+      'Tap a long arrow to send it off, head-first. Pinch or use the buttons to zoom in for a closer look.';
+
+  @override
+  String get zoomIn => 'Zoom in';
+
+  @override
+  String get zoomOut => 'Zoom out';
+
+  @override
+  String get zoomFit => 'Fit the whole board';
+
+  @override
   String get numberCrossHint =>
       'Tap a number then a cell, or drag it in. Every across and down equation must be correct.';
 

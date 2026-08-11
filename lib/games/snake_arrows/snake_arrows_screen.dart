@@ -50,6 +50,21 @@ class _SnakeArrowsScreenState extends State<SnakeArrowsScreen>
   late final AnimationController _escapeCtrl;
   late final AnimationController _shakeCtrl;
 
+  /// Zoom/pan for the board.
+  ///
+  /// Boards past ~14 columns cannot be read at a phone's width — 26 columns is
+  /// about 13dp per cell against a ~23dp floor — so the big late boards need this
+  /// to exist at all. It is deliberately an *aid*, never a requirement: the whole
+  /// board is always visible at the default scale of 1, and every arrow is
+  /// tappable there. See docs/plans/arrow-maze-depth.md.
+  late final TransformationController _zoom;
+
+  /// The viewport the board is laid out into, remembered so the zoom buttons can
+  /// scale about its centre.
+  Size _viewport = Size.zero;
+
+  static const _maxZoom = 4.0;
+
   void _tick() {
     if (mounted) setState(() {});
   }
@@ -58,6 +73,9 @@ class _SnakeArrowsScreenState extends State<SnakeArrowsScreen>
   void initState() {
     super.initState();
     startAutosave();
+    // Created here rather than lazily, same rule as the animation controllers:
+    // a lazy field can end up constructed during dispose().
+    _zoom = TransformationController();
     // Create eagerly in initState so dispose() never lazily constructs a
     // controller (which would do a TickerMode ancestor lookup) during teardown.
     // animationBehavior: preserve — see the note in lib/theme/motion.dart. When
@@ -94,6 +112,7 @@ class _SnakeArrowsScreenState extends State<SnakeArrowsScreen>
   void dispose() {
     saveBoardNow();
     stopAutosave();
+    _zoom.dispose();
     _escapeCtrl.dispose();
     _shakeCtrl.dispose();
     super.dispose();
@@ -112,6 +131,9 @@ class _SnakeArrowsScreenState extends State<SnakeArrowsScreen>
       final h = saved['hearts'];
       if (h is int && h > 0 && h <= hearts) hearts = h;
     }
+    // A new board always starts fit to the screen; carrying a previous level's
+    // pan over would drop the player into a corner of an unfamiliar board.
+    _zoom.value = Matrix4.identity();
     setState(() {
       _level = level;
       _board = board;
@@ -284,10 +306,13 @@ class _SnakeArrowsScreenState extends State<SnakeArrowsScreen>
                 child: Center(child: _buildBoard()),
               ),
             ),
+            if (_board.cols > 14) _buildZoomBar(),
             Padding(
               padding: const EdgeInsets.fromLTRB(24, 0, 24, 20),
               child: Text(
-                AppLocalizations.of(context).arrowMazeHint,
+                _board.cols > 14
+                    ? AppLocalizations.of(context).arrowMazeHintZoom
+                    : AppLocalizations.of(context).arrowMazeHint,
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 15,
@@ -320,6 +345,30 @@ class _SnakeArrowsScreenState extends State<SnakeArrowsScreen>
     );
   }
 
+  /// Current zoom factor; 1 means the whole board is on screen.
+  double get _scale => _zoom.value.getMaxScaleOnAxis();
+
+  /// Scales about the centre of the viewport, so whatever the player is looking
+  /// at stays put. Buttons exist because pinching is genuinely awkward for this
+  /// audience — pinch still works, it is just not the only way in.
+  void _setZoom(double target) {
+    if (_viewport.isEmpty) return;
+    final s = target.clamp(1.0, _maxZoom);
+    final centre = Offset(_viewport.width / 2, _viewport.height / 2);
+    final inverse = Matrix4.tryInvert(_zoom.value);
+    if (inverse == null) return;
+    // The board point currently under the viewport centre; it must land there
+    // again at the new scale, which fixes the translation: t = centre - s*p.
+    final p = MatrixUtils.transformPoint(inverse, centre);
+    setState(() {
+      _zoom.value = Matrix4.identity()
+        ..translateByDouble(centre.dx - s * p.dx, centre.dy - s * p.dy, 0, 1)
+        ..scaleByDouble(s, s, 1, 1);
+    });
+  }
+
+  void _resetZoom() => setState(() => _zoom.value = Matrix4.identity());
+
   Widget _buildBoard() {
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -331,32 +380,81 @@ class _SnakeArrowsScreenState extends State<SnakeArrowsScreen>
         // the escape at a constant speed. Only the layout knows the cell size.
         _cell = cell;
         final boardSize = Size(cell * _board.cols, cell * _board.rows);
+        _viewport = boardSize;
 
-        return GestureDetector(
-          onTapUp: (details) {
-            final c = (details.localPosition.dx / cell).floor();
-            final r = (details.localPosition.dy / cell).floor();
-            if (r >= 0 && r < _board.rows && c >= 0 && c < _board.cols) {
-              _handleTapCell(r, c);
-            }
-          },
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(18),
-            child: CustomPaint(
-              key: const ValueKey('arrow_maze_board'),
-              size: boardSize,
-              painter: _SnakePainter(
-                board: _board,
-                cell: cell,
-                escapingId: _escapingId,
-                escapeT: _escapeCtrl.value,
-                blockedId: _blockedId,
-                shakeT: _shakeCtrl.isAnimating ? _shakeCtrl.value : null,
+        // The InteractiveViewer sits *outside* the GestureDetector on purpose.
+        // Hit testing passes through the transform, so the detector below always
+        // receives coordinates in board space and the cell maths needs no
+        // knowledge of the zoom at all. Putting the detector outside instead
+        // would hand it screen coordinates and silently mis-target every tap
+        // once zoomed.
+        return InteractiveViewer(
+          key: const ValueKey('arrow_maze_viewer'),
+          transformationController: _zoom,
+          minScale: 1.0,
+          maxScale: _maxZoom,
+          // Keeps the board inside the viewport, so it can never be panned off
+          // screen and lost.
+          boundaryMargin: EdgeInsets.zero,
+          child: GestureDetector(
+            onTapUp: (details) {
+              final c = (details.localPosition.dx / cell).floor();
+              final r = (details.localPosition.dy / cell).floor();
+              if (r >= 0 && r < _board.rows && c >= 0 && c < _board.cols) {
+                _handleTapCell(r, c);
+              }
+            },
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(18),
+              child: CustomPaint(
+                key: const ValueKey('arrow_maze_board'),
+                size: boardSize,
+                painter: _SnakePainter(
+                  board: _board,
+                  cell: cell,
+                  escapingId: _escapingId,
+                  escapeT: _escapeCtrl.value,
+                  blockedId: _blockedId,
+                  shakeT: _shakeCtrl.isAnimating ? _shakeCtrl.value : null,
+                ),
               ),
             ),
           ),
         );
       },
+    );
+  }
+
+  /// Zoom controls, shown only on boards too wide to read unaided.
+  ///
+  /// Hidden on the narrow early boards because they do not need it and the row
+  /// would cost vertical space the board can use instead — the existing levels
+  /// look exactly as they did.
+  Widget _buildZoomBar() {
+    final t = AppLocalizations.of(context);
+    Widget button(String key, IconData icon, String tooltip, VoidCallback? tap) {
+      return IconButton(
+        key: ValueKey(key),
+        onPressed: tap,
+        icon: Icon(icon),
+        iconSize: 28,
+        color: _accent,
+        tooltip: tooltip,
+        // The platform minimum, and this audience needs it.
+        constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+      );
+    }
+
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        button('arrow_maze_zoom_out', Icons.zoom_out_rounded, t.zoomOut,
+            _scale > 1.0 ? () => _setZoom(_scale / 1.5) : null),
+        button('arrow_maze_zoom_fit', Icons.fit_screen_rounded, t.zoomFit,
+            _scale > 1.0 ? _resetZoom : null),
+        button('arrow_maze_zoom_in', Icons.zoom_in_rounded, t.zoomIn,
+            _scale < _maxZoom ? () => _setZoom(_scale * 1.5) : null),
+      ],
     );
   }
 }

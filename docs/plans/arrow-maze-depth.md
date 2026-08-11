@@ -67,19 +67,52 @@ today's area with 97 arrows, fills to 92% with only 4% of arrows ready at the st
 to fix, and the ray tiebreak narrows the candidate set enough to cost level 1 two points
 of fill — enough to trip the 0.65 fill floor in the tests. Gated on `cfg.cols >= 9`.
 
-### What is still in the way
+### Zoom shipped, and the cap moved to 24
 
-- **Generation time at the very top.** 9.6s at 28×41 with the full 768-candidate pool.
-  An area-scaled pool is already in place, and 26×38 lands at 212ms with 92% fill and
-  96 arrows, so ~26 columns is affordable today. Past that needs a smaller pool — each
-  candidate costs ~12ms at 28×41, so roughly 32 candidates for a 400ms budget, which is
-  cheap to try now that boards land near target without needing a wide pool.
-- **Legibility, i.e. zoom.** This is now the *only* reason the cap is still 14. At 26
-  columns a phone gives ~13dp per cell, well under the ~23dp floor. **Do not raise the
-  board cap until zoom/pan exists**, or the game becomes unreadable.
+`InteractiveViewer` around the board, plus explicit zoom in / out / fit buttons — pinch
+is genuinely awkward for this audience, so it must not be the only way in. The buttons
+appear only when the board is wider than 14 columns; the narrow early boards look
+exactly as they did, and would only lose vertical space to a control row they do not
+need.
 
-Order of work: zoom, then raise the cap, then re-tune the branching targets — the
-generator can now reach lower branching, so the current targets are no longer the limit.
+**The nesting is load-bearing.** The `InteractiveViewer` wraps the `GestureDetector`,
+not the other way round. Hit testing passes down through the transform, so the detector
+always receives board-space coordinates and the cell arithmetic needs no knowledge of
+the zoom. Inverted, every tap mis-targets the moment the player zooms — and nothing
+else in the suite notices.
+
+Zoom is an **aid, never a requirement**: scale 1 shows the whole board with every arrow
+tappable, `boundaryMargin` is zero so the board can never be panned off screen and
+lost, and loading or restarting a level always returns to fit.
+
+The board cap is now **24 columns (24×35, 3× the old area, ~70 arrows)**, up from 14.
+Not higher because generation cost is superlinear in area — the retry ceiling grows with
+it too — so 24×35 lands ~50–240ms while 26×38 took ~1.8s and 28×41 ~9.6s. A board
+nobody waits for is worth more than two extra columns. Growth is gradual past level 30
+rather than a jump.
+
+Curve at the new sizes, all inside tolerance:
+
+| level | board | arrows | fill | hole | clear@start | vs target | time |
+|---|---|---|---|---|---|---|---|
+| 17 | 14×20 | 29 | 92% | 2% | 10% | −0.08 | 11ms |
+| 25 | 18×26 | 48 | 90% | 6% | 8% | +0.05 | 10ms |
+| 40 | 22×32 | 67 | 88% | 4% | 6% | +0.12 | 240ms |
+| 60 | 24×35 | 70 | 93% | 2% | **4%** | +0.07 | 50ms |
+
+`clear@start` falling from 22% to 4% is the difficulty win: almost nothing is ready to
+fire at the start, so every board opens with a search rather than a free move.
+
+### What is still open
+
+- **Re-tune the branching targets.** The generator can now reach lower branching than
+  the current targets ask for, so the curve is not using all the difficulty available.
+- **Past 24 columns** needs a smaller candidate pool (~12ms per candidate at 28×41, so
+  roughly 32 candidates for a 400ms budget). Cheap to try, since boards now land near
+  target without needing a wide pool.
+- **Tap targets at fit-to-screen.** 24 columns is ~15dp per cell on a 360dp phone.
+  Tapping any cell of an arrow selects it, so the effective target is the whole arrow
+  rather than one cell, but this is the axis to watch if the cap ever rises again.
 
 ## Axis 2 — new mechanics (from a tester's own description)
 
@@ -128,8 +161,8 @@ them for *ideas* is fine; copying code is not.
 
 ✅ Retune shipped (plateau 35 → 63).
 ✅ Bonus arrows shipped — the first difficulty axis here that isn't a generator knob.
-✅ Large-board packing fixed (interior-first head ordering). Ships at 14×20, where it
-already improves fill, holes, opening moves and speed; verified to hold at 28×41.
-📝 **Next: zoom/pan.** It is the only thing keeping the cap at 14 now.
-📝 Then raise the cap (~26 columns is affordable today) and re-tune the targets.
+✅ Large-board packing fixed (interior-first head ordering).
+✅ Zoom/pan shipped, and the board cap raised 14 → 24 (3× the area, ~70 arrows).
+📝 Re-tune the branching targets — the generator can now go lower than they ask for.
+📝 Past 24 columns needs a smaller candidate pool to stay inside the time budget.
 💡 Still open: **eagle eye**, and making the bonus mechanic carry more weight.

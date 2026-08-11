@@ -137,7 +137,25 @@ A pre-commit hook (`.githooks/pre-commit`, enabled via `core.hooksPath`) runs
   it — 28×41 now fills to 92% with 97 arrows, and 14×20 improved too (fill 87→94%,
   opening moves 22→13%, generation 393ms→1ms). Boards under 9 columns must keep
   emptiness-only ordering; the ray tiebreak costs level 1 two points of fill there.
-  Board size is still capped at 14 purely by legibility — raising it needs zoom first.
+  The cap then moved 14 → 24 once zoom shipped (3× the area, ~70 arrows, `clear@start`
+  22% → 4%). Not higher because generation cost is superlinear in area: 24×35 is
+  ~50–240ms, 26×38 ~1.8s, 28×41 ~9.6s.
+- **A zoomable board must wrap its gesture detector, not the reverse.** Arrow Maze puts
+  `InteractiveViewer` *outside* the `GestureDetector`, so hit testing passes down through
+  the transform and the detector still receives board-space coordinates — the cell
+  arithmetic needs no knowledge of the zoom. Inverted, every tap mis-targets as soon as
+  the player zooms. Zoom is an aid and never a requirement: scale 1 shows the whole
+  board with every arrow tappable, `boundaryMargin` is zero so it cannot be panned away,
+  and loading or restarting returns to fit. Explicit +/−/fit buttons exist because
+  pinch is awkward for this audience, and they are hidden on boards narrow enough not to
+  need them.
+- **Testing a transform needs an observable outside the transform.** The zoom tap test
+  first asserted "a heart was lost", which passed even with the transform deliberately
+  applied twice — on a 93%-full board a mis-aimed tap usually hits *some* other blocked
+  arrow. It now derives the on-screen cell size from `getRect` of the painted board
+  (which already reflects the transform, so it is not the matrix maths checking itself)
+  and asserts *which* arrow escaped by reading the autosave back. Verified by breaking
+  it and watching it fail.
 - **Fill the board by placing bodies well, not by back-filling.** Snake bodies
   grow into the *most constrained* free cell (Warnsdorff-style) so they consume
   dead ends instead of stranding pockets, and heads are placed in the *emptiest*

@@ -96,6 +96,10 @@
 
   "arrowEscapeHint": "Trykk på en pil for å sende den ut av brettet. Den må ha fri bane til kanten.",
   "arrowMazeHint": "Trykk på en lang pil for å sende den ut, hodet først. Banen foran hodet må være fri.",
+  "arrowMazeHintZoom": "Trykk på en lang pil for å sende den ut, hodet først. Knip eller bruk knappene for å zoome inn.",
+  "zoomIn": "Zoom inn",
+  "zoomOut": "Zoom ut",
+  "zoomFit": "Vis hele brettet",
   "numberCrossHint": "Trykk på et tall og så en rute, eller dra det inn. Alle regnestykkene må stemme, både bortover og nedover.",
   "memoryMatchHint": "Trykk på to kort for å finne et par.",
   "pairsFound": "Par funnet: {matched} / {total}",
