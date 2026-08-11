@@ -2967,6 +2967,58 @@ void main() {
     // No heart was spent: a cascade is a reward, not a mistake.
     expect(find.byIcon(Icons.favorite_border_rounded), findsNothing);
   });
+  testWidgets('Arrow Maze: a two-finger pinch zooms the board', (tester) async {
+    // Asked because pinch appeared not to work on the emulator. The Android
+    // emulator needs Ctrl (Cmd on macOS) held while dragging to simulate a second
+    // finger — the little circles that appear are its virtual fingertips — so a
+    // real two-pointer gesture is worth asserting in code, independently of
+    // whatever the emulator is doing with the mouse.
+    tester.view.physicalSize = const Size(1080, 2280);
+    tester.view.devicePixelRatio = 2.625;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(localizedApp(const SnakeArrowsScreen(startLevel: 60)));
+    await tester.pumpAndSettle();
+
+    Rect boardRect() =>
+        tester.getRect(find.byKey(const ValueKey('arrow_maze_board')));
+    final before = boardRect();
+
+    // Two pointers moving apart: a pinch-out.
+    final centre =
+        tester.getCenter(find.byKey(const ValueKey('arrow_maze_viewer')));
+    final finger1 = await tester.startGesture(centre - const Offset(24, 0));
+    final finger2 = await tester.startGesture(centre + const Offset(24, 0));
+    await tester.pump();
+    for (var i = 0; i < 5; i++) {
+      await finger1.moveBy(const Offset(-14, 0));
+      await finger2.moveBy(const Offset(14, 0));
+      await tester.pump();
+    }
+    await finger1.up();
+    await finger2.up();
+    await tester.pumpAndSettle();
+
+    final after = boardRect();
+    expect(after.width, greaterThan(before.width + 1),
+        reason: 'pinching out should magnify the board');
+
+    // And pinching back in returns toward fit, so the gesture works both ways.
+    final f3 = await tester.startGesture(centre - const Offset(90, 0));
+    final f4 = await tester.startGesture(centre + const Offset(90, 0));
+    await tester.pump();
+    for (var i = 0; i < 6; i++) {
+      await f3.moveBy(const Offset(14, 0));
+      await f4.moveBy(const Offset(-14, 0));
+      await tester.pump();
+    }
+    await f3.up();
+    await f4.up();
+    await tester.pumpAndSettle();
+    expect(boardRect().width, lessThan(after.width),
+        reason: 'pinching in should shrink it again');
+  });
+
 }
 
 /// Counts solutions of a nonogram by row-wise backtracking, stopping at [limit].

@@ -682,7 +682,6 @@ class SnakeBoard {
         // enclosed, every ray out of it is blocked, so no further snake can ever
         // be placed inside it — that is how a single hole reached 23% of the grid
         // while the rest of the board was dense.
-        // EXPERIMENT: longest ray first, emptiest neighbourhood as tiebreak.
         int rayLen(List<int> h) {
           final d = Dir.values[h[2]];
           return switch (d) {

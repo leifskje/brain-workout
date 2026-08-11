@@ -107,9 +107,19 @@ fire at the start, so every board opens with a search rather than a free move.
 
 - **Re-tune the branching targets.** The generator can now reach lower branching than
   the current targets ask for, so the curve is not using all the difficulty available.
-- **Past 24 columns** needs a smaller candidate pool (~12ms per candidate at 28×41, so
-  roughly 32 candidates for a 400ms budget). Cheap to try, since boards now land near
-  target without needing a wide pool.
+- **Past 24 columns is blocked on generator *speed*, not on pool size.** Measured: at
+  26×38 with the pool cut to 40 candidates, time comes down to 313ms — but fill falls
+  to 79% with a 14% hole, against 93%/2% at 24×35. A wide pool is what buys a
+  good-looking board, so cutting it just trades one flaw for another. Speed or fill,
+  not both.
+
+  The cost per candidate is what has to come down. It jumps ~40× for an 18% area
+  increase (0.2ms at 840 cells, ~8ms at 988), which points at the per-attempt head
+  scan: choosing a head sweeps *every* candidate head, so a placement pass is roughly
+  O(area²) with `maxAttempts = cells × 20` attempts on top. Making head selection
+  incremental — a bucketed or lazily-invalidated candidate list rather than a full
+  rescan each attempt — is the piece of work that would unlock 28×41 and beyond, and
+  it is worth doing before touching the cap again.
 - **Tap targets at fit-to-screen.** 24 columns is ~15dp per cell on a 360dp phone.
   Tapping any cell of an arrow selects it, so the effective target is the whole arrow
   rather than one cell, but this is the axis to watch if the cap ever rises again.
@@ -177,5 +187,6 @@ them for *ideas* is fine; copying code is not.
 ✅ Large-board packing fixed (interior-first head ordering).
 ✅ Zoom/pan shipped, and the board cap raised 14 → 24 (3× the area, ~70 arrows).
 📝 Re-tune the branching targets — the generator can now go lower than they ask for.
-📝 Past 24 columns needs a smaller candidate pool to stay inside the time budget.
+📝 Past 24 columns needs the per-attempt head scan made incremental; a smaller pool
+   alone trades fill for speed (measured: 79% fill with a 14% hole at 26×38).
 💡 Still open: **eagle eye**, and making the bonus mechanic carry more weight.
