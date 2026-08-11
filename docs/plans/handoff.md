@@ -4,7 +4,8 @@ Written to let a fresh agent pick up without re-deriving anything. Read `CLAUDE.
 first; it holds the conventions and the hard-won lessons. This file is *where things
 stand*, not how to work here.
 
-Last updated after the Arrow Maze depth work (Aug 2026).
+Last updated after publishing **1.1.0 (versionCode 3)** to the internal track, Aug 2026.
+`main` is that release; the next one needs another `version:` bump.
 
 ## Where the code is
 
@@ -75,6 +76,12 @@ form written for programmers. Options, cheapest first:
    sheet rather than an inbox, and it survives a tester who cannot compose email.
 3. **Play Console tester feedback** — free and already there, but only reachable through
    the Play Store listing and easy for a tester to never find.
+
+Related, and the reason feedback may not arrive at all: **testers are not reliably on
+the current build.** Play defers auto-updates for apps opened rarely, and the app has no
+update prompt of its own, so a tester can play an old version for weeks. An in-app update
+prompt is in the backlog; until then the tester email has to say "Play Store → search the
+app → Update".
 
 Recommendation: (1) plus a note in the how-to-play sheet. Deliberately *not* an
 in-app crash/analytics SDK — nothing about this app sends data anywhere, and that is a

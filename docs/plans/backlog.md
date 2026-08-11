@@ -36,6 +36,17 @@ We deliberately spread games across domains for a rounded "workout," and want
   the alternative if replies should land in a sheet. Deliberately *not* an analytics or
   crash SDK — nothing in this app sends data anywhere and that is a property worth
   keeping. See [handoff.md](handoff.md).
+- 💡 **In-app update prompt** (`in_app_update`, wrapping Play Core). Play still
+  auto-updates in the background, but it *defers* updates for apps the user rarely
+  opens, and there is no prompt of our own — so a tester can sit on an old build for
+  weeks while we wait for feedback on a new one. The "needs an update" dialog other apps
+  show on launch is this API, not something Play does for free.
+
+  Use the **immediate** flow rather than flexible: a dismissible banner is exactly what
+  this audience dismisses forever. Awkward test loop, worth knowing before starting — the
+  API only reports an update for a build actually installed *from Play*, so verifying it
+  end to end needs a throwaway version bump, not `flutter run`. Interim workaround is a
+  line in the tester email: Play Store → search the app → **Update**.
 - 💡 Daily reminder notification (local notifications)
 - ✅ Personal records ("New personal best!") — local only, per game *and* per
   level. Wired for 2048 (score), Memory Match (moves), Mini Sudoku and Picture
