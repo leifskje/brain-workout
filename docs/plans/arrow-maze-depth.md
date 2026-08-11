@@ -114,12 +114,47 @@ fire at the start, so every board opens with a search rather than a free move.
   not both.
 
   The cost per candidate is what has to come down. It jumps ~40× for an 18% area
-  increase (0.2ms at 840 cells, ~8ms at 988), which points at the per-attempt head
-  scan: choosing a head sweeps *every* candidate head, so a placement pass is roughly
-  O(area²) with `maxAttempts = cells × 20` attempts on top. Making head selection
-  incremental — a bucketed or lazily-invalidated candidate list rather than a full
-  rescan each attempt — is the piece of work that would unlock 28×41 and beyond, and
-  it is worth doing before touching the cap again.
+  increase (0.2ms at 840 cells, ~8ms at 988).
+
+  **The obvious suspect is not the culprit — tried and reverted.** Head selection
+  rescans every candidate head on each of up to `cells × 20` attempts, which looks
+  like an O(area²) pass. Hoisting that out (rank all heads once per commit, then walk
+  a cursor, with a random low-bit tiebreak so the ordering stays distributionally
+  identical) made it **slower**: level 60 went 50ms → 866ms, level 42 156ms → 660ms,
+  with quality unchanged. The per-commit sort costs more than every per-attempt scan
+  it saves, because a pass commits ~70 snakes and each sort is O(h log h) over
+  thousands of heads.
+
+  So the cliff is somewhere else, and the next attempt should **profile rather than
+  infer** — Dart DevTools' CPU profiler on a single `SnakeBoard.generate(60)` versus
+  `generate(43)` would settle in minutes what an afternoon of reasoning did not.
+  Candidates still worth suspecting: `enumerateHeads` rebuilding the whole list per
+  commit, the `Set<Cell>` allocations in body growth (`Cell` has no cheap hash), and
+  `refreshTables` being O(area) per commit.
+
+### Prior art: there isn't any for this, and that is itself informative
+
+Searched properly. The literature splits into two piles, neither of which is what we
+need:
+
+- **Solvers** for the adjacent genres — Rush Hour, Unblock Me, Parking Jam — which are
+  BFS/DFS over a move tree. They answer "is this instance solvable and how hard", not
+  "construct a large instance".
+- **Constraint-based PCG** — ASP/SAT formulations of level generation (Smith & Mateas
+  and successors). These *search* a space of boards under declared constraints.
+
+That second pile is the tempting one and it is the wrong tool here. A solver's cost
+grows with the space it searches, and our constraint is global (a removal order must
+exist for the whole board). Reverse-solve construction never searches at all: it emits
+a valid board in one pass, and solvability is true by construction. **For "as big as
+possible", construction beats search**, so the algorithm class we already have is
+right. The remaining work is constant factors, not a different paradigm.
+
+Worth knowing if the cap ever needs to jump by a lot rather than a little:
+**divide-and-conquer** would scale linearly — generate independent sub-boards and
+stitch them, since an arrow exiting left only interacts with cells to its left. That
+trades some global difficulty coupling for near-unlimited size, and is the one
+structural idea that would beat tuning constant factors.
 - **Tap targets at fit-to-screen.** 24 columns is ~15dp per cell on a 360dp phone.
   Tapping any cell of an arrow selects it, so the effective target is the whole arrow
   rather than one cell, but this is the axis to watch if the cap ever rises again.
