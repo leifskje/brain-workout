@@ -256,6 +256,20 @@ better value than axis 1 if they work.
   in front of the player; the tester's verdict was "a bit too much — there appears
   to be multiple colours". Clearing the golden arrow last still wastes it.
 
+  **The freed arrows are a legal chain, not a gift.** The first version picked any
+  stuck arrows and slid them out through their neighbours — the reward broke the one
+  rule the game spends every level teaching, and the owner noticed. Now the golden
+  arrow's chain is built so each arrow has a genuinely clear path *when its own turn
+  comes*: the first is clear once the golden arrow leaves, the second once the first
+  leaves, and so on.
+
+  A chain rather than a set, because a set does not exist often enough. Requiring one
+  arrow to single-handedly unblock two others found nothing on most boards — at ~90%
+  fill, most exit rays cross more than one arrow — and the bonus vanished entirely.
+  Measured over levels 12–60: chains of 2–4 (usually 3) on 10 of 11 boards, and the
+  one miss simply gets no bonus. Finding them needs a generous candidate scan (96,
+  i.e. effectively every blocked arrow); at 24 a third of boards came up empty.
+
   The freed arrows **fly out one at a time**, reusing the ordinary escape
   animation, so a bonus reads as a chain reaction rather than arrows blinking out
   of existence — the owner asked for this after seeing them vanish. Each one picks

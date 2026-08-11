@@ -222,7 +222,7 @@ class AppLocalizationsNb extends AppLocalizations {
 
   @override
   String get helpArrowMaze =>
-      'De lange pilene glir ut av brettet med hodet først. Trykk på en for å sende den ut — banen foran hodet må være fri. Tøm hele brettet for å vinne. Fra nivå 12 er én pil gyllen: når den kommer seg ut, frigjør den noen av pilene som fortsatt står fast — så det lønner seg å få den gylne ut tidlig.';
+      'De lange pilene glir ut av brettet med hodet først. Trykk på en for å sende den ut — banen foran hodet må være fri. Tøm hele brettet for å vinne. Fra nivå 12 er én pil gyllen. Den står i veien for flere andre, så når den endelig kommer seg ut, kan de følge rett etter — verdt å sikte på.';
 
   @override
   String get helpWord =>

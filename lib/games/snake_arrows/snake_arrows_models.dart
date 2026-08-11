@@ -263,21 +263,81 @@ class SnakeBoard {
 
   /// Assigns one bonus arrow and the arrows it frees, deterministically.
   ///
-  /// Both ends are chosen from arrows that are **blocked at the start**: a bonus
-  /// arrow that could be tapped immediately would be a free opening move, and
-  /// freeing arrows that were never stuck would be no gift at all. Does nothing
-  /// unless there are enough blocked arrows to make it meaningful, so an unusually
-  /// open board simply has no bonus rather than a token one.
-  void assignBonus(Random rng, {required int freeCount}) {
-    if (freeCount <= 0) return;
-    final blocked = [for (final a in arrows) if (!isPathClear(a)) a];
-    // The bonus arrow itself plus the arrows it frees, all from the blocked set.
-    if (blocked.length < freeCount + 1) return;
+  /// The freed arrows form a **chain** the bonus arrow unlocks: the first is clear
+  /// once the bonus leaves, the second once the first leaves, and so on. So every
+  /// arrow in the cascade flies out along a path that really is empty, obeying the
+  /// same rule as every other move.
+  ///
+  /// That matters more than the size of the gift. The first version picked any
+  /// stuck arrows, which meant they slid out through their neighbours — the one rule
+  /// the game spends every level teaching, broken by its own reward. The bonus is now
+  /// a *chain reaction* rather than an exception: clearing the golden arrow plays out
+  /// the moves it has just made legal.
+  ///
+  /// The bonus arrow is still chosen from arrows blocked at the start, so it is never
+  /// a free opening move. Boards where no arrow unblocks at least [minFrees] others
+  /// simply get no bonus, rather than a token one.
+  void assignBonus(Random rng, {required int freeCount, int minFrees = 2}) {
+    if (freeCount < minFrees) return;
+    final clearNow = {
+      for (final a in arrows)
+        if (isPathClear(a)) a.id
+    };
+    final blocked = [for (final a in arrows) if (!clearNow.contains(a.id)) a];
+    if (blocked.length < minFrees + 1) return;
 
+    // Bounded scan: each candidate costs a sweep of every arrow's ray, and this
+    // runs once per candidate board in a pool of hundreds.
     final pool = [...blocked]..shuffle(rng);
-    final bonus = pool.removeLast();
-    bonus.frees = [for (final a in pool.take(freeCount)) a.id];
+    for (final candidate in pool.take(_bonusCandidateLimit)) {
+      final chain = _cascadeFrom(candidate, clearNow, freeCount);
+      if (chain.length >= minFrees) {
+        candidate.frees = chain;
+        return;
+      }
+    }
   }
+
+  /// The arrows that come free, in order, if [candidate] leaves — a *chain*, not a
+  /// set: the first becomes clear when the candidate goes, the second when the first
+  /// goes, and so on.
+  ///
+  /// A chain is what makes this both legal and findable. Requiring one arrow to
+  /// single-handedly unblock several others almost never happens on a 90%-full board,
+  /// because most rays cross more than one arrow — asking for two collapsed the bonus
+  /// entirely. Every arrow in a chain still leaves along a genuinely clear path when
+  /// its own turn comes, which is the property that matters.
+  ///
+  /// Restores the board before returning; nothing here is a lasting change.
+  List<int> _cascadeFrom(
+      SnakeArrow candidate, Set<int> clearNow, int limit) {
+    candidate.escaped = true;
+    final chain = <int>[];
+    var progress = true;
+    while (progress && chain.length < limit) {
+      progress = false;
+      for (final a in arrows) {
+        if (a.escaped || clearNow.contains(a.id)) continue;
+        if (!isPathClear(a)) continue;
+        a.escaped = true;
+        chain.add(a.id);
+        progress = true;
+        if (chain.length >= limit) break;
+      }
+    }
+    for (final id in chain) {
+      arrows.firstWhere((a) => a.id == id).escaped = false;
+    }
+    candidate.escaped = false;
+    return chain;
+  }
+
+  /// How many potential bonus arrows to try before giving up on a board.
+  ///
+  /// Generous on purpose: at 24 a third of the sampled levels found no chain at all
+  /// and simply had no bonus arrow, because only a minority of blocked arrows unlock
+  /// one. Boards carry ~70 arrows, so scanning them all is affordable.
+  static const _bonusCandidateLimit = 96;
 
   /// The whole board as plain lists, so it can cross an isolate boundary.
   ///

@@ -69,7 +69,7 @@
   "howToPlay": "Slik spiller du",
   "gotIt": "Skjønner!",
   "helpArrowEscape": "Hver pil vil fly ut av brettet i retningen den peker. Trykk på en pil for å sende den av gårde — men banen må være fri. Send ut alle pilene for å vinne.",
-  "helpArrowMaze": "De lange pilene glir ut av brettet med hodet først. Trykk på en for å sende den ut — banen foran hodet må være fri. Tøm hele brettet for å vinne. Fra nivå 12 er én pil gyllen: når den kommer seg ut, frigjør den noen av pilene som fortsatt står fast — så det lønner seg å få den gylne ut tidlig.",
+  "helpArrowMaze": "De lange pilene glir ut av brettet med hodet først. Trykk på en for å sende den ut — banen foran hodet må være fri. Tøm hele brettet for å vinne. Fra nivå 12 er én pil gyllen. Den står i veien for flere andre, så når den endelig kommer seg ut, kan de følge rett etter — verdt å sikte på.",
   "helpWord": "Gjett det skjulte ordet på fem bokstaver på seks forsøk. Grønn betyr riktig bokstav på riktig plass, gul betyr at bokstaven finnes et annet sted i ordet, grå betyr at den ikke er med.",
   "helpNumberCross": "Plasser tallene fra brettet i de tomme rutene slik at alle regnestykkene stemmer — både bortover og nedover. Trykk på et tall og så en rute, eller dra det inn. Trykk på et plassert tall for å ta det tilbake.",
   "helpWordSearch": "Alle ordene under rutenettet er gjemt blant bokstavene. Dra fingeren over et ord for å markere det — forlengs eller baklengs. Finn alle for å vinne. Fra nivå 10 hører alle ordene til samme kategori, og på de vanskeligste nivåene er listen skjult: du får bare kategorien og hvor mange ord du skal finne.",

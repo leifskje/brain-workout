@@ -2530,7 +2530,12 @@ void main() {
       }
       if (bonus == null) continue;
 
-      expect(bonus.frees.length, cfg.bonusFrees, reason: 'level $level link count');
+      // At least two, and never more than the level allows. The exact count now
+      // depends on how many arrows the golden one happens to be blocking.
+      expect(bonus.frees.length, greaterThanOrEqualTo(2),
+          reason: 'level $level: a bonus worth having frees at least two');
+      expect(bonus.frees.length, lessThanOrEqualTo(cfg.bonusFrees),
+          reason: 'level $level link count');
       expect(bonus.frees, isNot(contains(bonus.id)),
           reason: 'a bonus arrow must not free itself');
       expect(bonus.frees.toSet().length, bonus.frees.length,
@@ -2548,6 +2553,27 @@ void main() {
         expect(board.isPathClear(linked), isFalse,
             reason: 'level $level frees arrow $id which was never stuck');
       }
+
+      // The property that makes the cascade legal rather than magic. The freed
+      // arrows are a *chain*: the first is clear once the golden arrow leaves, the
+      // second once the first leaves, and so on — so each flies out along a path
+      // that really is empty, under the same rule as every other move. Without
+      // this they slid out through their neighbours, contradicting the one rule the
+      // game spends every level teaching.
+      bonus.escaped = true;
+      final fired = <SnakeArrow>[];
+      for (final id in bonus.frees) {
+        final linked = board.arrows.firstWhere((a) => a.id == id);
+        expect(board.isPathClear(linked), isTrue,
+            reason: 'level $level: freed arrow $id has no clear path when its turn '
+                'comes, so it would cheat its way out');
+        linked.escaped = true;
+        fired.add(linked);
+      }
+      for (final a in fired) {
+        a.escaped = false;
+      }
+      bonus.escaped = false;
 
       // Still winnable playing normally — the cascade only ever removes arrows,
       // so it cannot strand anything, but the board must be solvable *without*
