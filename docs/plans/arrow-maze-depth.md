@@ -150,6 +150,51 @@ a valid board in one pass, and solvability is true by construction. **For "as bi
 possible", construction beats search**, so the algorithm class we already have is
 right. The remaining work is constant factors, not a different paradigm.
 
+### Why none of the Rush Hour work transfers: monotonicity
+
+The Rush Hour material — the "how to avoid a huge search tree" question, the Medium
+write-up, the various solver repos — is all about *search*: BFS, DFS, IDS, A*, IDA*,
+blocking-car heuristics, state hashing, symmetry pruning. Rush Hour needs all of it
+because the puzzle is **non-monotone**: cars *slide*, so a move can block as easily as
+it unblocks, positions repeat, and the state space has cycles. That is why the game is
+PSPACE-complete and why every implementation reaches for memoised search.
+
+**Arrow Maze is monotone.** Arrows are *removed*, never repositioned, and removing one
+can only ever open paths — never close them. That single property is why:
+
+- **Solving needs no search.** Repeatedly firing whatever is clear is not a heuristic
+  here, it is exact, which is what lets `measureDifficulty` simulate a greedy solve and
+  be *correct* rather than approximate. All the A*/IDA*/hashing machinery is the price
+  Rush Hour pays for a property we do not have.
+- **A partly-cleared board is always still winnable** — measured earlier at 600 random
+  escaped-subsets with zero rejections, which is why `applyEscapedJson` needs no
+  winnability check.
+
+So the search literature is not a missed opportunity; it is answering a harder question
+than ours. Do not import it.
+
+One thing in that material *is* accidental confirmation. The Medium article does cover
+generation, and its method is Monte Carlo — place vehicles at random, solve, discard the
+unsolvable — and the author reports that "the deadlock was in the random puzzle
+generation step" when placing vehicles on an already-full grid. That is precisely the
+failure our reverse-solve construction avoids, and precisely the fill collapse we hit
+when the placement *order* was wrong. Independent confirmation that construction beats
+rejection sampling here.
+
+### The one idea worth borrowing
+
+Rush Hour's best-performing heuristic is a hybrid of *how many cars block the target*
+and *how far it has to travel*. The analogue we do not currently measure is the **depth
+of the blocking DAG**: each arrow must leave before those on its exit ray, so the board
+is a partial order, and the longest chain in it is the minimum number of forced steps
+before anything else can open up.
+
+Mean branching (what we tune against) says how many moves are available *on average*. A
+board with the same mean branching can have a long forced spine or many short chains,
+and the long spine is the one that feels hard. Adding `longestDependencyChain` alongside
+branching, and targeting it, is a cheap and well-motivated next difficulty axis —
+cheap because the DAG is already implicit in `isPathClear`.
+
 Worth knowing if the cap ever needs to jump by a lot rather than a little:
 **divide-and-conquer** would scale linearly — generate independent sub-boards and
 stitch them, since an arrow exiting left only interacts with cells to its left. That

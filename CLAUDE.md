@@ -140,6 +140,18 @@ A pre-commit hook (`.githooks/pre-commit`, enabled via `core.hooksPath`) runs
   The cap then moved 14 → 24 once zoom shipped (3× the area, ~70 arrows, `clear@start`
   22% → 4%). Not higher because generation cost is superlinear in area: 24×35 is
   ~50–240ms, 26×38 ~1.8s, 28×41 ~9.6s.
+- **Arrow Maze is monotone, and that is why the Rush Hour literature does not apply.**
+  Arrows are *removed*, never repositioned, so removing one can only open paths, never
+  close them. Consequences: firing whatever is clear is an *exact* solver rather than a
+  heuristic (which is what makes `measureDifficulty`'s greedy simulation correct), and
+  any partly-cleared board is still winnable. Rush Hour needs BFS/A*/IDA*, state
+  hashing and pruning because sliding cars make it non-monotone and PSPACE-complete —
+  don't import that machinery, it answers a harder question than ours. Likewise don't
+  reach for SAT/ASP generation: those *search* a board space, while reverse-solve
+  *constructs* one in a single pass, which is why it scales. Untried idea actually worth
+  borrowing: the blocking relation is a DAG, and its **longest chain** is a difficulty
+  axis we don't measure — mean branching can't tell a long forced spine from many short
+  ones, and the spine is what feels hard.
 - **A zoomable board must wrap its gesture detector, not the reverse.** Arrow Maze puts
   `InteractiveViewer` *outside* the `GestureDetector`, so hit testing passes down through
   the transform and the detector still receives board-space coordinates — the cell
