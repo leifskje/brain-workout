@@ -140,6 +140,17 @@ A pre-commit hook (`.githooks/pre-commit`, enabled via `core.hooksPath`) runs
   The cap then moved 14 → 24 once zoom shipped (3× the area, ~70 arrows, `clear@start`
   22% → 4%). Not higher because generation cost is superlinear in area: 24×35 is
   ~50–240ms, 26×38 ~1.8s, 28×41 ~9.6s.
+- **Move slow generation off the critical path before optimising it.** Arrow Maze board
+  cost grows with area, and the ~400ms budget that capped board size only existed
+  because generation sat between "Next level" and seeing a board. `BoardPrefetch` builds
+  level N+1 in a background isolate while the win dialog plays (~1.1s), which bought more
+  than any of the constant-factor attempts. Safe because generation is deterministic in
+  the level — a prefetched board is *identical* to a local one — and because every path
+  falls back to generating on the spot. It must be a real isolate (the work is
+  synchronous CPU and would freeze the celebration), so boards cross the boundary as
+  plain ints/lists, and the isolate test must be a plain `test()`: `testWidgets`' fake
+  async never lets a real isolate finish. Note it only covers *sequential* play — the
+  level picker and first entry still generate inline.
 - **Arrow Maze is monotone, and that is why the Rush Hour literature does not apply.**
   Arrows are *removed*, never repositioned, so removing one can only open paths, never
   close them. Consequences: firing whatever is clear is an *exact* solver rather than a

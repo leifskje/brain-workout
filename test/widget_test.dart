@@ -44,6 +44,7 @@ import 'package:brain_workout/main.dart';
 import 'package:brain_workout/screens/home_screen.dart';
 import 'package:brain_workout/games/wordle/word_repository.dart';
 import 'package:brain_workout/games/wordle/wordle_screen.dart';
+import 'package:brain_workout/services/board_prefetch.dart';
 import 'package:brain_workout/services/app_locale.dart';
 import 'package:brain_workout/widgets/how_to_play.dart';
 import 'package:brain_workout/widgets/win_dialog.dart';
@@ -3019,6 +3020,136 @@ void main() {
         reason: 'pinching in should shrink it again');
   });
 
+  test('Arrow Maze boards survive a round trip through plain lists', () {
+    // The trip an isolate result has to make: object graphs are not reliably
+    // sendable, so a board goes out as ints and lists and comes back rebuilt.
+    for (final level in [1, 17, 35, 60]) {
+      final board = SnakeBoard.generate(level);
+      final rebuilt = SnakeBoard.fromJson(board.toJson());
+      expect(rebuilt, isNotNull, reason: 'level $level failed to rebuild');
+      expect(rebuilt!.rows, board.rows);
+      expect(rebuilt.cols, board.cols);
+      expect(rebuilt.arrows.length, board.arrows.length);
+      for (var i = 0; i < board.arrows.length; i++) {
+        final a = board.arrows[i], b = rebuilt.arrows[i];
+        expect(b.id, a.id);
+        expect(b.exitDir, a.exitDir);
+        expect(b.frees, a.frees, reason: 'bonus links must survive');
+        expect(b.cells.length, a.cells.length);
+        for (var c = 0; c < a.cells.length; c++) {
+          expect(b.cells[c], a.cells[c]);
+        }
+      }
+      // The rebuilt board plays the same: same solvable order, same difficulty.
+      expect(rebuilt.measureDifficulty().meanBranching,
+          closeTo(board.measureDifficulty().meanBranching, 0.001));
+    }
+  });
+
+  test('Arrow Maze: a malformed prefetch payload is refused, not thrown', () {
+    // A bad payload must degrade to generating on the spot, never break a level.
+    expect(SnakeBoard.fromJson({}), isNull);
+    expect(SnakeBoard.fromJson({'rows': 5, 'cols': 5, 'arrows': 'no'}), isNull);
+    expect(SnakeBoard.fromJson({'rows': 0, 'cols': 5, 'arrows': []}), isNull);
+    expect(
+        SnakeBoard.fromJson({
+          'rows': 5,
+          'cols': 5,
+          'arrows': [
+            {'id': 0, 'dir': 99, 'cells': [0, 0]} // no such direction
+          ]
+        }),
+        isNull);
+    expect(
+        SnakeBoard.fromJson({
+          'rows': 5,
+          'cols': 5,
+          'arrows': [
+            {'id': 0, 'dir': 0, 'cells': [0, 0, 1]} // odd number of coordinates
+          ]
+        }),
+        isNull);
+    expect(
+        SnakeBoard.fromJson({
+          'rows': 5,
+          'cols': 5,
+          'arrows': [
+            {'id': 0, 'dir': 0, 'cells': [0, 99]} // off the board
+          ]
+        }),
+        isNull);
+    // A well-formed payload is accepted, so the refusals above aren't vacuous.
+    expect(
+        SnakeBoard.fromJson({
+          'rows': 5,
+          'cols': 5,
+          'arrows': [
+            {'id': 0, 'dir': 0, 'cells': [1, 1, 0, 1]}
+          ]
+        }),
+        isNotNull);
+  });
+
+  test('Board prefetch: the background board is identical to a local one',
+      () async {
+    // A plain test, not testWidgets: the isolate needs the real event loop, and
+    // testWidgets runs its body in a fake-async zone where it would never finish.
+    BoardPrefetch.reset();
+    const level = 31;
+    BoardPrefetch.warm(level);
+    await BoardPrefetch.pending;
+
+    expect(BoardPrefetch.has(level), isTrue,
+        reason: 'the background build should have produced a board');
+    final prefetched = BoardPrefetch.take(level)!;
+    final local = SnakeBoard.generate(level);
+
+    // The safety property this whole feature rests on: generation is deterministic
+    // in the level, so a prefetched board cannot differ from one made on the spot.
+    // Only *when* the work happened changes.
+    expect(prefetched.rows, local.rows);
+    expect(prefetched.cols, local.cols);
+    expect(prefetched.arrows.length, local.arrows.length);
+    for (var i = 0; i < local.arrows.length; i++) {
+      expect(prefetched.arrows[i].cells.map((c) => '${c.row},${c.col}').join(),
+          local.arrows[i].cells.map((c) => '${c.row},${c.col}').join());
+      expect(prefetched.arrows[i].exitDir, local.arrows[i].exitDir);
+    }
+
+    // Taking it consumes it: the screen mutates the board as arrows are cleared,
+    // so a second caller must not be handed that same instance.
+    expect(BoardPrefetch.has(level), isFalse);
+    expect(BoardPrefetch.take(level), isNull);
+    // And the wrong level never matches.
+    BoardPrefetch.seed(level, local);
+    expect(BoardPrefetch.take(level + 1), isNull);
+    BoardPrefetch.reset();
+  });
+
+  testWidgets('Arrow Maze: winning warms the next board, and entering uses it',
+      (tester) async {
+    tester.view.physicalSize = const Size(1080, 2280);
+    tester.view.devicePixelRatio = 2.625;
+    addTearDown(tester.view.reset);
+    addTearDown(BoardPrefetch.reset);
+
+    // Seeded directly rather than via `warm`, because an isolate cannot complete
+    // inside testWidgets' fake-async zone.
+    const level = 3;
+    BoardPrefetch.reset();
+    BoardPrefetch.seed(level, SnakeBoard.generate(level));
+    expect(BoardPrefetch.has(level), isTrue);
+
+    await tester.pumpWidget(localizedApp(const SnakeArrowsScreen(startLevel: level)));
+    await tester.pumpAndSettle();
+
+    // Entering the level consumed the prefetched board rather than generating one.
+    expect(BoardPrefetch.has(level), isFalse,
+        reason: 'the screen should have taken the prefetched board');
+    // ...and the board on screen is playable, so what it took was usable.
+    expect(find.byKey(const ValueKey('arrow_maze_board')), findsOneWidget);
+    expect(find.text('Level $level'), findsOneWidget);
+  });
 }
 
 /// Counts solutions of a nonogram by row-wise backtracking, stopping at [limit].

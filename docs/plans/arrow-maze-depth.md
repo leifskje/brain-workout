@@ -150,6 +150,41 @@ a valid board in one pass, and solvability is true by construction. **For "as bi
 possible", construction beats search**, so the algorithm class we already have is
 right. The remaining work is constant factors, not a different paradigm.
 
+### Prefetching beats optimising
+
+The owner's idea, and it is worth more than every constant-factor attempt above:
+generate the *next* board in the background while the win dialog is on screen.
+
+The ~400ms budget that pinned the board cap was only a budget because generation sat on
+the critical path between tapping "Next level" and seeing a board. Off that path it is
+nearly free — the win dialog alone plays for ~1.1s before the player can even choose. So
+the question stops being "how fast can we generate 28×41" and becomes "when do we
+generate it".
+
+`BoardPrefetch` (`lib/services/board_prefetch.dart`) warms level N+1 in a background
+isolate as the win dialog opens, and `_loadLevel` takes it if it is ready. Two properties
+make it safe:
+
+- **Generation is deterministic in the level number**, so a prefetched board is
+  *identical* to one made on the spot. Using it changes when the work happened, never
+  what the player sees — asserted in the tests by comparing a prefetched board
+  arrow-by-arrow against a locally generated one.
+- **Every path degrades to generating on the spot.** A miss, wrong level, isolate
+  failure or unusable payload all fall through to `SnakeBoard.generate`. Nothing here can
+  stop a level opening.
+
+It must run off the UI isolate: generation is synchronous CPU work, so doing it inline
+would freeze the very celebration it hides behind. That means the board has to cross an
+isolate boundary, hence `toJson`/`fromJson` in plain ints and lists, and hence the
+isolate test is a plain `test()` — `testWidgets` runs its body in a fake-async zone where
+a real isolate never completes.
+
+**What this does *not* cover, before the cap is raised on the strength of it:** only the
+sequential path. Entering from the level picker, or opening the first level, still
+generates synchronously, so a two-second board would still be felt there. Raising the cap
+past 24 wants either the picker warming the level under the cursor too, or an honest
+loading state — that is the next piece, not another generator micro-optimisation.
+
 ### Why none of the Rush Hour work transfers: monotonicity
 
 The Rush Hour material — the "how to avoid a huge search tree" question, the Medium

@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 
 import '../../l10n/generated/app_localizations.dart';
 import '../../services/board_autosave.dart';
+import '../../services/board_prefetch.dart';
 import '../../services/progress_store.dart';
 import '../../theme/motion.dart';
 import '../../widgets/game_header.dart';
@@ -130,7 +131,10 @@ class _SnakeArrowsScreenState extends State<SnakeArrowsScreen>
   /// would feel like a bug.
   void _loadLevel(int level, {bool allowResume = true}) {
     ProgressStore.instance.recordReached(_gameId, level);
-    final board = SnakeBoard.generate(level);
+    // Built in the background while the win dialog was up, if we got that far.
+    // Identical to generating here — generation is deterministic in the level — so
+    // this only changes *when* the work happened, never what the player sees.
+    final board = BoardPrefetch.take(level) ?? SnakeBoard.generate(level);
     var hearts = snakeConfigForLevel(level).hearts;
     final saved =
         allowResume ? ProgressStore.instance.loadBoard(_gameId, level) : null;
@@ -282,6 +286,10 @@ class _SnakeArrowsScreenState extends State<SnakeArrowsScreen>
   void _showWin() {
     if (!mounted) return;
     ProgressStore.instance.clearBoard(_gameId);
+    // Start the next board now, in the background. The dialog takes ~1.1s to play
+    // out before the player can even choose, which is enough to hide a generation
+    // that would otherwise be felt as a pause after tapping "Next level".
+    BoardPrefetch.warm(_level + 1);
     HapticFeedback.heavyImpact();
     final lost = snakeConfigForLevel(_level).hearts - _hearts;
     final stars = lost == 0 ? 3 : (lost <= 2 ? 2 : 1);

@@ -279,6 +279,64 @@ class SnakeBoard {
     bonus.frees = [for (final a in pool.take(freeCount)) a.id];
   }
 
+  /// The whole board as plain lists, so it can cross an isolate boundary.
+  ///
+  /// Generation is pure CPU work and, on the biggest boards, slow enough to be felt.
+  /// Running it in a background isolate keeps the UI responsive, and an isolate
+  /// result has to be sendable — hence ints and lists rather than object graphs.
+  Map<String, dynamic> toJson() => {
+        'rows': rows,
+        'cols': cols,
+        'arrows': [
+          for (final a in arrows)
+            {
+              'id': a.id,
+              'dir': a.exitDir.index,
+              // Flattened r,c pairs: half the objects of a list of lists.
+              'cells': [
+                for (final c in a.cells) ...[c.row, c.col]
+              ],
+              if (a.frees.isNotEmpty) 'frees': a.frees,
+            }
+        ],
+      };
+
+  /// Rebuilds a board from [toJson]. Returns null if the payload is unusable, so a
+  /// bad precache degrades to generating on the spot rather than throwing.
+  static SnakeBoard? fromJson(Map<String, dynamic> json) {
+    final rows = json['rows'], cols = json['cols'], raw = json['arrows'];
+    if (rows is! int || cols is! int || raw is! List) return null;
+    if (rows <= 0 || cols <= 0) return null;
+
+    final arrows = <SnakeArrow>[];
+    for (final entry in raw) {
+      if (entry is! Map) return null;
+      final id = entry['id'], dir = entry['dir'], flat = entry['cells'];
+      if (id is! int || dir is! int || flat is! List) return null;
+      if (dir < 0 || dir >= Dir.values.length) return null;
+      if (flat.isEmpty || flat.length.isOdd) return null;
+      final cells = <Cell>[];
+      for (var i = 0; i < flat.length; i += 2) {
+        final r = flat[i], c = flat[i + 1];
+        if (r is! int || c is! int) return null;
+        if (r < 0 || r >= rows || c < 0 || c >= cols) return null;
+        cells.add(Cell(r, c));
+      }
+      final arrow =
+          SnakeArrow(id: id, cells: cells, exitDir: Dir.values[dir]);
+      final frees = entry['frees'];
+      if (frees is List) {
+        for (final f in frees) {
+          if (f is! int) return null;
+        }
+        arrow.frees = [for (final f in frees) f as int];
+      }
+      arrows.add(arrow);
+    }
+    if (arrows.isEmpty) return null;
+    return SnakeBoard(rows: rows, cols: cols, arrows: arrows);
+  }
+
   /// Which arrows have already left, for resuming after an interruption.
   ///
   /// The board itself regenerates from the level number, so all that has to be
