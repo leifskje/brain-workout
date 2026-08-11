@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 
 import '../../l10n/generated/app_localizations.dart';
 import '../../services/board_autosave.dart';
+import '../../services/board_prefetch.dart';
 import '../../services/progress_store.dart';
 import '../../theme/motion.dart';
 import '../../widgets/game_header.dart';
@@ -50,6 +51,28 @@ class _SnakeArrowsScreenState extends State<SnakeArrowsScreen>
   late final AnimationController _escapeCtrl;
   late final AnimationController _shakeCtrl;
 
+  /// Zoom/pan for the board.
+  ///
+  /// Boards past ~14 columns cannot be read at a phone's width — 26 columns is
+  /// about 13dp per cell against a ~23dp floor — so the big late boards need this
+  /// to exist at all. It is deliberately an *aid*, never a requirement: the whole
+  /// board is always visible at the default scale of 1, and every arrow is
+  /// tappable there. See docs/plans/arrow-maze-depth.md.
+  late final TransformationController _zoom;
+
+  /// The viewport the board is laid out into, remembered so the zoom buttons can
+  /// scale about its centre.
+  Size _viewport = Size.zero;
+
+  static const _maxZoom = 4.0;
+
+  /// Arrows freed by a bonus arrow that are still waiting to fly off.
+  ///
+  /// They leave one at a time, reusing the ordinary escape animation, so a bonus
+  /// reads as a chain reaction rather than arrows blinking out of existence. The
+  /// board stays locked (`_busy`) until the queue drains.
+  final List<int> _cascade = [];
+
   void _tick() {
     if (mounted) setState(() {});
   }
@@ -58,6 +81,9 @@ class _SnakeArrowsScreenState extends State<SnakeArrowsScreen>
   void initState() {
     super.initState();
     startAutosave();
+    // Created here rather than lazily, same rule as the animation controllers:
+    // a lazy field can end up constructed during dispose().
+    _zoom = TransformationController();
     // Create eagerly in initState so dispose() never lazily constructs a
     // controller (which would do a TickerMode ancestor lookup) during teardown.
     // animationBehavior: preserve — see the note in lib/theme/motion.dart. When
@@ -94,6 +120,7 @@ class _SnakeArrowsScreenState extends State<SnakeArrowsScreen>
   void dispose() {
     saveBoardNow();
     stopAutosave();
+    _zoom.dispose();
     _escapeCtrl.dispose();
     _shakeCtrl.dispose();
     super.dispose();
@@ -104,7 +131,10 @@ class _SnakeArrowsScreenState extends State<SnakeArrowsScreen>
   /// would feel like a bug.
   void _loadLevel(int level, {bool allowResume = true}) {
     ProgressStore.instance.recordReached(_gameId, level);
-    final board = SnakeBoard.generate(level);
+    // Built in the background while the win dialog was up, if we got that far.
+    // Identical to generating here — generation is deterministic in the level — so
+    // this only changes *when* the work happened, never what the player sees.
+    final board = BoardPrefetch.take(level) ?? SnakeBoard.generate(level);
     var hearts = snakeConfigForLevel(level).hearts;
     final saved =
         allowResume ? ProgressStore.instance.loadBoard(_gameId, level) : null;
@@ -112,6 +142,10 @@ class _SnakeArrowsScreenState extends State<SnakeArrowsScreen>
       final h = saved['hearts'];
       if (h is int && h > 0 && h <= hearts) hearts = h;
     }
+    // A new board always starts fit to the screen; carrying a previous level's
+    // pan over would drop the player into a corner of an unfamiliar board.
+    _zoom.value = Matrix4.identity();
+    _cascade.clear();
     setState(() {
       _level = level;
       _board = board;
@@ -147,19 +181,16 @@ class _SnakeArrowsScreenState extends State<SnakeArrowsScreen>
     if (!mounted) return;
     if (status != AnimationStatus.completed || _escapingId == null) return;
     final arrow = _board.arrows.firstWhere((a) => a.id == _escapingId);
-    // A bonus arrow takes its linked arrows with it. They vanish rather than
-    // animating out, which is acceptable because their colour already announced
-    // the link — but the count is still worth saying out loud for this audience.
+    // A bonus arrow takes its linked arrows with it, and they now *fly out* one
+    // after another using this same animation rather than blinking out of
+    // existence. Queue them and let each completion start the next.
     final freed = _board.bonusFreedBy(arrow);
     setState(() {
       arrow.escaped = true;
-      for (final a in freed) {
-        a.escaped = true;
-      }
       _escapingId = null;
-      _busy = false;
     });
     if (freed.isNotEmpty) {
+      _cascade.addAll([for (final a in freed) a.id]);
       HapticFeedback.mediumImpact();
       ScaffoldMessenger.of(context)
         ..clearSnackBars()
@@ -170,12 +201,53 @@ class _SnakeArrowsScreenState extends State<SnakeArrowsScreen>
           duration: const Duration(seconds: 2),
         ));
     }
+    if (_cascade.isNotEmpty) {
+      // Stay locked: the board is mid-chain and a tap now would race it.
+      //
+      // Deferred out of this status listener rather than called directly. We are
+      // inside the controller's own status notification, and restarting it from
+      // there only delivered the first link of the chain — the second and third
+      // arrows never fired. A microtask puts the restart after the notification
+      // has finished unwinding.
+      Future.microtask(() {
+        if (mounted && _cascade.isNotEmpty) _startNextCascade();
+      });
+      return;
+    }
+    setState(() => _busy = false);
     if (_board.isSolved) {
       _busy = true;
       Future.delayed(const Duration(milliseconds: 150), () {
         if (mounted) _showWin();
       });
     }
+  }
+
+  /// How long [arrow] should take to slide out, from how far it actually travels,
+  /// so the speed is identical on every screen. The painter moves it this same
+  /// distance (see `_drawArrow`'s totalShift), so the two must stay in step.
+  Duration _slideFor(SnakeArrow arrow) =>
+      slideDuration((arrow.cells.length - 1 + _board.rows + 1) * _cell);
+
+  /// Sends the next freed arrow on its way.
+  ///
+  /// Prefers one whose path is *now* clear — the bonus arrow leaving often opens a
+  /// lane — so as many as possible look like an ordinary escape rather than
+  /// sliding through their neighbours.
+  void _startNextCascade() {
+    final pending = [
+      for (final id in _cascade)
+        _board.arrows.firstWhere((a) => a.id == id)
+    ]..sort((a, b) {
+        final ac = _board.isPathClear(a) ? 0 : 1;
+        final bc = _board.isPathClear(b) ? 0 : 1;
+        return ac.compareTo(bc);
+      });
+    final next = pending.first;
+    _cascade.remove(next.id);
+    _escapeCtrl.duration = _slideFor(next);
+    setState(() => _escapingId = next.id);
+    _escapeCtrl.forward(from: 0);
   }
 
   void _handleTapCell(int row, int col) {
@@ -188,8 +260,7 @@ class _SnakeArrowsScreenState extends State<SnakeArrowsScreen>
       // Time the slide from how far it travels, so the speed is the same on every
       // screen. The painter moves the arrow this same distance (see _drawArrow's
       // totalShift), so the two must stay in step.
-      _escapeCtrl.duration = slideDuration(
-          (arrow.cells.length - 1 + _board.rows + 1) * _cell);
+      _escapeCtrl.duration = _slideFor(arrow);
       setState(() {
         _escapingId = arrow.id;
         _blockedId = null;
@@ -215,6 +286,10 @@ class _SnakeArrowsScreenState extends State<SnakeArrowsScreen>
   void _showWin() {
     if (!mounted) return;
     ProgressStore.instance.clearBoard(_gameId);
+    // Start the next board now, in the background. The dialog takes ~1.1s to play
+    // out before the player can even choose, which is enough to hide a generation
+    // that would otherwise be felt as a pause after tapping "Next level".
+    BoardPrefetch.warm(_level + 1);
     HapticFeedback.heavyImpact();
     final lost = snakeConfigForLevel(_level).hearts - _hearts;
     final stars = lost == 0 ? 3 : (lost <= 2 ? 2 : 1);
@@ -284,10 +359,13 @@ class _SnakeArrowsScreenState extends State<SnakeArrowsScreen>
                 child: Center(child: _buildBoard()),
               ),
             ),
+            if (_board.cols > 14) _buildZoomBar(),
             Padding(
               padding: const EdgeInsets.fromLTRB(24, 0, 24, 20),
               child: Text(
-                AppLocalizations.of(context).arrowMazeHint,
+                _board.cols > 14
+                    ? AppLocalizations.of(context).arrowMazeHintZoom
+                    : AppLocalizations.of(context).arrowMazeHint,
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 15,
@@ -320,6 +398,30 @@ class _SnakeArrowsScreenState extends State<SnakeArrowsScreen>
     );
   }
 
+  /// Current zoom factor; 1 means the whole board is on screen.
+  double get _scale => _zoom.value.getMaxScaleOnAxis();
+
+  /// Scales about the centre of the viewport, so whatever the player is looking
+  /// at stays put. Buttons exist because pinching is genuinely awkward for this
+  /// audience — pinch still works, it is just not the only way in.
+  void _setZoom(double target) {
+    if (_viewport.isEmpty) return;
+    final s = target.clamp(1.0, _maxZoom);
+    final centre = Offset(_viewport.width / 2, _viewport.height / 2);
+    final inverse = Matrix4.tryInvert(_zoom.value);
+    if (inverse == null) return;
+    // The board point currently under the viewport centre; it must land there
+    // again at the new scale, which fixes the translation: t = centre - s*p.
+    final p = MatrixUtils.transformPoint(inverse, centre);
+    setState(() {
+      _zoom.value = Matrix4.identity()
+        ..translateByDouble(centre.dx - s * p.dx, centre.dy - s * p.dy, 0, 1)
+        ..scaleByDouble(s, s, 1, 1);
+    });
+  }
+
+  void _resetZoom() => setState(() => _zoom.value = Matrix4.identity());
+
   Widget _buildBoard() {
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -331,32 +433,81 @@ class _SnakeArrowsScreenState extends State<SnakeArrowsScreen>
         // the escape at a constant speed. Only the layout knows the cell size.
         _cell = cell;
         final boardSize = Size(cell * _board.cols, cell * _board.rows);
+        _viewport = boardSize;
 
-        return GestureDetector(
-          onTapUp: (details) {
-            final c = (details.localPosition.dx / cell).floor();
-            final r = (details.localPosition.dy / cell).floor();
-            if (r >= 0 && r < _board.rows && c >= 0 && c < _board.cols) {
-              _handleTapCell(r, c);
-            }
-          },
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(18),
-            child: CustomPaint(
-              key: const ValueKey('arrow_maze_board'),
-              size: boardSize,
-              painter: _SnakePainter(
-                board: _board,
-                cell: cell,
-                escapingId: _escapingId,
-                escapeT: _escapeCtrl.value,
-                blockedId: _blockedId,
-                shakeT: _shakeCtrl.isAnimating ? _shakeCtrl.value : null,
+        // The InteractiveViewer sits *outside* the GestureDetector on purpose.
+        // Hit testing passes through the transform, so the detector below always
+        // receives coordinates in board space and the cell maths needs no
+        // knowledge of the zoom at all. Putting the detector outside instead
+        // would hand it screen coordinates and silently mis-target every tap
+        // once zoomed.
+        return InteractiveViewer(
+          key: const ValueKey('arrow_maze_viewer'),
+          transformationController: _zoom,
+          minScale: 1.0,
+          maxScale: _maxZoom,
+          // Keeps the board inside the viewport, so it can never be panned off
+          // screen and lost.
+          boundaryMargin: EdgeInsets.zero,
+          child: GestureDetector(
+            onTapUp: (details) {
+              final c = (details.localPosition.dx / cell).floor();
+              final r = (details.localPosition.dy / cell).floor();
+              if (r >= 0 && r < _board.rows && c >= 0 && c < _board.cols) {
+                _handleTapCell(r, c);
+              }
+            },
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(18),
+              child: CustomPaint(
+                key: const ValueKey('arrow_maze_board'),
+                size: boardSize,
+                painter: _SnakePainter(
+                  board: _board,
+                  cell: cell,
+                  escapingId: _escapingId,
+                  escapeT: _escapeCtrl.value,
+                  blockedId: _blockedId,
+                  shakeT: _shakeCtrl.isAnimating ? _shakeCtrl.value : null,
+                ),
               ),
             ),
           ),
         );
       },
+    );
+  }
+
+  /// Zoom controls, shown only on boards too wide to read unaided.
+  ///
+  /// Hidden on the narrow early boards because they do not need it and the row
+  /// would cost vertical space the board can use instead — the existing levels
+  /// look exactly as they did.
+  Widget _buildZoomBar() {
+    final t = AppLocalizations.of(context);
+    Widget button(String key, IconData icon, String tooltip, VoidCallback? tap) {
+      return IconButton(
+        key: ValueKey(key),
+        onPressed: tap,
+        icon: Icon(icon),
+        iconSize: 28,
+        color: _accent,
+        tooltip: tooltip,
+        // The platform minimum, and this audience needs it.
+        constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+      );
+    }
+
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        button('arrow_maze_zoom_out', Icons.zoom_out_rounded, t.zoomOut,
+            _scale > 1.0 ? () => _setZoom(_scale / 1.5) : null),
+        button('arrow_maze_zoom_fit', Icons.fit_screen_rounded, t.zoomFit,
+            _scale > 1.0 ? _resetZoom : null),
+        button('arrow_maze_zoom_in', Icons.zoom_in_rounded, t.zoomIn,
+            _scale < _maxZoom ? () => _setZoom(_scale * 1.5) : null),
+      ],
     );
   }
 }
@@ -380,12 +531,9 @@ class _SnakePainter extends CustomPainter {
 
   static const _normalColor = Color(0xFF37474F);
   static const _blockedColor = Color(0xFFE53935);
-  /// Bonus arrow: clearing it sweeps its linked arrows off the board too.
+  /// Bonus arrow: clearing it sweeps its linked arrows off the board too. The
+  /// *only* extra colour on the board — see [_drawLinkMark].
   static const _bonusColor = Color(0xFFB8860B);
-  /// The arrows a bonus arrow will free — same hue, lighter, so the link reads at
-  /// a glance. That pre-announcement is the whole mechanic: the player has to see
-  /// the connection *before* deciding what order to clear in.
-  static const _bonusLinkColor = Color(0xFFD9A93B);
   static const _boardColor = Color(0xFFE8EDF2);
 
   @override
@@ -418,12 +566,19 @@ class _SnakePainter extends CustomPainter {
 
   void _drawArrow(Canvas canvas, SnakeArrow arrow) {
     final dir = arrow.exitDir;
-    var color = _normalColor;
-    if (arrow.isBonus) {
-      color = _bonusColor;
-    } else if (board.bonusArrow?.frees.contains(arrow.id) ?? false) {
-      color = _bonusLinkColor;
-    }
+    // Only the bonus arrow is marked, and only by its colour. The arrows it frees
+    // carry nothing at all.
+    //
+    // Two rejected versions got here: a second lighter gold for the linked arrows
+    // (four or five gold arrows on a board of ~22 — "a bit too much, there appears
+    // to be multiple colours"), then a gold dot on their heads (too big at ~23dp
+    // per cell). The owner's call is that the link needs no cue.
+    //
+    // The cost is deliberate and worth knowing: the cascade is now a surprise
+    // rather than something to plan around, so the mechanic no longer rewards
+    // choosing an order the way it was originally justified. What survives is the
+    // weaker but real heuristic that the golden arrow is worth freeing early.
+    var color = arrow.isBonus ? _bonusColor : _normalColor;
     List<Offset> points;
     Offset headCenter;
 

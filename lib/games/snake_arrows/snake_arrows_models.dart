@@ -90,15 +90,25 @@ class SnakeLevelConfig {
 }
 
 SnakeLevelConfig snakeConfigForLevel(int level) {
-  // Portrait board: width (cols) grows with level, height (rows) ~1.45x wider
-  // to match a phone screen. Reaches ~10x15 then ~14x20 at high levels.
+  // Portrait board: width (cols) grows with level, height (rows) ~1.45x wider to
+  // match a phone screen.
   //
-  // 14x20 is a deliberate ceiling, not a placeholder: it is already only ~23dp
-  // per cell on a phone, so growing further shrinks the arrowheads past what old
-  // eyes can read and forces zoom/pan on an audience we don't want panning. Past
-  // this point difficulty has to come from the arrows and from the difficulty
-  // gate in SnakeBoard.generate, never from more cells.
-  final cols = (6 + (level - 1) ~/ 2).clamp(6, 14);
+  // The old 14-column ceiling was set by legibility — ~23dp per cell is the floor
+  // for this audience, and a wider board goes under it. The screen now offers
+  // zoom and pan, so the cap moved to 24 (24x35, 3x the old area, ~70 arrows).
+  // Two things keep it at 24 rather than higher:
+  //
+  //  - **Generation cost**, which scales with area and is superlinear because the
+  //    retry ceiling grows with it too: 24x35 lands a few hundred ms, 26x38 took
+  //    ~1.8s and 28x41 ~9.6s. A board nobody waits for is worth more than two
+  //    extra columns.
+  //  - **Zoom is an aid, not a requirement.** Every arrow must still be tappable
+  //    at fit-to-screen, which gets thin much past this.
+  //
+  // Growth is slower than the old one-column-per-two-levels so the jump to a very
+  // large board is gradual rather than a shock at level 30.
+  final cols = (6 + (level - 1) ~/ 2).clamp(6, 20) +
+      (level > 30 ? ((level - 30) ~/ 4).clamp(0, 4) : 0);
   final rows = (cols * 1.45).round();
   final fill = (0.6 + level * 0.04).clamp(0.6, 0.92);
   // Longer snakes tangle more without needing a bigger grid, and raising the
@@ -253,20 +263,138 @@ class SnakeBoard {
 
   /// Assigns one bonus arrow and the arrows it frees, deterministically.
   ///
-  /// Both ends are chosen from arrows that are **blocked at the start**: a bonus
-  /// arrow that could be tapped immediately would be a free opening move, and
-  /// freeing arrows that were never stuck would be no gift at all. Does nothing
-  /// unless there are enough blocked arrows to make it meaningful, so an unusually
-  /// open board simply has no bonus rather than a token one.
-  void assignBonus(Random rng, {required int freeCount}) {
-    if (freeCount <= 0) return;
-    final blocked = [for (final a in arrows) if (!isPathClear(a)) a];
-    // The bonus arrow itself plus the arrows it frees, all from the blocked set.
-    if (blocked.length < freeCount + 1) return;
+  /// The freed arrows form a **chain** the bonus arrow unlocks: the first is clear
+  /// once the bonus leaves, the second once the first leaves, and so on. So every
+  /// arrow in the cascade flies out along a path that really is empty, obeying the
+  /// same rule as every other move.
+  ///
+  /// That matters more than the size of the gift. The first version picked any
+  /// stuck arrows, which meant they slid out through their neighbours — the one rule
+  /// the game spends every level teaching, broken by its own reward. The bonus is now
+  /// a *chain reaction* rather than an exception: clearing the golden arrow plays out
+  /// the moves it has just made legal.
+  ///
+  /// The bonus arrow is still chosen from arrows blocked at the start, so it is never
+  /// a free opening move. Boards where no arrow unblocks at least [minFrees] others
+  /// simply get no bonus, rather than a token one.
+  void assignBonus(Random rng, {required int freeCount, int minFrees = 2}) {
+    if (freeCount < minFrees) return;
+    final clearNow = {
+      for (final a in arrows)
+        if (isPathClear(a)) a.id
+    };
+    final blocked = [for (final a in arrows) if (!clearNow.contains(a.id)) a];
+    if (blocked.length < minFrees + 1) return;
 
+    // Bounded scan: each candidate costs a sweep of every arrow's ray, and this
+    // runs once per candidate board in a pool of hundreds.
     final pool = [...blocked]..shuffle(rng);
-    final bonus = pool.removeLast();
-    bonus.frees = [for (final a in pool.take(freeCount)) a.id];
+    for (final candidate in pool.take(_bonusCandidateLimit)) {
+      final chain = _cascadeFrom(candidate, clearNow, freeCount);
+      if (chain.length >= minFrees) {
+        candidate.frees = chain;
+        return;
+      }
+    }
+  }
+
+  /// The arrows that come free, in order, if [candidate] leaves — a *chain*, not a
+  /// set: the first becomes clear when the candidate goes, the second when the first
+  /// goes, and so on.
+  ///
+  /// A chain is what makes this both legal and findable. Requiring one arrow to
+  /// single-handedly unblock several others almost never happens on a 90%-full board,
+  /// because most rays cross more than one arrow — asking for two collapsed the bonus
+  /// entirely. Every arrow in a chain still leaves along a genuinely clear path when
+  /// its own turn comes, which is the property that matters.
+  ///
+  /// Restores the board before returning; nothing here is a lasting change.
+  List<int> _cascadeFrom(
+      SnakeArrow candidate, Set<int> clearNow, int limit) {
+    candidate.escaped = true;
+    final chain = <int>[];
+    var progress = true;
+    while (progress && chain.length < limit) {
+      progress = false;
+      for (final a in arrows) {
+        if (a.escaped || clearNow.contains(a.id)) continue;
+        if (!isPathClear(a)) continue;
+        a.escaped = true;
+        chain.add(a.id);
+        progress = true;
+        if (chain.length >= limit) break;
+      }
+    }
+    for (final id in chain) {
+      arrows.firstWhere((a) => a.id == id).escaped = false;
+    }
+    candidate.escaped = false;
+    return chain;
+  }
+
+  /// How many potential bonus arrows to try before giving up on a board.
+  ///
+  /// Generous on purpose: at 24 a third of the sampled levels found no chain at all
+  /// and simply had no bonus arrow, because only a minority of blocked arrows unlock
+  /// one. Boards carry ~70 arrows, so scanning them all is affordable.
+  static const _bonusCandidateLimit = 96;
+
+  /// The whole board as plain lists, so it can cross an isolate boundary.
+  ///
+  /// Generation is pure CPU work and, on the biggest boards, slow enough to be felt.
+  /// Running it in a background isolate keeps the UI responsive, and an isolate
+  /// result has to be sendable — hence ints and lists rather than object graphs.
+  Map<String, dynamic> toJson() => {
+        'rows': rows,
+        'cols': cols,
+        'arrows': [
+          for (final a in arrows)
+            {
+              'id': a.id,
+              'dir': a.exitDir.index,
+              // Flattened r,c pairs: half the objects of a list of lists.
+              'cells': [
+                for (final c in a.cells) ...[c.row, c.col]
+              ],
+              if (a.frees.isNotEmpty) 'frees': a.frees,
+            }
+        ],
+      };
+
+  /// Rebuilds a board from [toJson]. Returns null if the payload is unusable, so a
+  /// bad precache degrades to generating on the spot rather than throwing.
+  static SnakeBoard? fromJson(Map<String, dynamic> json) {
+    final rows = json['rows'], cols = json['cols'], raw = json['arrows'];
+    if (rows is! int || cols is! int || raw is! List) return null;
+    if (rows <= 0 || cols <= 0) return null;
+
+    final arrows = <SnakeArrow>[];
+    for (final entry in raw) {
+      if (entry is! Map) return null;
+      final id = entry['id'], dir = entry['dir'], flat = entry['cells'];
+      if (id is! int || dir is! int || flat is! List) return null;
+      if (dir < 0 || dir >= Dir.values.length) return null;
+      if (flat.isEmpty || flat.length.isOdd) return null;
+      final cells = <Cell>[];
+      for (var i = 0; i < flat.length; i += 2) {
+        final r = flat[i], c = flat[i + 1];
+        if (r is! int || c is! int) return null;
+        if (r < 0 || r >= rows || c < 0 || c >= cols) return null;
+        cells.add(Cell(r, c));
+      }
+      final arrow =
+          SnakeArrow(id: id, cells: cells, exitDir: Dir.values[dir]);
+      final frees = entry['frees'];
+      if (frees is List) {
+        for (final f in frees) {
+          if (f is! int) return null;
+        }
+        arrow.frees = [for (final f in frees) f as int];
+      }
+      arrows.add(arrow);
+    }
+    if (arrows.isEmpty) return null;
+    return SnakeBoard(rows: rows, cols: cols, arrows: arrows);
   }
 
   /// Which arrows have already left, for resuming after an interruption.
@@ -441,7 +569,12 @@ class SnakeBoard {
     SnakeBoard? best;
     var bestDistance = double.infinity;
 
-    for (var attempt = 0; attempt < maxGenerationAttempts; attempt++) {
+    // Pool scaled by area: a 28x41 candidate costs ~12x a 14x20 one, so a fixed
+    // 768 would mean a ten-second wait on the biggest boards.
+    final poolSize = (maxGenerationAttempts * 280 / (cfg.rows * cfg.cols))
+        .round()
+        .clamp(96, maxGenerationAttempts);
+    for (var attempt = 0; attempt < poolSize; attempt++) {
       final board = _build(cfg, _seedFor(level, attempt));
       if (board.arrows.isEmpty) continue;
 
@@ -640,6 +773,9 @@ class SnakeBoard {
       return heads;
     }
 
+    // Big boards must place their *interior* heads first; small ones must not.
+    final interiorFirst = cfg.cols >= 9;
+
     void placePass(int minLength) {
       var attempts = 0;
       // The board only changes when a snake is committed, so the tables and the
@@ -664,15 +800,42 @@ class SnakeBoard {
         // enclosed, every ray out of it is blocked, so no further snake can ever
         // be placed inside it — that is how a single hole reached 23% of the grid
         // while the rest of the board was dense.
-        var sparsest = -1;
+        int rayLen(List<int> h) {
+          final d = Dir.values[h[2]];
+          return switch (d) {
+            Dir.up => h[0],
+            Dir.down => cfg.rows - 1 - h[0],
+            Dir.left => h[1],
+            Dir.right => cfg.cols - 1 - h[1],
+          };
+        }
+
+        var bestRay = -1;
+        var bestEmpty = -1;
         final sparseHeads = <List<int>>[];
         for (final h in heads) {
-          final empty = emptyNear(h[0], h[1], 2);
-          if (empty > sparsest) {
-            sparsest = empty;
-            sparseHeads.clear();
+          final em = emptyNear(h[0], h[1], 2);
+          if (interiorFirst) {
+            // Ray length first: spend the hard interior placements while the
+            // board is still empty enough for them to succeed.
+            final rl = rayLen(h);
+            if (rl > bestRay || (rl == bestRay && em > bestEmpty)) {
+              bestRay = rl;
+              bestEmpty = em;
+              sparseHeads.clear();
+            }
+            if (rl == bestRay && em == bestEmpty) sparseHeads.add(h);
+          } else {
+            // Small boards: emptiness alone, exactly as before. Adding a ray
+            // tiebreak here narrowed the candidate set and cost level 1 two
+            // points of fill for no benefit — a 6x9 board has no interior to
+            // speak of, so there is nothing for the ordering to fix.
+            if (em > bestEmpty) {
+              bestEmpty = em;
+              sparseHeads.clear();
+            }
+            if (em == bestEmpty) sparseHeads.add(h);
           }
-          if (empty == sparsest) sparseHeads.add(h);
         }
         final pick = sparseHeads[rng.nextInt(sparseHeads.length)];
         final headCell = Cell(pick[0], pick[1]);

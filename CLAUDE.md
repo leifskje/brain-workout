@@ -127,7 +127,64 @@ A pre-commit hook (`.githooks/pre-commit`, enabled via `core.hooksPath`) runs
   after any generator change**: improving how bodies fill also made every board
   denser and harder, which put the old easy end of the curve out of reach. Don't
   chase difficulty with a bigger grid: 14×20 is ~23dp per cell on a phone and is
-  the legibility floor for this audience.
+  the legibility floor for this audience. A bigger board also long looked
+  impossible because it measured *easier* (branching floor 1.9 → 3.2 at 20×29, fill
+  88% → 68%) — but that was the placement *order*, not the geometry. **Place long-ray
+  heads first.** A head is legal only if its ray to the edge is clear, so success is
+  ~`(1-density)^rayLength`: usable heads scale with the perimeter, not the area, and an
+  interior cell on a wide board can never host one once density rises. Ordering heads by
+  ray length descending pairs the hard inland placements with an empty board and fixes
+  it — 28×41 now fills to 92% with 97 arrows, and 14×20 improved too (fill 87→94%,
+  opening moves 22→13%, generation 393ms→1ms). Boards under 9 columns must keep
+  emptiness-only ordering; the ray tiebreak costs level 1 two points of fill there.
+  The cap then moved 14 → 24 once zoom shipped (3× the area, ~70 arrows, `clear@start`
+  22% → 4%). Not higher because generation cost is superlinear in area: 24×35 is
+  ~50–240ms, 26×38 ~1.8s, 28×41 ~9.6s.
+- **Move slow generation off the critical path before optimising it.** Arrow Maze board
+  cost grows with area, and the ~400ms budget that capped board size only existed
+  because generation sat between "Next level" and seeing a board. `BoardPrefetch` builds
+  level N+1 in a background isolate while the win dialog plays (~1.1s), which bought more
+  than any of the constant-factor attempts. Safe because generation is deterministic in
+  the level — a prefetched board is *identical* to a local one — and because every path
+  falls back to generating on the spot. It must be a real isolate (the work is
+  synchronous CPU and would freeze the celebration), so boards cross the boundary as
+  plain ints/lists, and the isolate test must be a plain `test()`: `testWidgets`' fake
+  async never lets a real isolate finish. Note it only covers *sequential* play — the
+  level picker and first entry still generate inline.
+- **Arrow Maze is monotone, and that is why the Rush Hour literature does not apply.**
+  Arrows are *removed*, never repositioned, so removing one can only open paths, never
+  close them. Consequences: firing whatever is clear is an *exact* solver rather than a
+  heuristic (which is what makes `measureDifficulty`'s greedy simulation correct), and
+  any partly-cleared board is still winnable. Rush Hour needs BFS/A*/IDA*, state
+  hashing and pruning because sliding cars make it non-monotone and PSPACE-complete —
+  don't import that machinery, it answers a harder question than ours. Likewise don't
+  reach for SAT/ASP generation: those *search* a board space, while reverse-solve
+  *constructs* one in a single pass, which is why it scales. Untried idea actually worth
+  borrowing: the blocking relation is a DAG, and its **longest chain** is a difficulty
+  axis we don't measure — mean branching can't tell a long forced spine from many short
+  ones, and the spine is what feels hard.
+- **A zoomable board must wrap its gesture detector, not the reverse.** Arrow Maze puts
+  `InteractiveViewer` *outside* the `GestureDetector`, so hit testing passes down through
+  the transform and the detector still receives board-space coordinates — the cell
+  arithmetic needs no knowledge of the zoom. Inverted, every tap mis-targets as soon as
+  the player zooms. Zoom is an aid and never a requirement: scale 1 shows the whole
+  board with every arrow tappable, `boundaryMargin` is zero so it cannot be panned away,
+  and loading or restarting returns to fit. Explicit +/−/fit buttons exist because
+  pinch is awkward for this audience, and they are hidden on boards narrow enough not to
+  need them.
+- **`AppLifecycleState.paused` stops the scheduler, so it freezes animations under
+  test.** Reading autosaved state mid-animation by pausing looked like proof that
+  Arrow Maze's bonus cascade stopped after one arrow; the cascade was fine and the
+  *test* had halted the ticker. Send `resumed` straight after the read. Related:
+  restart an `AnimationController` from a microtask rather than directly inside its
+  own status listener.
+- **Testing a transform needs an observable outside the transform.** The zoom tap test
+  first asserted "a heart was lost", which passed even with the transform deliberately
+  applied twice — on a 93%-full board a mis-aimed tap usually hits *some* other blocked
+  arrow. It now derives the on-screen cell size from `getRect` of the painted board
+  (which already reflects the transform, so it is not the matrix maths checking itself)
+  and asserts *which* arrow escaped by reading the autosave back. Verified by breaking
+  it and watching it fail.
 - **Fill the board by placing bodies well, not by back-filling.** Snake bodies
   grow into the *most constrained* free cell (Warnsdorff-style) so they consume
   dead ends instead of stranding pockets, and heads are placed in the *emptiest*

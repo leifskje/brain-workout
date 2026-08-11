@@ -44,6 +44,7 @@ import 'package:brain_workout/main.dart';
 import 'package:brain_workout/screens/home_screen.dart';
 import 'package:brain_workout/games/wordle/word_repository.dart';
 import 'package:brain_workout/games/wordle/wordle_screen.dart';
+import 'package:brain_workout/services/board_prefetch.dart';
 import 'package:brain_workout/services/app_locale.dart';
 import 'package:brain_workout/widgets/how_to_play.dart';
 import 'package:brain_workout/widgets/win_dialog.dart';
@@ -2529,7 +2530,12 @@ void main() {
       }
       if (bonus == null) continue;
 
-      expect(bonus.frees.length, cfg.bonusFrees, reason: 'level $level link count');
+      // At least two, and never more than the level allows. The exact count now
+      // depends on how many arrows the golden one happens to be blocking.
+      expect(bonus.frees.length, greaterThanOrEqualTo(2),
+          reason: 'level $level: a bonus worth having frees at least two');
+      expect(bonus.frees.length, lessThanOrEqualTo(cfg.bonusFrees),
+          reason: 'level $level link count');
       expect(bonus.frees, isNot(contains(bonus.id)),
           reason: 'a bonus arrow must not free itself');
       expect(bonus.frees.toSet().length, bonus.frees.length,
@@ -2547,6 +2553,27 @@ void main() {
         expect(board.isPathClear(linked), isFalse,
             reason: 'level $level frees arrow $id which was never stuck');
       }
+
+      // The property that makes the cascade legal rather than magic. The freed
+      // arrows are a *chain*: the first is clear once the golden arrow leaves, the
+      // second once the first leaves, and so on — so each flies out along a path
+      // that really is empty, under the same rule as every other move. Without
+      // this they slid out through their neighbours, contradicting the one rule the
+      // game spends every level teaching.
+      bonus.escaped = true;
+      final fired = <SnakeArrow>[];
+      for (final id in bonus.frees) {
+        final linked = board.arrows.firstWhere((a) => a.id == id);
+        expect(board.isPathClear(linked), isTrue,
+            reason: 'level $level: freed arrow $id has no clear path when its turn '
+                'comes, so it would cheat its way out');
+        linked.escaped = true;
+        fired.add(linked);
+      }
+      for (final a in fired) {
+        a.escaped = false;
+      }
+      bonus.escaped = false;
 
       // Still winnable playing normally — the cascade only ever removes arrows,
       // so it cannot strand anything, but the board must be solvable *without*
@@ -2681,6 +2708,474 @@ void main() {
     expect(got, WinAction.home);
   });
 
+  test('Arrow Maze boards grow past the old 14-column ceiling', () {
+    // The cap was 14 purely because a wider board is unreadable without zoom.
+    // Zoom exists now, so late boards are ~3x the old area.
+    expect(snakeConfigForLevel(17).cols, 14, reason: 'mid-game unchanged');
+    expect(snakeConfigForLevel(60).cols, greaterThan(20),
+        reason: 'late boards should be much wider now');
+    expect(snakeConfigForLevel(60).cols, lessThanOrEqualTo(24),
+        reason: 'past 24 columns generation gets too slow to wait for');
+    // Monotonic: a later level never hands back a smaller board.
+    for (var l = 2; l <= 80; l++) {
+      expect(snakeConfigForLevel(l).cols,
+          greaterThanOrEqualTo(snakeConfigForLevel(l - 1).cols),
+          reason: 'level $l shrank the board');
+    }
+    // Early levels are untouched, so the tuned early curve still holds.
+    for (var l = 1; l <= 17; l++) {
+      expect(snakeConfigForLevel(l).cols, lessThanOrEqualTo(14));
+    }
+  });
+
+  testWidgets('Arrow Maze: zoom controls appear only on boards that need them',
+      (tester) async {
+    tester.view.physicalSize = const Size(1080, 2280);
+    tester.view.devicePixelRatio = 2.625;
+    addTearDown(tester.view.reset);
+
+    // A narrow early board reads fine unaided, and the control row would only
+    // steal vertical space from the board.
+    await tester.pumpWidget(localizedApp(const SnakeArrowsScreen(startLevel: 1)));
+    await tester.pumpAndSettle();
+    expect(snakeConfigForLevel(1).cols, lessThanOrEqualTo(14));
+    expect(find.byKey(const ValueKey('arrow_maze_zoom_in')), findsNothing);
+
+    // A wide late board gets them.
+    await tester.pumpWidget(const SizedBox());
+    await tester.pumpAndSettle();
+    await tester.pumpWidget(localizedApp(const SnakeArrowsScreen(startLevel: 60)));
+    await tester.pumpAndSettle();
+    expect(snakeConfigForLevel(60).cols, greaterThan(14));
+    expect(find.byKey(const ValueKey('arrow_maze_zoom_in')).hitTestable(),
+        findsOneWidget);
+    expect(find.byKey(const ValueKey('arrow_maze_zoom_out')), findsOneWidget);
+    expect(find.byKey(const ValueKey('arrow_maze_zoom_fit')), findsOneWidget);
+  });
+
+  testWidgets('Arrow Maze: the whole board is visible and tappable at rest',
+      (tester) async {
+    // Zoom is an aid, never a requirement: at the default scale every arrow must
+    // already be reachable, or a player who never zooms is stuck.
+    tester.view.physicalSize = const Size(1080, 2280);
+    tester.view.devicePixelRatio = 2.625;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(localizedApp(const SnakeArrowsScreen(startLevel: 60)));
+    await tester.pumpAndSettle();
+
+    final viewer = find.byKey(const ValueKey('arrow_maze_viewer'));
+    final board = find.byKey(const ValueKey('arrow_maze_board'));
+    final viewerRect = tester.getRect(viewer);
+    final boardRect = tester.getRect(board);
+
+    // The painted board fits inside the viewport — nothing is clipped away at
+    // rest, so no arrow is unreachable without panning.
+    expect(boardRect.width, lessThanOrEqualTo(viewerRect.width + 0.5));
+    expect(boardRect.height, lessThanOrEqualTo(viewerRect.height + 0.5));
+
+    // Zooming out is already at its limit, so its button is disabled; zooming in
+    // is available.
+    final outButton = tester.widget<IconButton>(
+        find.byKey(const ValueKey('arrow_maze_zoom_out')));
+    expect(outButton.onPressed, isNull, reason: 'cannot zoom out below fit');
+    final inButton = tester.widget<IconButton>(
+        find.byKey(const ValueKey('arrow_maze_zoom_in')));
+    expect(inButton.onPressed, isNotNull);
+  });
+
+  testWidgets('Arrow Maze: taps still hit the right cell while zoomed in',
+      (tester) async {
+    // The real hazard of adding zoom: the InteractiveViewer sits *outside* the
+    // GestureDetector so the detector keeps receiving board-space coordinates. Get
+    // that backwards and every tap mis-targets once zoomed, while everything else
+    // in the suite still passes.
+    //
+    // Two choices make this test actually sensitive. The screen position of a cell
+    // is derived from `getRect` of the painted board, which already reflects the
+    // transform — deriving it from the zoom matrix instead would just check the
+    // maths against itself. And the assertion is on *which arrow escaped*, read
+    // back from the autosave: an earlier version asserted "a heart was lost",
+    // which passed even with the transform deliberately applied twice, because on
+    // a 93%-full board a mis-aimed tap usually hits some other blocked arrow.
+    tester.view.physicalSize = const Size(1080, 2280);
+    tester.view.devicePixelRatio = 2.625;
+    addTearDown(tester.view.reset);
+
+    const level = 60;
+    await tester
+        .pumpWidget(localizedApp(const SnakeArrowsScreen(startLevel: level)));
+    await tester.pumpAndSettle();
+
+    final board = SnakeBoard.generate(level); // same seed as the screen
+    // A clear arrow near the middle of the board, so it stays on screen once
+    // zoomed about the centre.
+    double distanceToCentre(SnakeArrow a) {
+      final cell = a.cells.first;
+      final dr = cell.row - board.rows / 2;
+      final dc = cell.col - board.cols / 2;
+      return dr * dr + dc * dc;
+    }
+
+    final clear = board.arrows.where(board.isPathClear).toList()
+      ..sort((a, b) => distanceToCentre(a).compareTo(distanceToCentre(b)));
+    expect(clear, isNotEmpty, reason: 'level $level should open with a legal move');
+    final target = clear.first;
+    final targetCell = target.cells.first;
+
+    await tester.tap(find.byKey(const ValueKey('arrow_maze_zoom_in')));
+    await tester.pumpAndSettle();
+
+    final rect = tester.getRect(find.byKey(const ValueKey('arrow_maze_board')));
+    final viewer =
+        tester.getRect(find.byKey(const ValueKey('arrow_maze_viewer')));
+    expect(rect.width, greaterThan(viewer.width),
+        reason: 'the board should be magnified beyond the viewport');
+
+    final cellW = rect.width / board.cols;
+    final cellH = rect.height / board.rows;
+    final point = rect.topLeft +
+        Offset((targetCell.col + 0.5) * cellW, (targetCell.row + 0.5) * cellH);
+    expect(viewer.contains(point), isTrue,
+        reason: 'the chosen arrow must still be on screen while zoomed');
+
+    await tester.tapAt(point);
+    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 700)); // the slide out
+
+    // Read back which arrow actually left.
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+    await tester.pump();
+    final saved = ProgressStore.instance.loadBoard('arrow_maze', level);
+    expect(saved, isNotNull, reason: 'an arrow should have escaped');
+    expect(saved!['escaped'], contains(target.id),
+        reason: 'the tap landed on a different arrow than the one aimed at');
+    expect(find.byIcon(Icons.favorite_border_rounded), findsNothing,
+        reason: 'a clear arrow costs no heart, so no other arrow was hit');
+  });
+
+  testWidgets('Arrow Maze: fit restores the whole board, and a new level resets',
+      (tester) async {
+    tester.view.physicalSize = const Size(1080, 2280);
+    tester.view.devicePixelRatio = 2.625;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(localizedApp(const SnakeArrowsScreen(startLevel: 60)));
+    await tester.pumpAndSettle();
+
+    final boardAtRest =
+        tester.getRect(find.byKey(const ValueKey('arrow_maze_board')));
+
+    await tester.tap(find.byKey(const ValueKey('arrow_maze_zoom_in')));
+    await tester.pumpAndSettle();
+    final zoomed =
+        tester.getRect(find.byKey(const ValueKey('arrow_maze_board')));
+    expect(zoomed.width, greaterThan(boardAtRest.width + 1),
+        reason: 'zoom in should actually magnify the board');
+
+    await tester.tap(find.byKey(const ValueKey('arrow_maze_zoom_fit')));
+    await tester.pumpAndSettle();
+    final refit = tester.getRect(find.byKey(const ValueKey('arrow_maze_board')));
+    expect(refit.width, closeTo(boardAtRest.width, 0.5),
+        reason: 'fit should return to showing the whole board');
+
+    // Restarting must also drop back to fit — landing in a corner of a fresh
+    // board would be disorienting.
+    await tester.tap(find.byKey(const ValueKey('arrow_maze_zoom_in')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byIcon(Icons.refresh_rounded));
+    await tester.pumpAndSettle();
+    final afterRestart =
+        tester.getRect(find.byKey(const ValueKey('arrow_maze_board')));
+    expect(afterRestart.width, closeTo(boardAtRest.width, 0.5),
+        reason: 'a new board should start fit to the screen');
+  });
+  testWidgets('Arrow Maze: freed arrows fly out one by one, not all at once',
+      (tester) async {
+    // The owner's note: when the golden arrow gets out, the arrows it frees used to
+    // blink out of existence. They should leave the way a tapped arrow does.
+    //
+    // Setting this up needs a path cleared to the golden arrow first, because it is
+    // deliberately blocked at the start — so the test escapes everything it legally
+    // can *except* the golden arrow and the ones it frees, saves that position, and
+    // lets the screen restore it.
+    tester.view.physicalSize = const Size(1080, 2280);
+    tester.view.devicePixelRatio = 2.625;
+    addTearDown(tester.view.reset);
+
+    int? chosen;
+    SnakeBoard? prepared;
+    for (final level in [35, 40, 42, 45, 50]) {
+      final b = SnakeBoard.generate(level);
+      final bonus = b.bonusArrow;
+      if (bonus == null) continue;
+      final protectedIds = {bonus.id, ...bonus.frees};
+      var progress = true;
+      while (progress && !b.isPathClear(bonus)) {
+        progress = false;
+        for (final a in b.arrows) {
+          if (a.escaped || protectedIds.contains(a.id)) continue;
+          if (b.isPathClear(a)) {
+            a.escaped = true;
+            progress = true;
+          }
+        }
+      }
+      // Needs the golden arrow reachable with at least two of its partners still
+      // on the board, or there is no chain to observe.
+      final remaining =
+          bonus.frees.where((id) => !b.arrows.firstWhere((a) => a.id == id).escaped);
+      if (b.isPathClear(bonus) && remaining.length >= 2) {
+        chosen = level;
+        prepared = b;
+        break;
+      }
+    }
+    expect(chosen, isNotNull,
+        reason: 'no level offered a reachable golden arrow to test with');
+
+    final level = chosen!;
+    final board = prepared!;
+    final bonus = board.bonusArrow!;
+    final freedIds = bonus.frees
+        .where((id) => !board.arrows.firstWhere((a) => a.id == id).escaped)
+        .toList();
+
+    ProgressStore.instance.saveBoard('arrow_maze', level, {
+      ...board.escapedJson(),
+      'hearts': snakeConfigForLevel(level).hearts,
+    });
+
+    await tester.pumpWidget(localizedApp(SnakeArrowsScreen(startLevel: level)));
+    await tester.pumpAndSettle();
+
+    // Tap the golden arrow via the painted board's own rect, so no transform maths
+    // is duplicated here.
+    final rect = tester.getRect(find.byKey(const ValueKey('arrow_maze_board')));
+    final cellW = rect.width / board.cols;
+    final cellH = rect.height / board.rows;
+    final head = bonus.cells.first;
+    await tester.tapAt(rect.topLeft +
+        Offset((head.col + 0.5) * cellW, (head.row + 0.5) * cellH));
+    await tester.pump();
+
+    /// The escaped set as the game currently sees it, read via the autosave.
+    ///
+    /// Resuming afterwards is essential, not tidiness: `paused` stops the
+    /// scheduler producing frames, which freezes the very animation being
+    /// measured. Without the resume the chain stalled after one arrow and the
+    /// test blamed the app for what the test itself had done.
+    Set<int> escapedNow() {
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+      final saved = ProgressStore.instance.loadBoard('arrow_maze', level);
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+      final ids = saved?['escaped'];
+      return ids is List ? {for (final v in ids) v as int} : <int>{};
+    }
+
+    // One slide's worth: the golden arrow is gone, but its partners cannot all be
+    // gone yet — that is the difference between a chain and a vanishing act.
+    // 900ms because slideDuration clamps a single slide at 820ms; 700 left the
+    // golden arrow still in flight and nothing had escaped at all.
+    await tester.pump(const Duration(milliseconds: 900));
+    final midway = escapedNow();
+    expect(midway, contains(bonus.id), reason: 'the golden arrow should have left');
+    expect(freedIds.where(midway.contains).length, lessThan(freedIds.length),
+        reason: 'the freed arrows vanished instantly instead of flying out');
+
+    // Let the whole chain finish.
+    for (var i = 0; i < 12; i++) {
+      await tester.pump(const Duration(milliseconds: 900));
+    }
+    final after = escapedNow();
+    for (final id in freedIds) {
+      expect(after, contains(id), reason: 'freed arrow $id never left');
+    }
+    // No heart was spent: a cascade is a reward, not a mistake.
+    expect(find.byIcon(Icons.favorite_border_rounded), findsNothing);
+  });
+  testWidgets('Arrow Maze: a two-finger pinch zooms the board', (tester) async {
+    // Asked because pinch appeared not to work on the emulator. The Android
+    // emulator needs Ctrl (Cmd on macOS) held while dragging to simulate a second
+    // finger — the little circles that appear are its virtual fingertips — so a
+    // real two-pointer gesture is worth asserting in code, independently of
+    // whatever the emulator is doing with the mouse.
+    tester.view.physicalSize = const Size(1080, 2280);
+    tester.view.devicePixelRatio = 2.625;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(localizedApp(const SnakeArrowsScreen(startLevel: 60)));
+    await tester.pumpAndSettle();
+
+    Rect boardRect() =>
+        tester.getRect(find.byKey(const ValueKey('arrow_maze_board')));
+    final before = boardRect();
+
+    // Two pointers moving apart: a pinch-out.
+    final centre =
+        tester.getCenter(find.byKey(const ValueKey('arrow_maze_viewer')));
+    final finger1 = await tester.startGesture(centre - const Offset(24, 0));
+    final finger2 = await tester.startGesture(centre + const Offset(24, 0));
+    await tester.pump();
+    for (var i = 0; i < 5; i++) {
+      await finger1.moveBy(const Offset(-14, 0));
+      await finger2.moveBy(const Offset(14, 0));
+      await tester.pump();
+    }
+    await finger1.up();
+    await finger2.up();
+    await tester.pumpAndSettle();
+
+    final after = boardRect();
+    expect(after.width, greaterThan(before.width + 1),
+        reason: 'pinching out should magnify the board');
+
+    // And pinching back in returns toward fit, so the gesture works both ways.
+    final f3 = await tester.startGesture(centre - const Offset(90, 0));
+    final f4 = await tester.startGesture(centre + const Offset(90, 0));
+    await tester.pump();
+    for (var i = 0; i < 6; i++) {
+      await f3.moveBy(const Offset(14, 0));
+      await f4.moveBy(const Offset(-14, 0));
+      await tester.pump();
+    }
+    await f3.up();
+    await f4.up();
+    await tester.pumpAndSettle();
+    expect(boardRect().width, lessThan(after.width),
+        reason: 'pinching in should shrink it again');
+  });
+
+  test('Arrow Maze boards survive a round trip through plain lists', () {
+    // The trip an isolate result has to make: object graphs are not reliably
+    // sendable, so a board goes out as ints and lists and comes back rebuilt.
+    for (final level in [1, 17, 35, 60]) {
+      final board = SnakeBoard.generate(level);
+      final rebuilt = SnakeBoard.fromJson(board.toJson());
+      expect(rebuilt, isNotNull, reason: 'level $level failed to rebuild');
+      expect(rebuilt!.rows, board.rows);
+      expect(rebuilt.cols, board.cols);
+      expect(rebuilt.arrows.length, board.arrows.length);
+      for (var i = 0; i < board.arrows.length; i++) {
+        final a = board.arrows[i], b = rebuilt.arrows[i];
+        expect(b.id, a.id);
+        expect(b.exitDir, a.exitDir);
+        expect(b.frees, a.frees, reason: 'bonus links must survive');
+        expect(b.cells.length, a.cells.length);
+        for (var c = 0; c < a.cells.length; c++) {
+          expect(b.cells[c], a.cells[c]);
+        }
+      }
+      // The rebuilt board plays the same: same solvable order, same difficulty.
+      expect(rebuilt.measureDifficulty().meanBranching,
+          closeTo(board.measureDifficulty().meanBranching, 0.001));
+    }
+  });
+
+  test('Arrow Maze: a malformed prefetch payload is refused, not thrown', () {
+    // A bad payload must degrade to generating on the spot, never break a level.
+    expect(SnakeBoard.fromJson({}), isNull);
+    expect(SnakeBoard.fromJson({'rows': 5, 'cols': 5, 'arrows': 'no'}), isNull);
+    expect(SnakeBoard.fromJson({'rows': 0, 'cols': 5, 'arrows': []}), isNull);
+    expect(
+        SnakeBoard.fromJson({
+          'rows': 5,
+          'cols': 5,
+          'arrows': [
+            {'id': 0, 'dir': 99, 'cells': [0, 0]} // no such direction
+          ]
+        }),
+        isNull);
+    expect(
+        SnakeBoard.fromJson({
+          'rows': 5,
+          'cols': 5,
+          'arrows': [
+            {'id': 0, 'dir': 0, 'cells': [0, 0, 1]} // odd number of coordinates
+          ]
+        }),
+        isNull);
+    expect(
+        SnakeBoard.fromJson({
+          'rows': 5,
+          'cols': 5,
+          'arrows': [
+            {'id': 0, 'dir': 0, 'cells': [0, 99]} // off the board
+          ]
+        }),
+        isNull);
+    // A well-formed payload is accepted, so the refusals above aren't vacuous.
+    expect(
+        SnakeBoard.fromJson({
+          'rows': 5,
+          'cols': 5,
+          'arrows': [
+            {'id': 0, 'dir': 0, 'cells': [1, 1, 0, 1]}
+          ]
+        }),
+        isNotNull);
+  });
+
+  test('Board prefetch: the background board is identical to a local one',
+      () async {
+    // A plain test, not testWidgets: the isolate needs the real event loop, and
+    // testWidgets runs its body in a fake-async zone where it would never finish.
+    BoardPrefetch.reset();
+    const level = 31;
+    BoardPrefetch.warm(level);
+    await BoardPrefetch.pending;
+
+    expect(BoardPrefetch.has(level), isTrue,
+        reason: 'the background build should have produced a board');
+    final prefetched = BoardPrefetch.take(level)!;
+    final local = SnakeBoard.generate(level);
+
+    // The safety property this whole feature rests on: generation is deterministic
+    // in the level, so a prefetched board cannot differ from one made on the spot.
+    // Only *when* the work happened changes.
+    expect(prefetched.rows, local.rows);
+    expect(prefetched.cols, local.cols);
+    expect(prefetched.arrows.length, local.arrows.length);
+    for (var i = 0; i < local.arrows.length; i++) {
+      expect(prefetched.arrows[i].cells.map((c) => '${c.row},${c.col}').join(),
+          local.arrows[i].cells.map((c) => '${c.row},${c.col}').join());
+      expect(prefetched.arrows[i].exitDir, local.arrows[i].exitDir);
+    }
+
+    // Taking it consumes it: the screen mutates the board as arrows are cleared,
+    // so a second caller must not be handed that same instance.
+    expect(BoardPrefetch.has(level), isFalse);
+    expect(BoardPrefetch.take(level), isNull);
+    // And the wrong level never matches.
+    BoardPrefetch.seed(level, local);
+    expect(BoardPrefetch.take(level + 1), isNull);
+    BoardPrefetch.reset();
+  });
+
+  testWidgets('Arrow Maze: winning warms the next board, and entering uses it',
+      (tester) async {
+    tester.view.physicalSize = const Size(1080, 2280);
+    tester.view.devicePixelRatio = 2.625;
+    addTearDown(tester.view.reset);
+    addTearDown(BoardPrefetch.reset);
+
+    // Seeded directly rather than via `warm`, because an isolate cannot complete
+    // inside testWidgets' fake-async zone.
+    const level = 3;
+    BoardPrefetch.reset();
+    BoardPrefetch.seed(level, SnakeBoard.generate(level));
+    expect(BoardPrefetch.has(level), isTrue);
+
+    await tester.pumpWidget(localizedApp(const SnakeArrowsScreen(startLevel: level)));
+    await tester.pumpAndSettle();
+
+    // Entering the level consumed the prefetched board rather than generating one.
+    expect(BoardPrefetch.has(level), isFalse,
+        reason: 'the screen should have taken the prefetched board');
+    // ...and the board on screen is playable, so what it took was usable.
+    expect(find.byKey(const ValueKey('arrow_maze_board')), findsOneWidget);
+    expect(find.text('Level $level'), findsOneWidget);
+  });
 }
 
 /// Counts solutions of a nonogram by row-wise backtracking, stopping at [limit].

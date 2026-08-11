@@ -473,7 +473,7 @@ abstract class AppLocalizations {
   /// No description provided for @helpArrowMaze.
   ///
   /// In en, this message translates to:
-  /// **'The long arrows slide off the board head-first. Tap one to send it out — the path in front of its head must be clear. Clear the whole board to win. From level 12 one arrow is golden: when it gets away it takes the paler golden arrows with it, so it pays to free the golden one while they are still stuck.'**
+  /// **'The long arrows slide off the board head-first. Tap one to send it out — the path in front of its head must be clear. Clear the whole board to win. From level 12 one arrow is golden. It is in the way of several others, so when it finally gets out they are free to follow it straight away — worth aiming for.'**
   String get helpArrowMaze;
 
   /// No description provided for @helpWord.
@@ -613,6 +613,30 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Tap a long arrow to send it off, head-first. The path ahead of its head must be clear.'**
   String get arrowMazeHint;
+
+  /// No description provided for @arrowMazeHintZoom.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap a long arrow to send it off, head-first. Pinch or use the buttons to zoom in for a closer look.'**
+  String get arrowMazeHintZoom;
+
+  /// No description provided for @zoomIn.
+  ///
+  /// In en, this message translates to:
+  /// **'Zoom in'**
+  String get zoomIn;
+
+  /// No description provided for @zoomOut.
+  ///
+  /// In en, this message translates to:
+  /// **'Zoom out'**
+  String get zoomOut;
+
+  /// No description provided for @zoomFit.
+  ///
+  /// In en, this message translates to:
+  /// **'Fit the whole board'**
+  String get zoomFit;
 
   /// No description provided for @numberCrossHint.
   ///

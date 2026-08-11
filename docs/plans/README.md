@@ -2,6 +2,9 @@
 
 Design notes and implementation plans for upcoming games and features.
 
+- **[handoff.md](handoff.md)** — where things stand right now: what is merged, what is
+  open and in what order, what is blocked, and what still needs checking on a device.
+  Start here when picking the project back up.
 - **[backlog.md](backlog.md)** — the high-level list of planned games (by cognitive
   domain) and features, with status.
 - One file per substantial feature (e.g. [wordle.md](wordle.md),

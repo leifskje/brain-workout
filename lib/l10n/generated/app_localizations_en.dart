@@ -222,7 +222,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get helpArrowMaze =>
-      'The long arrows slide off the board head-first. Tap one to send it out — the path in front of its head must be clear. Clear the whole board to win. From level 12 one arrow is golden: when it gets away it takes the paler golden arrows with it, so it pays to free the golden one while they are still stuck.';
+      'The long arrows slide off the board head-first. Tap one to send it out — the path in front of its head must be clear. Clear the whole board to win. From level 12 one arrow is golden. It is in the way of several others, so when it finally gets out they are free to follow it straight away — worth aiming for.';
 
   @override
   String get helpWord =>
@@ -335,6 +335,19 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get arrowMazeHint =>
       'Tap a long arrow to send it off, head-first. The path ahead of its head must be clear.';
+
+  @override
+  String get arrowMazeHintZoom =>
+      'Tap a long arrow to send it off, head-first. Pinch or use the buttons to zoom in for a closer look.';
+
+  @override
+  String get zoomIn => 'Zoom in';
+
+  @override
+  String get zoomOut => 'Zoom out';
+
+  @override
+  String get zoomFit => 'Fit the whole board';
 
   @override
   String get numberCrossHint =>

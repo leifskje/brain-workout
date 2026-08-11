@@ -29,6 +29,13 @@ We deliberately spread games across domains for a rounded "workout," and want
 - ✅ Word of the day + sharing — see [word-of-the-day.md](word-of-the-day.md).
   Date-seeded so there is no server; spoiler-free emoji grid; share sheet *and*
   copy-to-clipboard. Practice words stay available but are never shareable.
+- 💡 **Tester feedback channel** — testers are non-developers, so GitHub issues are too
+  high a barrier (account, repo, developer-shaped form). Cheapest workable option is an
+  in-app "Send feedback" opening a pre-filled `mailto:` with version, level, device and
+  locale already in the body, so a one-line reply is still actionable. A Google Form is
+  the alternative if replies should land in a sheet. Deliberately *not* an analytics or
+  crash SDK — nothing in this app sends data anywhere and that is a property worth
+  keeping. See [handoff.md](handoff.md).
 - 💡 Daily reminder notification (local notifications)
 - ✅ Personal records ("New personal best!") — local only, per game *and* per
   level. Wired for 2048 (score), Memory Match (moves), Mini Sudoku and Picture
@@ -56,10 +63,12 @@ identical to the twenties. Plateaus after it:
 
 What's left:
 
-- 🔨 **Arrow Maze got its new mechanic: bonus arrows** (golden arrow frees three
-  stuck ones, from level 12). Config knobs remain exhausted — the measured branching
-  floor at 14×20 is ~2.1 — so the remaining depth is *eagle eye* and a bigger board
-  behind zoom. See [arrow-maze-depth.md](arrow-maze-depth.md).
+- ✅ **Arrow Maze depth, three ways** — bonus arrows (a golden arrow whose departure
+  unlocks a *legal chain* of 2–4 others, from level 12); large-board packing fixed by
+  placing interior heads first; and the board cap raised 14 → 24 columns behind zoom,
+  taking level 60 from 24 arrows to ~70 with `clear@start` 22% → 4%. Next is re-tuning
+  the branching targets, which the generator can now beat. See
+  [arrow-maze-depth.md](arrow-maze-depth.md) and [handoff.md](handoff.md).
 - 💡 **Memory Match needs *triples* to go further.** 21 pairs is the structural
   ceiling: all layouts are 6 columns wide, so card size is width-bound at ~45dp
   on a 360dp phone and rows are the only thing that can grow. Matching three of a
