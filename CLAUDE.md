@@ -127,11 +127,17 @@ A pre-commit hook (`.githooks/pre-commit`, enabled via `core.hooksPath`) runs
   after any generator change**: improving how bodies fill also made every board
   denser and harder, which put the old easy end of the curve out of reach. Don't
   chase difficulty with a bigger grid: 14×20 is ~23dp per cell on a phone and is
-  the legibility floor for this audience. Measured since, at 20×29: a bigger board
-  makes the game *easier* — branching floor rises 1.9 → 3.2 — because the placement
-  algorithm can't pack it (fill 88% → 68%, holes up to a third of the board) and
-  empty space is exactly what gives arrows clear exits. A bigger board is not a
-  difficulty lever until the generator can fill one.
+  the legibility floor for this audience. A bigger board also long looked
+  impossible because it measured *easier* (branching floor 1.9 → 3.2 at 20×29, fill
+  88% → 68%) — but that was the placement *order*, not the geometry. **Place long-ray
+  heads first.** A head is legal only if its ray to the edge is clear, so success is
+  ~`(1-density)^rayLength`: usable heads scale with the perimeter, not the area, and an
+  interior cell on a wide board can never host one once density rises. Ordering heads by
+  ray length descending pairs the hard inland placements with an empty board and fixes
+  it — 28×41 now fills to 92% with 97 arrows, and 14×20 improved too (fill 87→94%,
+  opening moves 22→13%, generation 393ms→1ms). Boards under 9 columns must keep
+  emptiness-only ordering; the ray tiebreak costs level 1 two points of fill there.
+  Board size is still capped at 14 purely by legibility — raising it needs zoom first.
 - **Fill the board by placing bodies well, not by back-filling.** Snake bodies
   grow into the *most constrained* free cell (Warnsdorff-style) so they consume
   dead ends instead of stranding pockets, and heads are placed in the *emptiest*

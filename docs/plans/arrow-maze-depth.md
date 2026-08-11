@@ -23,37 +23,63 @@ to catch.
 **Conclusion: 14×20 is essentially exhausted as a difficulty source.** Every
 config knob is now at its limit. Anything further needs a new axis.
 
-## Axis 1 — a bigger board and zoom: ⛔ measured, and it does not work
+## Axis 1 — bigger boards: the generator was the blocker, and it is fixed
 
-This doc used to claim a bigger board was "the only route to the large remaining
-headroom" and that zoom should be verified before building. It was verified. **The
-answer is no**, and the direction is the opposite of what was assumed.
+The first measurement here concluded that a bigger board makes the game *easier*
+(branching floor 1.9 → 3.2 at 20×29, fill 88% → 68%). That was true, but the
+conclusion drawn from it — "a bigger board is not a difficulty lever" — was wrong.
+The board was never the problem; the **placement order** was.
 
-Measured by temporarily raising the column cap to 20 (so late levels build 20×29
-instead of 14×20) and running `analyze_snake_difficulty`:
+### Why fill collapsed
 
-| | 14×20 (shipped) | 20×29 (tested) |
-|---|---|---|
-| branching min/med/max at L60 | **1.9** / 3.6 / 6.8 | **3.2** / 5.1 / 8.6 |
-| board fill | 86–90% | 63–74% |
-| largest empty gap | 3–9% | 12–33% |
-| generation time | ~400ms | ~1200–1600ms |
+An arrow is only placeable if the ray from its head to the edge is clear *at that
+moment*, so the chance a candidate head is legal is roughly
+`(1 - density) ^ rayLength`. On a 14-wide board most cells sit a few steps from an
+edge, so rays are short and placements succeed. On a 28-wide board the interior is far
+from every edge: usable head positions scale with the **perimeter**, not the area, and
+once density rises no interior cell can host a head at all.
 
-Lower branching is harder, so a bigger board **raises the difficulty floor from 1.9
-to 3.2** — it makes the game markedly *easier*. The shipped boards missed their
-targets by +0.8 to +1.2 across every late level.
+Head selection preferred the emptiest neighbourhood and ignored ray length entirely,
+so it spent the empty early board on easy edge placements and then found nothing legal
+inland.
 
-**The cause is the generator, not the geometry.** Fill collapses from ~88% to ~68%
-and the largest contiguous hole grows to as much as a third of the board, because
-the placement algorithm cannot pack a grid that big. Empty space is precisely what
-gives arrows clear exits, so a sparse board is an easy board — the same finding that
-made level 42 the easiest in the game back when every knob capped at level 17.
+### The fix: place interior heads first
 
-So the order of work is the reverse of what was assumed: **a bigger board is not a
-difficulty lever until the generator can fill one.** Improving large-board packing is
-a real project on its own, and only if it succeeds does zoom become worth building.
-Zoom by itself would buy a board that is easier, patchier and 3–4× slower to
-generate.
+Order candidate heads by **ray length descending**, emptiest neighbourhood as the
+tiebreak. That pairs the hard long-ray placements with a low-density board, which is
+the only time they can succeed.
+
+| | 14×20 before | 14×20 now | 28×41 now |
+|---|---|---|---|
+| arrows | 23 | 24 | **97** |
+| fill | 87% | **94%** | 92% |
+| largest hole | 6% | **3%** | 2% |
+| clear at start | 22% | **13%** | **4%** |
+| miss vs target | 0.26 | **0.13** | 0.30 |
+| generation | 393ms | **1ms** | 9.6s |
+
+It improves the size we already ship on every axis — denser, fewer holes, far fewer
+free opening moves, closer to target, and ~400× faster because placements now succeed
+instead of failing thousands of times against the retry ceiling. And 28×41, four times
+today's area with 97 arrows, fills to 92% with only 4% of arrows ready at the start.
+
+**Small boards must keep the old ordering.** Below about 9 columns there is no interior
+to fix, and the ray tiebreak narrows the candidate set enough to cost level 1 two points
+of fill — enough to trip the 0.65 fill floor in the tests. Gated on `cfg.cols >= 9`.
+
+### What is still in the way
+
+- **Generation time at the very top.** 9.6s at 28×41 with the full 768-candidate pool.
+  An area-scaled pool is already in place, and 26×38 lands at 212ms with 92% fill and
+  96 arrows, so ~26 columns is affordable today. Past that needs a smaller pool — each
+  candidate costs ~12ms at 28×41, so roughly 32 candidates for a 400ms budget, which is
+  cheap to try now that boards land near target without needing a wide pool.
+- **Legibility, i.e. zoom.** This is now the *only* reason the cap is still 14. At 26
+  columns a phone gives ~13dp per cell, well under the ~23dp floor. **Do not raise the
+  board cap until zoom/pan exists**, or the game becomes unreadable.
+
+Order of work: zoom, then raise the cap, then re-tune the branching targets — the
+generator can now reach lower branching, so the current targets are no longer the limit.
 
 ## Axis 2 — new mechanics (from a tester's own description)
 
@@ -102,7 +128,8 @@ them for *ideas* is fine; copying code is not.
 
 ✅ Retune shipped (plateau 35 → 63).
 ✅ Bonus arrows shipped — the first difficulty axis here that isn't a generator knob.
-⛔ Bigger board + zoom: measured and rejected. It makes the game easier, not harder,
-because the generator cannot fill a board that size. Would need better large-board
-packing *first*, and only then is zoom worth revisiting.
+✅ Large-board packing fixed (interior-first head ordering). Ships at 14×20, where it
+already improves fill, holes, opening moves and speed; verified to hold at 28×41.
+📝 **Next: zoom/pan.** It is the only thing keeping the cap at 14 now.
+📝 Then raise the cap (~26 columns is affordable today) and re-tune the targets.
 💡 Still open: **eagle eye**, and making the bonus mechanic carry more weight.

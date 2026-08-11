@@ -441,7 +441,12 @@ class SnakeBoard {
     SnakeBoard? best;
     var bestDistance = double.infinity;
 
-    for (var attempt = 0; attempt < maxGenerationAttempts; attempt++) {
+    // Pool scaled by area: a 28x41 candidate costs ~12x a 14x20 one, so a fixed
+    // 768 would mean a ten-second wait on the biggest boards.
+    final poolSize = (maxGenerationAttempts * 280 / (cfg.rows * cfg.cols))
+        .round()
+        .clamp(96, maxGenerationAttempts);
+    for (var attempt = 0; attempt < poolSize; attempt++) {
       final board = _build(cfg, _seedFor(level, attempt));
       if (board.arrows.isEmpty) continue;
 
@@ -640,6 +645,9 @@ class SnakeBoard {
       return heads;
     }
 
+    // Big boards must place their *interior* heads first; small ones must not.
+    final interiorFirst = cfg.cols >= 9;
+
     void placePass(int minLength) {
       var attempts = 0;
       // The board only changes when a snake is committed, so the tables and the
@@ -664,15 +672,43 @@ class SnakeBoard {
         // enclosed, every ray out of it is blocked, so no further snake can ever
         // be placed inside it — that is how a single hole reached 23% of the grid
         // while the rest of the board was dense.
-        var sparsest = -1;
+        // EXPERIMENT: longest ray first, emptiest neighbourhood as tiebreak.
+        int rayLen(List<int> h) {
+          final d = Dir.values[h[2]];
+          return switch (d) {
+            Dir.up => h[0],
+            Dir.down => cfg.rows - 1 - h[0],
+            Dir.left => h[1],
+            Dir.right => cfg.cols - 1 - h[1],
+          };
+        }
+
+        var bestRay = -1;
+        var bestEmpty = -1;
         final sparseHeads = <List<int>>[];
         for (final h in heads) {
-          final empty = emptyNear(h[0], h[1], 2);
-          if (empty > sparsest) {
-            sparsest = empty;
-            sparseHeads.clear();
+          final em = emptyNear(h[0], h[1], 2);
+          if (interiorFirst) {
+            // Ray length first: spend the hard interior placements while the
+            // board is still empty enough for them to succeed.
+            final rl = rayLen(h);
+            if (rl > bestRay || (rl == bestRay && em > bestEmpty)) {
+              bestRay = rl;
+              bestEmpty = em;
+              sparseHeads.clear();
+            }
+            if (rl == bestRay && em == bestEmpty) sparseHeads.add(h);
+          } else {
+            // Small boards: emptiness alone, exactly as before. Adding a ray
+            // tiebreak here narrowed the candidate set and cost level 1 two
+            // points of fill for no benefit — a 6x9 board has no interior to
+            // speak of, so there is nothing for the ordering to fix.
+            if (em > bestEmpty) {
+              bestEmpty = em;
+              sparseHeads.clear();
+            }
+            if (em == bestEmpty) sparseHeads.add(h);
           }
-          if (empty == sparsest) sparseHeads.add(h);
         }
         final pick = sparseHeads[rng.nextInt(sparseHeads.length)];
         final headCell = Cell(pick[0], pick[1]);
