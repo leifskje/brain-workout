@@ -23,25 +23,37 @@ to catch.
 **Conclusion: 14×20 is essentially exhausted as a difficulty source.** Every
 config knob is now at its limit. Anything further needs a new axis.
 
-## Axis 1 — a bigger board, which means zoom
+## Axis 1 — a bigger board and zoom: ⛔ measured, and it does not work
 
-The board is pinned at 14×20 by legibility (~23dp per cell), not by the
-generator. Pinch-zoom and pan would remove that constraint and reopen the whole
-branching range, which is where the *large* remaining headroom is.
+This doc used to claim a bigger board was "the only route to the large remaining
+headroom" and that zoom should be verified before building. It was verified. **The
+answer is no**, and the direction is the opposite of what was assumed.
 
-The honest risk: Arrow Maze is a game about scanning the whole board for an arrow
-with a clear exit. If finding one requires panning, the game gets *tedious* rather
-than harder, and that is a bad trade for this audience. Design accordingly:
+Measured by temporarily raising the column cap to 20 (so late levels build 20×29
+instead of 14×20) and running `analyze_snake_difficulty`:
 
-- Default to fit-to-screen, always. Zoom is an **inspection aid**, never a
-  requirement for play.
-- Never let a tappable arrow be off-screen at the default zoom.
-- Consider a "highlight all ready arrows" toggle so scanning stays possible at
-  fit-to-screen even when arrowheads are small.
+| | 14×20 (shipped) | 20×29 (tested) |
+|---|---|---|
+| branching min/med/max at L60 | **1.9** / 3.6 / 6.8 | **3.2** / 5.1 / 8.6 |
+| board fill | 86–90% | 63–74% |
+| largest empty gap | 3–9% | 12–33% |
+| generation time | ~400ms | ~1200–1600ms |
 
-Verify with a real measurement, not a feel: generate at 20×30, run
-`analyze_snake_difficulty`, and check the achievable branching floor actually
-drops meaningfully below 2.1. If it doesn't, zoom buys nothing and shouldn't ship.
+Lower branching is harder, so a bigger board **raises the difficulty floor from 1.9
+to 3.2** — it makes the game markedly *easier*. The shipped boards missed their
+targets by +0.8 to +1.2 across every late level.
+
+**The cause is the generator, not the geometry.** Fill collapses from ~88% to ~68%
+and the largest contiguous hole grows to as much as a third of the board, because
+the placement algorithm cannot pack a grid that big. Empty space is precisely what
+gives arrows clear exits, so a sparse board is an easy board — the same finding that
+made level 42 the easiest in the game back when every knob capped at level 17.
+
+So the order of work is the reverse of what was assumed: **a bigger board is not a
+difficulty lever until the generator can fill one.** Improving large-board packing is
+a real project on its own, and only if it succeeds does zoom become worth building.
+Zoom by itself would buy a board that is easier, patchier and 3–4× slower to
+generate.
 
 ## Axis 2 — new mechanics (from a tester's own description)
 
@@ -90,7 +102,7 @@ them for *ideas* is fine; copying code is not.
 
 ✅ Retune shipped (plateau 35 → 63).
 ✅ Bonus arrows shipped — the first difficulty axis here that isn't a generator knob.
-💡 Still open: **eagle eye**, and **axis 1 (zoom + a bigger board)**, which remains
-the only route to the large remaining headroom. Verify zoom pays before building it:
-generate at 20×30, run `analyze_snake_difficulty`, and check the achievable branching
-floor actually drops meaningfully below 2.1. If it doesn't, zoom buys nothing.
+⛔ Bigger board + zoom: measured and rejected. It makes the game easier, not harder,
+because the generator cannot fill a board that size. Would need better large-board
+packing *first*, and only then is zoom worth revisiting.
+💡 Still open: **eagle eye**, and making the bonus mechanic carry more weight.

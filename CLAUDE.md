@@ -127,7 +127,11 @@ A pre-commit hook (`.githooks/pre-commit`, enabled via `core.hooksPath`) runs
   after any generator change**: improving how bodies fill also made every board
   denser and harder, which put the old easy end of the curve out of reach. Don't
   chase difficulty with a bigger grid: 14×20 is ~23dp per cell on a phone and is
-  the legibility floor for this audience.
+  the legibility floor for this audience. Measured since, at 20×29: a bigger board
+  makes the game *easier* — branching floor rises 1.9 → 3.2 — because the placement
+  algorithm can't pack it (fill 88% → 68%, holes up to a third of the board) and
+  empty space is exactly what gives arrows clear exits. A bigger board is not a
+  difficulty lever until the generator can fill one.
 - **Fill the board by placing bodies well, not by back-filling.** Snake bodies
   grow into the *most constrained* free cell (Warnsdorff-style) so they consume
   dead ends instead of stranding pockets, and heads are placed in the *emptiest*

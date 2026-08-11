@@ -473,7 +473,7 @@ abstract class AppLocalizations {
   /// No description provided for @helpArrowMaze.
   ///
   /// In en, this message translates to:
-  /// **'The long arrows slide off the board head-first. Tap one to send it out — the path in front of its head must be clear. Clear the whole board to win. From level 12 one arrow is golden: when it gets away it takes the arrows marked with a golden dot with it, so it pays to free the golden one while they are still stuck.'**
+  /// **'The long arrows slide off the board head-first. Tap one to send it out — the path in front of its head must be clear. Clear the whole board to win. From level 12 one arrow is golden: when it gets away it frees a few of the arrows that are still stuck, so it is worth getting the golden one out early.'**
   String get helpArrowMaze;
 
   /// No description provided for @helpWord.
