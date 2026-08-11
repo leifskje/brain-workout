@@ -65,6 +65,13 @@ class _SnakeArrowsScreenState extends State<SnakeArrowsScreen>
 
   static const _maxZoom = 4.0;
 
+  /// Arrows freed by a bonus arrow that are still waiting to fly off.
+  ///
+  /// They leave one at a time, reusing the ordinary escape animation, so a bonus
+  /// reads as a chain reaction rather than arrows blinking out of existence. The
+  /// board stays locked (`_busy`) until the queue drains.
+  final List<int> _cascade = [];
+
   void _tick() {
     if (mounted) setState(() {});
   }
@@ -134,6 +141,7 @@ class _SnakeArrowsScreenState extends State<SnakeArrowsScreen>
     // A new board always starts fit to the screen; carrying a previous level's
     // pan over would drop the player into a corner of an unfamiliar board.
     _zoom.value = Matrix4.identity();
+    _cascade.clear();
     setState(() {
       _level = level;
       _board = board;
@@ -169,19 +177,16 @@ class _SnakeArrowsScreenState extends State<SnakeArrowsScreen>
     if (!mounted) return;
     if (status != AnimationStatus.completed || _escapingId == null) return;
     final arrow = _board.arrows.firstWhere((a) => a.id == _escapingId);
-    // A bonus arrow takes its linked arrows with it. They vanish rather than
-    // animating out, which is acceptable because their colour already announced
-    // the link — but the count is still worth saying out loud for this audience.
+    // A bonus arrow takes its linked arrows with it, and they now *fly out* one
+    // after another using this same animation rather than blinking out of
+    // existence. Queue them and let each completion start the next.
     final freed = _board.bonusFreedBy(arrow);
     setState(() {
       arrow.escaped = true;
-      for (final a in freed) {
-        a.escaped = true;
-      }
       _escapingId = null;
-      _busy = false;
     });
     if (freed.isNotEmpty) {
+      _cascade.addAll([for (final a in freed) a.id]);
       HapticFeedback.mediumImpact();
       ScaffoldMessenger.of(context)
         ..clearSnackBars()
@@ -192,12 +197,53 @@ class _SnakeArrowsScreenState extends State<SnakeArrowsScreen>
           duration: const Duration(seconds: 2),
         ));
     }
+    if (_cascade.isNotEmpty) {
+      // Stay locked: the board is mid-chain and a tap now would race it.
+      //
+      // Deferred out of this status listener rather than called directly. We are
+      // inside the controller's own status notification, and restarting it from
+      // there only delivered the first link of the chain — the second and third
+      // arrows never fired. A microtask puts the restart after the notification
+      // has finished unwinding.
+      Future.microtask(() {
+        if (mounted && _cascade.isNotEmpty) _startNextCascade();
+      });
+      return;
+    }
+    setState(() => _busy = false);
     if (_board.isSolved) {
       _busy = true;
       Future.delayed(const Duration(milliseconds: 150), () {
         if (mounted) _showWin();
       });
     }
+  }
+
+  /// How long [arrow] should take to slide out, from how far it actually travels,
+  /// so the speed is identical on every screen. The painter moves it this same
+  /// distance (see `_drawArrow`'s totalShift), so the two must stay in step.
+  Duration _slideFor(SnakeArrow arrow) =>
+      slideDuration((arrow.cells.length - 1 + _board.rows + 1) * _cell);
+
+  /// Sends the next freed arrow on its way.
+  ///
+  /// Prefers one whose path is *now* clear — the bonus arrow leaving often opens a
+  /// lane — so as many as possible look like an ordinary escape rather than
+  /// sliding through their neighbours.
+  void _startNextCascade() {
+    final pending = [
+      for (final id in _cascade)
+        _board.arrows.firstWhere((a) => a.id == id)
+    ]..sort((a, b) {
+        final ac = _board.isPathClear(a) ? 0 : 1;
+        final bc = _board.isPathClear(b) ? 0 : 1;
+        return ac.compareTo(bc);
+      });
+    final next = pending.first;
+    _cascade.remove(next.id);
+    _escapeCtrl.duration = _slideFor(next);
+    setState(() => _escapingId = next.id);
+    _escapeCtrl.forward(from: 0);
   }
 
   void _handleTapCell(int row, int col) {
@@ -210,8 +256,7 @@ class _SnakeArrowsScreenState extends State<SnakeArrowsScreen>
       // Time the slide from how far it travels, so the speed is the same on every
       // screen. The painter moves the arrow this same distance (see _drawArrow's
       // totalShift), so the two must stay in step.
-      _escapeCtrl.duration = slideDuration(
-          (arrow.cells.length - 1 + _board.rows + 1) * _cell);
+      _escapeCtrl.duration = _slideFor(arrow);
       setState(() {
         _escapingId = arrow.id;
         _blockedId = null;

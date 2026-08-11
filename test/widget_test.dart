@@ -2863,6 +2863,110 @@ void main() {
     expect(afterRestart.width, closeTo(boardAtRest.width, 0.5),
         reason: 'a new board should start fit to the screen');
   });
+  testWidgets('Arrow Maze: freed arrows fly out one by one, not all at once',
+      (tester) async {
+    // The owner's note: when the golden arrow gets out, the arrows it frees used to
+    // blink out of existence. They should leave the way a tapped arrow does.
+    //
+    // Setting this up needs a path cleared to the golden arrow first, because it is
+    // deliberately blocked at the start — so the test escapes everything it legally
+    // can *except* the golden arrow and the ones it frees, saves that position, and
+    // lets the screen restore it.
+    tester.view.physicalSize = const Size(1080, 2280);
+    tester.view.devicePixelRatio = 2.625;
+    addTearDown(tester.view.reset);
+
+    int? chosen;
+    SnakeBoard? prepared;
+    for (final level in [35, 40, 42, 45, 50]) {
+      final b = SnakeBoard.generate(level);
+      final bonus = b.bonusArrow;
+      if (bonus == null) continue;
+      final protectedIds = {bonus.id, ...bonus.frees};
+      var progress = true;
+      while (progress && !b.isPathClear(bonus)) {
+        progress = false;
+        for (final a in b.arrows) {
+          if (a.escaped || protectedIds.contains(a.id)) continue;
+          if (b.isPathClear(a)) {
+            a.escaped = true;
+            progress = true;
+          }
+        }
+      }
+      // Needs the golden arrow reachable with at least two of its partners still
+      // on the board, or there is no chain to observe.
+      final remaining =
+          bonus.frees.where((id) => !b.arrows.firstWhere((a) => a.id == id).escaped);
+      if (b.isPathClear(bonus) && remaining.length >= 2) {
+        chosen = level;
+        prepared = b;
+        break;
+      }
+    }
+    expect(chosen, isNotNull,
+        reason: 'no level offered a reachable golden arrow to test with');
+
+    final level = chosen!;
+    final board = prepared!;
+    final bonus = board.bonusArrow!;
+    final freedIds = bonus.frees
+        .where((id) => !board.arrows.firstWhere((a) => a.id == id).escaped)
+        .toList();
+
+    ProgressStore.instance.saveBoard('arrow_maze', level, {
+      ...board.escapedJson(),
+      'hearts': snakeConfigForLevel(level).hearts,
+    });
+
+    await tester.pumpWidget(localizedApp(SnakeArrowsScreen(startLevel: level)));
+    await tester.pumpAndSettle();
+
+    // Tap the golden arrow via the painted board's own rect, so no transform maths
+    // is duplicated here.
+    final rect = tester.getRect(find.byKey(const ValueKey('arrow_maze_board')));
+    final cellW = rect.width / board.cols;
+    final cellH = rect.height / board.rows;
+    final head = bonus.cells.first;
+    await tester.tapAt(rect.topLeft +
+        Offset((head.col + 0.5) * cellW, (head.row + 0.5) * cellH));
+    await tester.pump();
+
+    /// The escaped set as the game currently sees it, read via the autosave.
+    ///
+    /// Resuming afterwards is essential, not tidiness: `paused` stops the
+    /// scheduler producing frames, which freezes the very animation being
+    /// measured. Without the resume the chain stalled after one arrow and the
+    /// test blamed the app for what the test itself had done.
+    Set<int> escapedNow() {
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+      final saved = ProgressStore.instance.loadBoard('arrow_maze', level);
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+      final ids = saved?['escaped'];
+      return ids is List ? {for (final v in ids) v as int} : <int>{};
+    }
+
+    // One slide's worth: the golden arrow is gone, but its partners cannot all be
+    // gone yet — that is the difference between a chain and a vanishing act.
+    // 900ms because slideDuration clamps a single slide at 820ms; 700 left the
+    // golden arrow still in flight and nothing had escaped at all.
+    await tester.pump(const Duration(milliseconds: 900));
+    final midway = escapedNow();
+    expect(midway, contains(bonus.id), reason: 'the golden arrow should have left');
+    expect(freedIds.where(midway.contains).length, lessThan(freedIds.length),
+        reason: 'the freed arrows vanished instantly instead of flying out');
+
+    // Let the whole chain finish.
+    for (var i = 0; i < 12; i++) {
+      await tester.pump(const Duration(milliseconds: 900));
+    }
+    final after = escapedNow();
+    for (final id in freedIds) {
+      expect(after, contains(id), reason: 'freed arrow $id never left');
+    }
+    // No heart was spent: a cascade is a reward, not a mistake.
+    expect(find.byIcon(Icons.favorite_border_rounded), findsNothing);
+  });
 }
 
 /// Counts solutions of a nonogram by row-wise backtracking, stopping at [limit].

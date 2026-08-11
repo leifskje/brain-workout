@@ -131,6 +131,19 @@ better value than axis 1 if they work.
   in front of the player; the tester's verdict was "a bit too much — there appears
   to be multiple colours". Clearing the golden arrow last still wastes it.
 
+  The freed arrows **fly out one at a time**, reusing the ordinary escape
+  animation, so a bonus reads as a chain reaction rather than arrows blinking out
+  of existence — the owner asked for this after seeing them vanish. Each one picks
+  the next arrow whose path is *now* clear where possible, since the golden arrow
+  leaving often opens a lane, so as many as possible look like a normal escape. The
+  board stays locked until the chain drains.
+
+  Restarting the animation must be deferred out of the controller's own status
+  listener (a microtask), and the whole thing is easy to mis-test: reading state
+  via `AppLifecycleState.paused` stops the scheduler producing frames, which
+  freezes the animation under test. That made the chain look broken after one arrow
+  when it was the test doing the freezing.
+
   Two things worth knowing. `measureDifficulty` simulates the cascade, because a
   metric that ignored it would be scoring a game nobody plays; the tuned curve
   survived that change with every level still inside tolerance, so no retuning was

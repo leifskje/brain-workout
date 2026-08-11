@@ -149,6 +149,12 @@ A pre-commit hook (`.githooks/pre-commit`, enabled via `core.hooksPath`) runs
   and loading or restarting returns to fit. Explicit +/−/fit buttons exist because
   pinch is awkward for this audience, and they are hidden on boards narrow enough not to
   need them.
+- **`AppLifecycleState.paused` stops the scheduler, so it freezes animations under
+  test.** Reading autosaved state mid-animation by pausing looked like proof that
+  Arrow Maze's bonus cascade stopped after one arrow; the cascade was fine and the
+  *test* had halted the ticker. Send `resumed` straight after the read. Related:
+  restart an `AnimationController` from a microtask rather than directly inside its
+  own status listener.
 - **Testing a transform needs an observable outside the transform.** The zoom tap test
   first asserted "a heart was lost", which passed even with the transform deliberately
   applied twice — on a 93%-full board a mis-aimed tap usually hits *some* other blocked
