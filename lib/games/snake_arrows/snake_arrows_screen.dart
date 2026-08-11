@@ -380,12 +380,9 @@ class _SnakePainter extends CustomPainter {
 
   static const _normalColor = Color(0xFF37474F);
   static const _blockedColor = Color(0xFFE53935);
-  /// Bonus arrow: clearing it sweeps its linked arrows off the board too.
+  /// Bonus arrow: clearing it sweeps its linked arrows off the board too. The
+  /// *only* extra colour on the board — see [_drawLinkMark].
   static const _bonusColor = Color(0xFFB8860B);
-  /// The arrows a bonus arrow will free — same hue, lighter, so the link reads at
-  /// a glance. That pre-announcement is the whole mechanic: the player has to see
-  /// the connection *before* deciding what order to clear in.
-  static const _bonusLinkColor = Color(0xFFD9A93B);
   static const _boardColor = Color(0xFFE8EDF2);
 
   @override
@@ -418,12 +415,17 @@ class _SnakePainter extends CustomPainter {
 
   void _drawArrow(Canvas canvas, SnakeArrow arrow) {
     final dir = arrow.exitDir;
-    var color = _normalColor;
-    if (arrow.isBonus) {
-      color = _bonusColor;
-    } else if (board.bonusArrow?.frees.contains(arrow.id) ?? false) {
-      color = _bonusLinkColor;
-    }
+    // Only the bonus arrow is recoloured. Its linked arrows keep the normal
+    // colour and get a small gold dot instead (see [_drawLinkMark]).
+    //
+    // They used to be painted a second, lighter gold, which meant four or five
+    // gold arrows on a board of ~22 and two new colours to learn. A tester's
+    // verdict was "a bit too much — there appears to be multiple colours". The
+    // link still has to be visible *before* the player commits to an order, since
+    // that is the whole mechanic, but a dot says it in one colour instead of two.
+    final linked = !arrow.isBonus &&
+        (board.bonusArrow?.frees.contains(arrow.id) ?? false);
+    var color = arrow.isBonus ? _bonusColor : _normalColor;
     List<Offset> points;
     Offset headCenter;
 
@@ -498,6 +500,20 @@ class _SnakePainter extends CustomPainter {
     canvas.drawPath(path, body);
 
     _drawHead(canvas, headCenter, dir, color);
+    if (linked) _drawLinkMark(canvas, headCenter);
+  }
+
+  /// A small gold dot on the head of an arrow the bonus arrow will free.
+  ///
+  /// Deliberately a mark rather than a colour: it reuses [_bonusColor], so the
+  /// board carries one extra colour instead of two, and it covers a fraction of
+  /// the arrow instead of all of it. The white ring keeps it legible on top of the
+  /// dark arrow body without needing a third colour.
+  void _drawLinkMark(Canvas canvas, Offset headCenter) {
+    final r = cell * 0.15;
+    canvas.drawCircle(
+        headCenter, r + 1.2, Paint()..color = Colors.white.withValues(alpha: 0.9));
+    canvas.drawCircle(headCenter, r, Paint()..color = _bonusColor);
   }
 
   /// Solid arrowhead at the head cell, pointing along the exit direction.

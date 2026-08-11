@@ -52,9 +52,13 @@ better value than axis 1 if they work.
   freed arrows, four from level 40). Both the bonus arrow *and* the arrows it frees
   are chosen from arrows that are **stuck at the start**: a tappable bonus arrow
   would be a free opening move, and freeing arrows that were never stuck would be
-  no gift at all. Linked arrows are drawn in the same hue, lighter, so the
-  connection is visible *before* the player commits to an order — which is the
-  entire mechanic. Clearing the golden arrow last simply wastes it.
+  no gift at all. The connection has to be visible *before* the player commits to an order — that
+  is the entire mechanic — but it costs **one** colour, not two. Only the golden
+  arrow is recoloured; the arrows it will free keep the normal colour and carry a
+  small gold dot on the head. The first version painted them a second, lighter
+  gold, which put four or five gold arrows on a board of ~22 and two new colours
+  in front of the player; the tester's verdict was "a bit too much — there appears
+  to be multiple colours". Clearing the golden arrow last still wastes it.
 
   Two things worth knowing. `measureDifficulty` simulates the cascade, because a
   metric that ignored it would be scoring a game nobody plays; the tuned curve

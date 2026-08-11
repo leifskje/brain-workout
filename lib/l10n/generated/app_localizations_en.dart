@@ -222,7 +222,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get helpArrowMaze =>
-      'The long arrows slide off the board head-first. Tap one to send it out — the path in front of its head must be clear. Clear the whole board to win. From level 12 one arrow is golden: when it gets away it takes the paler golden arrows with it, so it pays to free the golden one while they are still stuck.';
+      'The long arrows slide off the board head-first. Tap one to send it out — the path in front of its head must be clear. Clear the whole board to win. From level 12 one arrow is golden: when it gets away it takes the arrows marked with a golden dot with it, so it pays to free the golden one while they are still stuck.';
 
   @override
   String get helpWord =>
