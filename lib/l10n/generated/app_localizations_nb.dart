@@ -258,7 +258,7 @@ class AppLocalizationsNb extends AppLocalizations {
 
   @override
   String get helpCrackCode =>
-      'Finn den hemmelige koden! Etter hvert forsøk får du hint: en grønn prikk betyr riktig tall på riktig plass, en gul prikk betyr riktig tall på feil plass. Knekk koden før forsøkene er brukt opp.';
+      'Finn den hemmelige koden! Etter hvert forsøk får du to tall: det grønne viser hvor mange som er riktige og står på riktig plass, det gule hvor mange som er riktige, men står på feil plass.\n\nDu får bare antallet — aldri hvilke. Det er nettopp det du skal regne ut. Knekk koden før forsøkene er brukt opp.';
 
   @override
   String get helpTrail =>
@@ -418,7 +418,7 @@ class AppLocalizationsNb extends AppLocalizations {
 
   @override
   String get crackCodeHint =>
-      'Grønn prikk: riktig tall på riktig plass. Gul prikk: riktig tall på feil plass.';
+      'Grønn: riktig tall på riktig plass. Gul: riktig tall på feil plass. Hvor mange — aldri hvilke.';
 
   @override
   String crackGuessOf(int current, int total) {

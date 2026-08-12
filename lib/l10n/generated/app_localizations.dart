@@ -527,7 +527,7 @@ abstract class AppLocalizations {
   /// No description provided for @helpCrackCode.
   ///
   /// In en, this message translates to:
-  /// **'Find the secret code! After each guess you get clues: a green dot means a correct digit in the correct spot, a yellow dot means a correct digit in the wrong spot. Crack the code before your guesses run out.'**
+  /// **'Find the secret code! After each guess you get two numbers: the green one is how many digits are correct and in the correct spot, the yellow one is how many are correct but in the wrong spot.\n\nThey are counts only. They never tell you which digit is which — working that out is the puzzle. Crack the code before your guesses run out.'**
   String get helpCrackCode;
 
   /// No description provided for @helpTrail.
@@ -737,7 +737,7 @@ abstract class AppLocalizations {
   /// No description provided for @crackCodeHint.
   ///
   /// In en, this message translates to:
-  /// **'Green dot: right digit, right spot. Yellow dot: right digit, wrong spot.'**
+  /// **'Green: right digit, right spot. Yellow: right digit, wrong spot. How many — never which.'**
   String get crackCodeHint;
 
   /// No description provided for @crackGuessOf.

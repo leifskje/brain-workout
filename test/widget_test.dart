@@ -1217,6 +1217,40 @@ void main() {
     expect(find.text('Well done!'), findsOneWidget);
   });
 
+  testWidgets('Crack the Code: clues are counts, not per-digit marks',
+      (tester) async {
+    tester.view.physicalSize = const Size(1080, 2280);
+    tester.view.devicePixelRatio = 2.625;
+    addTearDown(tester.view.reset);
+
+    await tester
+        .pumpWidget(localizedApp(const CrackCodeScreen(startLevel: 1)));
+    final code = CrackCodeGame.generate(1).code; // same seed as the screen
+
+    // Swap the first two digits: the last is exact, the other two are present.
+    final guess = [code[1], code[0], ...code.skip(2)];
+    for (final d in guess) {
+      await tester.tap(find.byKey(ValueKey('cc_pad_$d')));
+      await tester.pump();
+    }
+    await tester.tap(find.byIcon(Icons.check_rounded));
+    await tester.pump();
+
+    String clue(String key) => tester
+        .widget<Text>(find.descendant(
+            of: find.byKey(ValueKey(key)), matching: find.byType(Text)))
+        .data!;
+    expect(clue('cc_exact_0'), '1');
+    expect(clue('cc_present_0'), '${code.length - 1}');
+
+    // The whole point: exactly two clue markers however many digits scored, so
+    // nothing in the row can be read as lining up with a particular digit.
+    final dots = find.descendant(
+        of: find.byKey(const ValueKey('cc_exact_0')),
+        matching: find.byIcon(Icons.circle));
+    expect(dots, findsOneWidget);
+  });
+
   testWidgets('Trail: wrong tap costs a heart, ordered taps win',
       (tester) async {
     tester.view.physicalSize = const Size(1080, 2280);

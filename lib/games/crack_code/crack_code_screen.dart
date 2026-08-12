@@ -8,9 +8,14 @@ import '../../widgets/how_to_play.dart';
 import '../../widgets/win_dialog.dart';
 import 'crack_code_models.dart';
 
-/// Playable Crack the Code: compose a guess on the digit pad and submit;
-/// each guess earns clue dots — green for right-digit-right-spot, amber for
+/// Playable Crack the Code: compose a guess on the digit pad and submit; each
+/// guess earns two clue counts — green for right-digit-right-spot, amber for
 /// right-digit-wrong-spot. Win before the guesses run out.
+///
+/// The clues are deliberately *counts*, never per-digit marks. Mastermind never
+/// reveals which digit earned which clue, and working that out is the game; a
+/// Wordle-style colouring of the chips themselves would collapse even a
+/// six-digit code to about three guesses.
 class CrackCodeScreen extends StatefulWidget {
   const CrackCodeScreen({super.key, this.startLevel = 1});
 
@@ -217,7 +222,30 @@ class _CrackCodeScreenState extends State<CrackCodeScreen> {
     );
   }
 
+  /// One clue: a coloured dot naming the kind, a numeral for how many. The
+  /// numeral stays near-black on purpose — amber on white is about 2:1, far
+  /// under readable contrast, so the colour carries meaning and the dot carries
+  /// the colour.
+  Widget _clueCount(Color color, int count, {Key? key}) {
+    return Row(
+      key: key,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(Icons.circle, size: 16, color: color),
+        const SizedBox(width: 5),
+        Text(
+          '$count',
+          style: const TextStyle(
+              fontSize: 21, fontWeight: FontWeight.bold, color: Colors.black87),
+        ),
+      ],
+    );
+  }
+
   Widget _buildHistory() {
+    // Long codes crowd the row: six 44dp chips plus clues overran a 360dp phone
+    // even before the clues grew.
+    final chipSize = _game.code.length >= 5 ? 38.0 : 44.0;
     return ListView.builder(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
       reverse: true,
@@ -228,24 +256,30 @@ class _CrackCodeScreenState extends State<CrackCodeScreen> {
         final result = _game.results[i];
         return Padding(
           padding: const EdgeInsets.symmetric(vertical: 5),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              for (final d in guess) ...[
-                _digitChip('$d', border: Colors.black26),
+          // Counts rather than one dot per digit. A run of same-sized dots
+          // alongside a run of digits reads as "this dot means that digit",
+          // which is the one thing the clue never says — it fooled the owner
+          // during testing. The divider keeps the two groups visibly apart.
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                for (final d in guess) ...[
+                  _digitChip('$d', size: chipSize, border: Colors.black26),
+                  const SizedBox(width: 6),
+                ],
                 const SizedBox(width: 6),
+                Container(
+                    width: 1, height: chipSize * 0.7, color: Colors.black26),
+                const SizedBox(width: 12),
+                _clueCount(_exactColor, result.exact,
+                    key: ValueKey('cc_exact_$i')),
+                const SizedBox(width: 14),
+                _clueCount(_presentColor, result.present,
+                    key: ValueKey('cc_present_$i')),
               ],
-              const SizedBox(width: 12),
-              for (var e = 0; e < result.exact; e++)
-                const Icon(Icons.circle, size: 18, color: _exactColor),
-              for (var p = 0; p < result.present; p++)
-                const Icon(Icons.circle, size: 18, color: _presentColor),
-              for (var m = 0;
-                  m < guess.length - result.exact - result.present;
-                  m++)
-                const Icon(Icons.circle_outlined,
-                    size: 18, color: Colors.black26),
-            ],
+            ),
           ),
         );
       },
