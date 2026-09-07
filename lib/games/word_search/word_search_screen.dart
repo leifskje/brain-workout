@@ -35,6 +35,15 @@ class _WordSearchScreenState extends State<WordSearchScreen> {
   (int, int)? _dragStart;
   List<(int, int)> _selection = const [];
 
+  /// First letters of words revealed by a hint. The starting cell is all a hint
+  /// gives: the player still has to work out the direction, which is most of the
+  /// finding. Matters most from level 24, where the word list is hidden and
+  /// being stuck means having nothing at all to go on.
+  final Set<(int, int)> _hintCells = {};
+
+  /// Caps the level at 2 stars, the same bargain Word Scramble's word-swap makes.
+  bool _usedHint = false;
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
@@ -58,6 +67,8 @@ class _WordSearchScreenState extends State<WordSearchScreen> {
     ProgressStore.instance.recordReached(_gameId, level);
     setState(() {
       _level = level;
+      _hintCells.clear();
+      _usedHint = false;
       _board = WordSearchBoard.generate(level, _language);
       _wrongAttempts = 0;
       _busy = false;
@@ -124,10 +135,11 @@ class _WordSearchScreenState extends State<WordSearchScreen> {
   void _showWin() {
     if (!mounted) return;
     HapticFeedback.heavyImpact();
-    final stars = _wrongAttempts <= 1 ? 3 : (_wrongAttempts <= 4 ? 2 : 1);
+    var stars = _wrongAttempts <= 1 ? 3 : (_wrongAttempts <= 4 ? 2 : 1);
+    if (_usedHint && stars == 3) stars = 2;
     ProgressStore.instance
       ..registerPlay(_gameId)
-      ..recordStars(_gameId, _level, stars);
+      ..recordCleared(_gameId, _level, stars);
     showWinDialog(context, level: _level, accent: _accent, stars: stars)
         .then((action) {
       if (!mounted || action == null) return;
@@ -152,6 +164,8 @@ class _WordSearchScreenState extends State<WordSearchScreen> {
                 title: t.levelN(_level),
                 accent: _accent,
                 onRestart: _restart,
+                showHint: true,
+                onHint: _busy ? null : _hint,
                 onHelp: () => showHowToPlay(context,
                     body: t.helpWordSearch, accent: _accent)),
             const SizedBox(height: 4),
@@ -240,6 +254,7 @@ class _WordSearchScreenState extends State<WordSearchScreen> {
                           cell,
                           found: foundCells.contains((r, c)),
                           selected: selected.contains((r, c)),
+                          hinted: _hintCells.contains((r, c)),
                         ),
                     ]),
                 ],
@@ -251,13 +266,47 @@ class _WordSearchScreenState extends State<WordSearchScreen> {
     );
   }
 
+  /// Marks where one unfound word begins.
+  void _hint() {
+    final board = _board;
+    if (board == null || _busy) return;
+    final t = AppLocalizations.of(context);
+    final target = board.words.where((w) => !w.found).cast<PlacedWord?>().firstWhere(
+        (w) => !_hintCells.contains((w!.row, w.col)),
+        orElse: () => null);
+    if (target == null) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(t.hintNoneLeft)));
+      return;
+    }
+    HapticFeedback.lightImpact();
+    final first = !_usedHint;
+    setState(() {
+      _usedHint = true;
+      _hintCells.add((target.row, target.col));
+    });
+    // Said once. The star cost is already paid by the first hint, so repeating
+    // it on every press is nagging rather than informing.
+    if (first) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(t.hintCost)));
+    }
+  }
+
   Widget _letterCell(String letter, double size,
-      {required bool found, required bool selected}) {
+      {required bool found,
+      required bool selected,
+      required bool hinted}) {
+    // A hinted start is amber, not another shade of the accent: it has to be
+    // told apart from "found" at a glance and by someone who reads colour badly.
+    const hintBg = Color(0xFFFFE082);
     final bg = selected
         ? _accent.withValues(alpha: 0.45)
         : found
             ? _accent.withValues(alpha: 0.18)
-            : Colors.white;
+            : hinted
+                ? hintBg
+                : Colors.white;
     return SizedBox(
       width: size,
       height: size,

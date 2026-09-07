@@ -54,6 +54,12 @@ class _WordScrambleScreenState extends State<WordScrambleScreen> {
   /// moving through the candidates instead of cycling between two words.
   int _swaps = 0;
 
+  /// Whether a hint was spent this level. Same bargain as [_usedNewWord]: the
+  /// level stays finishable but can no longer earn 3 stars. Deliberately not a
+  /// heart — a player who needs a hint to read the word at all would then be
+  /// pushed off the level entirely, which is the opposite of the point.
+  bool _usedHint = false;
+
   ScrambleWord get _word => _round![_wordIndex];
 
   @override
@@ -107,6 +113,7 @@ class _WordScrambleScreenState extends State<WordScrambleScreen> {
       _hearts = wordScrambleConfigForLevel(level).hearts;
       _busy = false;
       _usedNewWord = false;
+      _usedHint = false;
       _swaps = 0;
       _resetSlots();
     });
@@ -131,6 +138,70 @@ class _WordScrambleScreenState extends State<WordScrambleScreen> {
       );
       _resetSlots();
     });
+  }
+
+  /// Places the next correct letter into the answer.
+  ///
+  /// Fills the first slot that is empty *or* currently holds the wrong letter,
+  /// so a hint is useful mid-attempt rather than only on a blank row. Returns
+  /// silently when the answer is already fully and correctly filled.
+  void _hint() {
+    if (_busy) return;
+    final target = _word.word;
+    final slot = _slotNeedingHelp();
+    if (slot == null) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(AppLocalizations.of(context).hintNoneLeft),
+      ));
+      return;
+    }
+
+    // Find an unused tile carrying the letter this slot needs. Tiles repeat
+    // (LETTER has two Es), so match on the character, not the index.
+    final wanted = target[slot];
+    var tile = -1;
+    for (var i = 0; i < _word.letters.length; i++) {
+      if (!_used[i] && _word.letters[i] == wanted) {
+        tile = i;
+        break;
+      }
+    }
+    if (tile == -1) {
+      // The needed tile is parked in a later slot; free it first.
+      final holder = _slots.indexWhere(
+          (t) => t != null && _word.letters[t] == wanted);
+      if (holder == -1) return; // cannot happen for a well-formed scramble
+      tile = _slots[holder]!;
+      _slots[holder] = null;
+    }
+
+    HapticFeedback.lightImpact();
+    final first = !_usedHint;
+    setState(() {
+      _usedHint = true;
+      _nearMissWord = null;
+      final displaced = _slots[slot];
+      if (displaced != null) _used[displaced] = false;
+      _slots[slot] = tile;
+      _used[tile] = true;
+    });
+    if (first) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(AppLocalizations.of(context).hintCost)),
+      );
+    }
+    if (!_slots.contains(null)) _check();
+  }
+
+  /// The first slot that is empty or holds the wrong letter, or null if the
+  /// answer already spells the target.
+  int? _slotNeedingHelp() {
+    final target = _word.word;
+    for (var i = 0; i < _slots.length; i++) {
+      final tile = _slots[i];
+      if (tile == null || _word.letters[tile] != target[i]) return i;
+    }
+    return null;
   }
 
   void _resetSlots() {
@@ -235,11 +306,11 @@ class _WordScrambleScreenState extends State<WordScrambleScreen> {
     HapticFeedback.heavyImpact();
     final lost = wordScrambleConfigForLevel(_level).hearts - _hearts;
     var stars = lost == 0 ? 3 : (lost <= 2 ? 2 : 1);
-    // Swapping a word forfeits the perfect score.
-    if (_usedNewWord && stars == 3) stars = 2;
+    // Swapping a word or taking a hint forfeits the perfect score.
+    if ((_usedNewWord || _usedHint) && stars == 3) stars = 2;
     ProgressStore.instance
       ..registerPlay(_gameId)
-      ..recordStars(_gameId, _level, stars);
+      ..recordCleared(_gameId, _level, stars);
     showWinDialog(context, level: _level, accent: _accent, stars: stars)
         .then((action) {
       if (!mounted || action == null) return;
@@ -294,6 +365,8 @@ class _WordScrambleScreenState extends State<WordScrambleScreen> {
                 title: t.levelN(_level),
                 accent: _accent,
                 onRestart: _restart,
+                showHint: true,
+                onHint: _busy ? null : _hint,
                 onHelp: () => showHowToPlay(context,
                     body: t.helpWordScramble, accent: _accent)),
             _buildHearts(wordScrambleConfigForLevel(_level).hearts),

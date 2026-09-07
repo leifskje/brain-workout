@@ -4,8 +4,9 @@ Written to let a fresh agent pick up without re-deriving anything. Read `CLAUDE.
 first; it holds the conventions and the hard-won lessons. This file is *where things
 stand*, not how to work here.
 
-Last updated after publishing **1.1.0 (versionCode 3)** to the internal track, Aug 2026.
-`main` is that release; the next one needs another `version:` bump.
+Last published: **1.1.0 (versionCode 3)**, internal track, Aug 2026.
+`pubspec.yaml` now reads **1.1.1+4** and is *not* published — that bump is prepared, not
+shipped.
 
 ## Where the code is
 
@@ -17,8 +18,22 @@ sharing · save & resume across six games · local personal bests · five un-cap
 difficulty curves · Memory Match 15→21 pairs · the how-to-play sheet overflow fix ·
 the daily-word share reachability fix.
 
+**In 1.1.1, built but never on a device:** the level-progression fix (clearing a level
+now unlocks the next one whichever button you press — it previously only counted if you
+pressed "Next level", in all thirteen level games) · Crack the Code clue counts · the
+Memory Match picture-pool fix · What Comes Next visual-pattern tiers · the tester feedback button ·
+the in-app update prompt · hints in the three word games. All of these came out of the
+owner playing the app, not from tests — which is the argument for the feedback channel
+in one line.
+
 ## Open work, ranked
 
+0. **Ship 1.1.1.** Everything above is on `main` and unreleased. `version:` is already
+   bumped; the release itself is a `gradlew publishBundle` from `main` and only on an
+   explicit ask. Two things to settle first: confirm `https://ko-fi.com/loffen` resolves
+   (testers can tap it today), and decide whether `feedbackEmail` in
+   `lib/services/app_info.dart` should stay the author's personal gmail — it is the only
+   place the address appears.
 1. **Re-tune Arrow Maze branching targets.** The generator now reaches *lower*
    branching than the targets ask for, so the curve is not using the difficulty
    available. Cheapest real win left. Tune with
@@ -58,34 +73,35 @@ Everything below passes tests but has never run on real hardware. Widget tests a
 board dumps are the agent's only channels here (see `CLAUDE.md`), so these need the
 owner:
 
+- The **feedback button** — `mailto:` is an intent like any other, so a device with no
+  mail app falls back to the clipboard. Both paths need trying once.
+- The **in-app update prompt**, which by construction cannot fire until a build *after*
+  1.1.1 is on the internal track. Until then testers must update by hand.
+- **Hint legibility** — the amber hinted cell in Word Search against the pink accent, and
+  whether the lightbulb reads as "help" to a non-gamer.
 - The **share sheet** after a *full rebuild* — `share_plus` is a native plugin and
   registration is generated at build time, so a hot reload after `pub add` throws
   `MissingPluginException`. There is a clipboard fallback either way.
 - **24-column legibility at fit-to-screen** (~15dp per cell) before zooming.
 - **Bonus cascade pacing** — up to four arrows at ≤820ms each, so ~2–3s.
 
-## Feedback from testers — not built, and worth thinking about
+## Feedback from testers — built, not yet proven
 
-Testers are non-developers. GitHub issues are too high a barrier: an account, a repo, a
-form written for programmers. Options, cheapest first:
+Shipped as option (1) below: an in-app **Send feedback** button on the home screen opening
+a pre-filled `mailto:` with app version, locale and OS already in the body, plus a
+clipboard fallback when no mail app answers. The home screen also now *shows the running
+version*, which it never did — before this a report could not be tied to a build at all.
 
-1. **In-app "Send feedback" that opens a pre-filled email** — `mailto:` with the app
-   version, level, device and locale already in the body, so a one-line reply is still
-   useful. No dependency beyond `url_launcher`, which is already present transitively.
-2. **A Google Form** opened in a browser. Slightly more friction, but replies land in a
-   sheet rather than an inbox, and it survives a tester who cannot compose email.
-3. **Play Console tester feedback** — free and already there, but only reachable through
-   the Play Store listing and easy for a tester to never find.
+Deliberately **not** an in-app crash/analytics SDK: nothing about this app sends data
+anywhere, and that is a property worth keeping, not an oversight (see the personal-bests
+note in `CLAUDE.md`). A test asserts the mail body carries no identifiers.
 
-Related, and the reason feedback may not arrive at all: **testers are not reliably on
-the current build.** Play defers auto-updates for apps opened rarely, and the app has no
-update prompt of its own, so a tester can play an old version for weeks. An in-app update
-prompt is in the backlog; until then the tester email has to say "Play Store → search the
-app → Update".
+Still open:
 
-Recommendation: (1) plus a note in the how-to-play sheet. Deliberately *not* an
-in-app crash/analytics SDK — nothing about this app sends data anywhere, and that is a
-deliberate property, not an oversight (see the personal-bests note in `CLAUDE.md`).
+- **Which inbox.** `feedbackEmail` in `lib/services/app_info.dart` is the author's personal
+  gmail. A Google Form is the alternative if replies should land in a sheet instead.
+- **Whether testers find it.** The button is in the quiet footer under the games. If
+  nothing arrives, the next cheapest step is a line in the how-to-play sheet.
 
 ## Releasing
 

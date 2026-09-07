@@ -146,7 +146,7 @@ class _NumberCrossScreenState extends State<NumberCrossScreen>
     final stars = wasted <= 0 ? 3 : (wasted <= blanks ? 2 : 1);
     ProgressStore.instance
       ..registerPlay(_gameId)
-      ..recordStars(_gameId, _level, stars);
+      ..recordCleared(_gameId, _level, stars);
     showWinDialog(context, level: _level, accent: _accent, stars: stars)
         .then((action) {
       if (!mounted || action == null) return;

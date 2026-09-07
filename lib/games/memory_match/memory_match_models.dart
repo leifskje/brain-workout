@@ -47,11 +47,32 @@ MemoryLevelConfig memoryConfigForLevel(int level) {
   return MemoryLevelConfig(rows: l[0], cols: l[1]);
 }
 
-// Distinct, high-contrast, easily-told-apart symbols (must be >= max pairs).
+// Distinct, high-contrast, easily-told-apart symbols.
+//
+// The pool must be comfortably *larger* than the largest level, not merely big
+// enough. At 21 symbols it exactly equalled the 21 pairs of level 9, so every
+// level from 9 up drew the whole pool and showed the identical set of pictures —
+// only the positions changed, and five levels in a row read as "the same board".
+// Keep a wide margin here so the picture set varies too.
+//
+// Written as escapes so the file stays pure ASCII. Chosen to stay legible at
+// ~45dp and to avoid confusable pairs (no tomato beside the apple, no wolf
+// beside the dog).
 const _symbols = <String>[
-  '🍎', '🍌', '🍇', '🍊', '🍓', '🍒', '🍋', '🍉',
-  '🐶', '🐱', '🐰', '🐻', '🌸', '🌟', '⚽', '🚗',
-  '🎈', '🍰', '🔔', '🦋', '🌲',
+  // fruit & food
+  '\u{1F34E}', '\u{1F34C}', '\u{1F347}', '\u{1F34A}', '\u{1F353}',
+  '\u{1F352}', '\u{1F34B}', '\u{1F349}', '\u{1F370}', '\u{1F355}',
+  // animals
+  '\u{1F436}', '\u{1F431}', '\u{1F430}', '\u{1F43B}', '\u{1F438}',
+  '\u{1F43C}', '\u{1F981}', '\u{1F437}', '\u{1F435}', '\u{1F427}',
+  '\u{1F989}', '\u{1F41D}', '\u{1F422}', '\u{1F42C}',
+  // nature & weather
+  '\u{1F338}', '\u{1F33B}', '\u{1F332}', '\u{1F308}', '\u{1F31F}',
+  '\u{1F319}', '\u{26C4}', '\u{1F525}',
+  // things
+  '\u{26BD}', '\u{1F697}', '\u{1F682}', '\u{26F5}', '\u{1F6B2}',
+  '\u{1F388}', '\u{1F514}', '\u{1F98B}', '\u{1F381}', '\u{1F3E0}',
+  '\u{1F511}', '\u{1F3B8}',
 ];
 
 /// The memory board: a shuffled deck of matching pairs. Always winnable;

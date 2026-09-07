@@ -156,7 +156,7 @@ class _NonogramScreenState extends State<NonogramScreen>
         : (_mistakes.length <= 3 && _checksUsed <= 1 ? 2 : 1);
     ProgressStore.instance
       ..registerPlay(_gameId)
-      ..recordStars(_gameId, _level, stars);
+      ..recordCleared(_gameId, _level, stars);
     // Local-only personal best. This is save data, not analytics: it lives in
     // SharedPreferences on the device and nothing about it is ever sent anywhere.
     final beat = ProgressStore.instance

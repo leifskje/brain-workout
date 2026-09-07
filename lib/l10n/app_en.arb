@@ -212,5 +212,19 @@
   "creditsScowlChanges": "Adapted for this app: each word tagged with the smallest SCOWL size containing it, as a measure of how common it is.",
   "creditsFreqName": "Norwegian word frequencies",
   "creditsFreqBody": "Norwegian word difficulty comes from the FrequencyWords lists (Hermit Dave, built from OpenSubtitles data), used under the Creative Commons Attribution-ShareAlike 4.0 licence. Because of the share-alike term, the Norwegian word list this app ships is itself available under CC BY-SA 4.0.",
-  "creditsFreqChanges": "Adapted for this app: frequency ranks reduced to four difficulty tiers and matched against the Norsk ordbank word list."
+  "creditsFreqChanges": "Adapted for this app: frequency ranks reduced to four difficulty tiers and matched against the Norsk ordbank word list.",
+  "sendFeedback": "Send feedback",
+  "feedbackSubject": "Brain Workout feedback",
+  "feedbackIntro": "What happened, and what did you expect? Anything at all is useful — even one line.",
+  "feedbackNoMailApp": "No email app found. The address and details were copied instead.",
+  "appVersion": "Version {version}",
+  "@appVersion": {"placeholders": {"version": {"type": "String"}}},
+  "updateAvailable": "A new version is ready",
+  "updateBody": "Update now so you are playing the latest version.",
+  "updateNow": "Update",
+  "updateLater": "Not now",
+  "updateFailed": "The update could not be started. Open Play Store and search for the app.",
+  "useHint": "Hint",
+  "hintCost": "A hint means at most 2 stars for this level.",
+  "hintNoneLeft": "No more hints for this word."
 }

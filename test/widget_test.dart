@@ -7,6 +7,7 @@ import 'package:flutter/rendering.dart' show RenderParagraph;
 import 'package:flutter/services.dart';
 import 'package:flutter/semantics.dart' show debugSemanticsDisableAnimations;
 import 'package:flutter_test/flutter_test.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:brain_workout/data/dictionary.dart';
@@ -14,6 +15,7 @@ import 'package:brain_workout/data/word_pool.dart';
 import 'package:brain_workout/data/word_tier.dart';
 import 'package:brain_workout/games/arrow_escape/arrow_escape_models.dart';
 import 'package:brain_workout/games/arrow_escape/arrow_escape_screen.dart';
+import 'package:brain_workout/services/app_info.dart';
 import 'package:brain_workout/games/crack_code/crack_code_models.dart';
 import 'package:brain_workout/games/crack_code/crack_code_screen.dart';
 import 'package:brain_workout/games/games_catalog.dart';
@@ -60,6 +62,17 @@ Widget localizedApp(Widget home) => MaterialApp(
     );
 
 void main() {
+  // Asset reads never progress inside testWidgets' fake-async zone, so a screen
+  // that loads a word list sits on its spinner and pumpAndSettle times out.
+  // setUpAll runs outside that zone; warming the static caches here turns every
+  // in-test read into a cache hit. See CLAUDE.md -- this cost an afternoon once.
+  setUpAll(() async {
+    TestWidgetsFlutterBinding.ensureInitialized();
+    for (final language in wordleLanguages) {
+      await WordRepository.forLanguage(language);
+    }
+  });
+
   setUp(() async {
     TestWidgetsFlutterBinding.ensureInitialized();
     SharedPreferences.setMockInitialValues({});
@@ -235,6 +248,37 @@ void main() {
     expect(find.textContaining('Spill neste:'), findsOneWidget);
   });
 
+  testWidgets('Home screen offers feedback and shows the running version',
+      (tester) async {
+    tester.view.physicalSize = const Size(1080, 2280);
+    tester.view.devicePixelRatio = 2.625;
+    addTearDown(tester.view.reset);
+    PackageInfo.setMockInitialValues(
+      appName: 'Brain Workout',
+      packageName: 'com.example.brain_workout',
+      version: '1.1.1',
+      buildNumber: '4',
+      buildSignature: '',
+    );
+    await AppInfo.instance.load();
+    SharedPreferences.setMockInitialValues({});
+    await ProgressStore.init();
+
+    await tester.pumpWidget(localizedApp(const HomeScreen()));
+    await tester.pumpAndSettle();
+
+    // The button has to be reachable, not merely present: the footer sits below
+    // a grid that grows with the text scale.
+    final button = find.byKey(const ValueKey('home_send_feedback'));
+    await tester.scrollUntilVisible(button, 100,
+        scrollable: find.byType(Scrollable).last);
+    expect(button.hitTestable(), findsOneWidget);
+
+    // A report is useless if it cannot be tied to a build, so the version has
+    // to be readable off the screen.
+    expect(find.text('Version 1.1.1 (4)'), findsOneWidget);
+  });
+
   testWidgets('Home screen shows Continue for the last opened game',
       (tester) async {
     SharedPreferences.setMockInitialValues({
@@ -246,6 +290,43 @@ void main() {
 
     expect(find.text('Continue'), findsOneWidget);
     expect(find.text('Number Cross — Level 1'), findsOneWidget);
+  });
+
+  test('Clearing a level unlocks the next one, wherever the player then goes',
+      () {
+    final store = ProgressStore.instance;
+    expect(store.highestLevel('g'), 1);
+
+    store.recordCleared('g', 1, 3);
+    expect(store.highestLevel('g'), 2,
+        reason: 'winning a level must unlock the next one by itself');
+
+    // Replaying an earlier level never walks progress backwards.
+    store.recordCleared('g', 1, 1);
+    expect(store.highestLevel('g'), 2);
+    expect(store.stars('g', 1), 3, reason: 'best stars are kept');
+  });
+
+  test('No game advances progress only through the "Next level" button', () {
+    // The bug this guards, and why it is a source check rather than a unit test:
+    // recordReached() fires from each screen's level loader and nowhere else, so
+    // progress advanced only if the player pressed "Next level" on the win
+    // dialog. Pressing "Home" instead re-opened the level just beaten, forever —
+    // it read as "this game always gives me the same board" and it affected all
+    // thirteen level games at once. One missed call site brings it back for that
+    // game alone, which is exactly the kind of thing a per-game test misses.
+    final offenders = <String>[];
+    for (final file in Directory('lib/games')
+        .listSync(recursive: true)
+        .whereType<File>()
+        .where((f) => f.path.endsWith('.dart'))) {
+      if (file.readAsStringSync().contains('recordStars(')) {
+        offenders.add(file.path);
+      }
+    }
+    expect(offenders, isEmpty,
+        reason: 'these call recordStars directly; use recordCleared, which '
+            'also unlocks the next level');
   });
 
   test('totalStars sums the best result per level', () {
@@ -578,6 +659,134 @@ void main() {
       // this, too few symbols would quietly shrink the deck instead of failing.
       expect(counts.length, board.cards.length ~/ 2,
           reason: 'memory level $level ran short of distinct symbols');
+    }
+  });
+
+  group('Tester feedback', () {
+    setUp(() {
+      PackageInfo.setMockInitialValues(
+        appName: 'Brain Workout',
+        packageName: 'com.example.brain_workout',
+        version: '1.1.1',
+        buildNumber: '4',
+        buildSignature: '',
+      );
+    });
+
+    test('the feedback mail carries the version, so a report names a build', () async {
+      await AppInfo.instance.load();
+      expect(AppInfo.instance.versionLabel, '1.1.1 (4)');
+
+      final uri = AppInfo.instance.feedbackUri(
+        subject: 'Feedback',
+        body: 'What happened?',
+        locale: 'nb-NO',
+      );
+
+      expect(uri.scheme, 'mailto');
+      expect(uri.path, feedbackEmail);
+      // Built via Uri(queryParameters:) so newlines and spaces are encoded;
+      // hand-built mailto links lose them to Android's intent resolver.
+      expect(uri.queryParameters['subject'], 'Feedback');
+      final body = uri.queryParameters['body']!;
+      expect(body, contains('What happened?'));
+      expect(body, contains('1.1.1 (4)'));
+      expect(body, contains('nb-NO'));
+      expect(uri.toString(), isNot(contains('\n')));
+      expect(uri.toString(), isNot(contains(' ')));
+    });
+
+    test('diagnostics carry no identifiers', () async {
+      await AppInfo.instance.load();
+      final text = AppInfo.instance.diagnostics(locale: 'en-GB');
+      // Nothing in this app sends data anywhere; the mail body is written by
+      // hand and sent by the tester, so it must stay free of anything
+      // identifying. Guard the shape rather than trusting review.
+      expect(text.split('\n').length, lessThanOrEqualTo(4));
+      expect(text, contains('1.1.1 (4)'));
+      expect(text, contains('en-GB'));
+      for (final banned in ['@', 'android_id', 'imei', 'uuid', 'serial']) {
+        expect(text.toLowerCase(), isNot(contains(banned)),
+            reason: 'diagnostics leaked something identifying');
+      }
+    });
+  });
+
+  test('Memory Match: the picture set varies past the top layout', () {
+    // The bug this guards: the pool once held exactly 21 symbols and level 9+
+    // needs 21 pairs, so every level drew all of them and showed an identical
+    // set of pictures. Positions varied, which made it look seeded correctly.
+    Set<String> symbols(int level) =>
+        MemoryBoard.generate(level).cards.map((c) => c.symbol).toSet();
+
+    final sets = [for (var level = 9; level <= 16; level++) symbols(level)];
+    final distinct = sets.map((s) => (s.toList()..sort()).join()).toSet();
+    expect(distinct.length, greaterThan(1),
+        reason: 'levels 9-16 all show the same pictures');
+
+    // Neighbouring levels should differ by more than a symbol or two, or the
+    // board still reads as the same one.
+    for (var i = 1; i < sets.length; i++) {
+      expect(sets[i].difference(sets[i - 1]).length, greaterThanOrEqualTo(3),
+          reason: 'level ${9 + i} is nearly the same picture set as ${8 + i}');
+    }
+  });
+
+  test('What Comes Next: visual patterns get harder with the tier', () {
+    // The bug: _shapeQuestion never received the tier, so the ~40% of every
+    // round that is dots/colour/arrow was identical at level 1 and level 60 --
+    // dots always +1, arrows always a quarter clockwise, colour cycles 2-4 long.
+    // The level audit missed it because the *number* tiers did climb.
+    bool oldStyle(SequenceQuestion q) {
+      switch (q.kind) {
+        case QuestionKind.dots:
+          return q.answer == q.shown[3] + 1 && q.shown[1] == q.shown[0] + 1;
+        case QuestionKind.arrow:
+          for (var i = 1; i < 4; i++) {
+            if (q.shown[i] != (q.shown[i - 1] + 1) % 4) return false;
+          }
+          return q.answer == (q.shown[3] + 1) % 4;
+        case QuestionKind.color:
+          return q.answer == q.shown[0] ||
+              (q.shown[0] == q.shown[2] && q.shown[1] == q.shown[3]);
+        default:
+          return false;
+      }
+    }
+
+    (int, int) sample(int from, int to) {
+      var old = 0, total = 0;
+      for (var l = from; l <= to; l++) {
+        for (final q in WhatNextRound.generate(l)) {
+          if (q.kind == QuestionKind.number) continue;
+          total++;
+          if (oldStyle(q)) old++;
+        }
+      }
+      return (old, total);
+    }
+
+    final (lowOld, lowTotal) = sample(1, 8); // tiers 1-2
+    final (highOld, highTotal) = sample(17, 120); // tier 5
+    expect(highOld / highTotal, lessThan(0.5),
+        reason: 'tier 5 visual patterns are still mostly the level-1 rules');
+    expect(highOld / highTotal, lessThan(lowOld / lowTotal),
+        reason: 'visual patterns do not get harder with the tier');
+  });
+
+  test('What Comes Next: dot counts stay countable and options straddle them',
+      () {
+    for (var l = 1; l <= 120; l++) {
+      for (final q in WhatNextRound.generate(l)) {
+        if (q.kind != QuestionKind.dots) continue;
+        // Drawn as that many dots; past a dozen they stop being countable.
+        expect(q.answer, lessThanOrEqualTo(12),
+            reason: 'level $l asks the player to count ${q.answer} dots');
+        // Distractors once clamped to 1..9, so a big answer got only larger
+        // neighbours and was guessable as "the smallest option".
+        expect(q.options.any((o) => o < q.answer), isTrue,
+            reason: 'level $l dot options are all >= the answer');
+      }
     }
   });
 
@@ -1197,6 +1406,64 @@ void main() {
     expect(find.text('Word 2 of ${round.length}'), findsOneWidget);
   });
 
+  testWidgets('Hint: Word Scramble fills a correct letter and costs a star',
+      (tester) async {
+    tester.view.physicalSize = const Size(1080, 2280);
+    tester.view.devicePixelRatio = 2.625;
+    addTearDown(tester.view.reset);
+    // Note: no setMockInitialValues here. The global setUp already marks every
+    // game's how-to-play as seen, and resetting prefs would undo that and let
+    // the modal sheet swallow every tap below.
+    await tester
+        .pumpWidget(localizedApp(const WordScrambleScreen(startLevel: 1)));
+    await tester.pump();
+    final round = generateScrambleRound(1, 'en'); // same seed as the screen
+    final word = round.first;
+
+    // One hint per remaining letter finishes the word, so a player who cannot
+    // read it at all can still complete the level -- the whole point, and why a
+    // hint must not cost a heart.
+    for (var i = 0; i < word.word.length; i++) {
+      await tester.tap(find.byKey(const ValueKey('game_hint_button')));
+      await tester.pump();
+    }
+    await tester.pump(const Duration(milliseconds: 500));
+    expect(find.text('Word 2 of ${round.length}'), findsOneWidget,
+        reason: 'hints did not spell the word');
+
+    // Finish the rest normally, then the win must be capped at 2 stars.
+    for (var w = 1; w < round.length; w++) {
+      for (var i = 0; i < round[w].word.length; i++) {
+        await tester.tap(find.byKey(const ValueKey('game_hint_button')));
+        await tester.pump();
+      }
+      await tester.pump(const Duration(milliseconds: 500));
+    }
+    await tester.pumpAndSettle();
+    expect(ProgressStore.instance.stars('word_scramble', 1),
+        lessThanOrEqualTo(2),
+        reason: 'a hinted level still awarded three stars');
+  });
+
+  testWidgets('Hint: the daily word never offers one', (tester) async {
+    tester.view.physicalSize = const Size(1080, 2280);
+    tester.view.devicePixelRatio = 2.625;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(localizedApp(const WordleScreen()));
+    await tester.pumpAndSettle();
+
+    // The daily grid is shareable and everyone plays the same word, so a hint
+    // there would misreport the result to another person. Practice words get
+    // the button; the daily must not.
+    expect(find.byKey(const ValueKey('wordle_hint_button')), findsNothing,
+        reason: 'the shared daily word offered a hint');
+
+    await tester.tap(find.byIcon(Icons.refresh_rounded));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('wordle_hint_button')), findsOneWidget,
+        reason: 'a practice word should offer a hint');
+  });
+
   testWidgets('Crack the Code: guessing the code wins', (tester) async {
     tester.view.physicalSize = const Size(1080, 2280);
     tester.view.devicePixelRatio = 2.625;
@@ -1249,6 +1516,38 @@ void main() {
         of: find.byKey(const ValueKey('cc_exact_0')),
         matching: find.byIcon(Icons.circle));
     expect(dots, findsOneWidget);
+  });
+
+  testWidgets('Winning then choosing Home still unlocks the next level',
+      (tester) async {
+    tester.view.physicalSize = const Size(1080, 2280);
+    tester.view.devicePixelRatio = 2.625;
+    addTearDown(tester.view.reset);
+
+    await tester
+        .pumpWidget(localizedApp(const MemoryMatchScreen(startLevel: 1)));
+    final board = MemoryBoard.generate(1); // same seed as the screen
+
+    final bySymbol = <String, List<int>>{};
+    for (final card in board.cards) {
+      bySymbol.putIfAbsent(card.symbol, () => []).add(card.id);
+    }
+    for (final ids in bySymbol.values) {
+      for (final id in ids) {
+        await tester.tap(find.byKey(ValueKey('memory-card-$id')));
+        await tester.pump();
+      }
+      await tester.pump(const Duration(milliseconds: 900));
+    }
+    await tester.pumpAndSettle();
+    expect(find.text('Well done!'), findsOneWidget);
+
+    // Leave via Home, which is what a player annoyed by repeated levels does.
+    await tester.tap(find.text('Home'));
+    await tester.pumpAndSettle();
+
+    expect(ProgressStore.instance.highestLevel('memory_match'), 2,
+        reason: 'the next level stayed locked because the player went Home');
   });
 
   testWidgets('Trail: wrong tap costs a heart, ordered taps win',

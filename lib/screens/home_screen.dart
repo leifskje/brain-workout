@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../games/games_catalog.dart';
@@ -6,11 +7,18 @@ import '../l10n/generated/app_localizations.dart';
 import '../models/game_definition.dart';
 import '../services/app_locale.dart';
 import '../services/progress_store.dart';
+import '../services/app_info.dart';
+import '../services/app_update.dart';
 import 'coming_soon_screen.dart';
 import 'credits_screen.dart';
 import 'level_select_screen.dart';
 
 const String _supportUrl = 'https://ko-fi.com/loffen';
+
+final ButtonStyle _footerButtonStyle = TextButton.styleFrom(
+  foregroundColor: Colors.black45,
+  textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+);
 
 /// Startup screen: pick a brain-training game to play.
 class HomeScreen extends StatefulWidget {
@@ -21,6 +29,17 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // After the first frame, not during it: the check is a platform call and
+    // Play's immediate flow takes over the screen, which it cannot do while the
+    // first frame is still being built. Every failure path is silent by design.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      AppUpdate.promptIfAvailable();
+    });
+  }
+
   /// Opens [game]. With [direct], level games skip the level picker and jump
   /// straight into their current level (used by Continue / Play next).
   Future<void> _open(GameDefinition game, {bool direct = false}) async {
@@ -75,6 +94,38 @@ class _HomeScreenState extends State<HomeScreen> {
         SnackBar(content: Text(AppLocalizations.of(context).supportPageError)),
       );
     }
+  }
+
+  /// Opens the tester's mail app with the diagnostics already filled in.
+  ///
+  /// Testers are non-developers; a blank compose window with no version in it
+  /// produces reports we cannot act on. If no mail app answers the intent the
+  /// whole thing goes to the clipboard instead, so the report is never lost.
+  Future<void> _sendFeedback() async {
+    final t = AppLocalizations.of(context);
+    final locale = Localizations.localeOf(context).toLanguageTag();
+    final uri = AppInfo.instance.feedbackUri(
+      subject: t.feedbackSubject,
+      body: t.feedbackIntro,
+      locale: locale,
+    );
+
+    var opened = false;
+    try {
+      opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } catch (_) {
+      opened = false; // no mail app registered: fall through to the clipboard
+    }
+    if (opened || !mounted) return;
+
+    await Clipboard.setData(ClipboardData(
+      text: '$feedbackEmail\n\n${t.feedbackIntro}\n\n'
+          '${AppInfo.instance.diagnostics(locale: locale)}',
+    ));
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(t.feedbackNoMailApp)),
+    );
   }
 
   Widget _buildDailyCard() {
@@ -330,18 +381,41 @@ class _HomeScreenState extends State<HomeScreen> {
                 ],
               ),
             ),
-            // Quiet, optional support link below the games.
+            // Quiet footer: support, feedback, and the running version.
+            // The version is here so a tester can read it out — Play defers
+            // auto-updates for rarely-opened apps, so "which build are you on"
+            // is a real question and used to be unanswerable.
             Padding(
-              padding: const EdgeInsets.only(top: 2, bottom: 10),
-              child: TextButton.icon(
-                onPressed: _support,
-                icon: const Icon(Icons.coffee_rounded, size: 18),
-                label: Text(AppLocalizations.of(context).supportDeveloper),
-                style: TextButton.styleFrom(
-                  foregroundColor: Colors.black45,
-                  textStyle:
-                      const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
-                ),
+              padding: const EdgeInsets.only(top: 2, bottom: 8),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Wrap(
+                    alignment: WrapAlignment.center,
+                    children: [
+                      TextButton.icon(
+                        onPressed: _support,
+                        icon: const Icon(Icons.coffee_rounded, size: 18),
+                        label: Text(AppLocalizations.of(context).supportDeveloper),
+                        style: _footerButtonStyle,
+                      ),
+                      TextButton.icon(
+                        key: const ValueKey('home_send_feedback'),
+                        onPressed: _sendFeedback,
+                        icon: const Icon(Icons.mail_outline_rounded, size: 18),
+                        label: Text(AppLocalizations.of(context).sendFeedback),
+                        style: _footerButtonStyle,
+                      ),
+                    ],
+                  ),
+                  if (AppInfo.instance.versionLabel.isNotEmpty)
+                    Text(
+                      AppLocalizations.of(context)
+                          .appVersion(AppInfo.instance.versionLabel),
+                      style: const TextStyle(
+                          fontSize: 12, color: Colors.black38),
+                    ),
+                ],
               ),
             ),
           ],

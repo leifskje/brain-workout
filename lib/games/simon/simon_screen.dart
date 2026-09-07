@@ -147,7 +147,7 @@ class _SimonScreenState extends State<SimonScreen> {
     final stars = lost == 0 ? 3 : (lost <= 2 ? 2 : 1);
     ProgressStore.instance
       ..registerPlay(_gameId)
-      ..recordStars(_gameId, _level, stars);
+      ..recordCleared(_gameId, _level, stars);
     showWinDialog(context, level: _level, accent: _accent, stars: stars)
         .then((action) {
       if (!mounted || action == null) return;

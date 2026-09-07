@@ -647,4 +647,48 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get creditsFreqChanges =>
       'Adapted for this app: frequency ranks reduced to four difficulty tiers and matched against the Norsk ordbank word list.';
+
+  @override
+  String get sendFeedback => 'Send feedback';
+
+  @override
+  String get feedbackSubject => 'Brain Workout feedback';
+
+  @override
+  String get feedbackIntro =>
+      'What happened, and what did you expect? Anything at all is useful — even one line.';
+
+  @override
+  String get feedbackNoMailApp =>
+      'No email app found. The address and details were copied instead.';
+
+  @override
+  String appVersion(String version) {
+    return 'Version $version';
+  }
+
+  @override
+  String get updateAvailable => 'A new version is ready';
+
+  @override
+  String get updateBody => 'Update now so you are playing the latest version.';
+
+  @override
+  String get updateNow => 'Update';
+
+  @override
+  String get updateLater => 'Not now';
+
+  @override
+  String get updateFailed =>
+      'The update could not be started. Open Play Store and search for the app.';
+
+  @override
+  String get useHint => 'Hint';
+
+  @override
+  String get hintCost => 'A hint means at most 2 stars for this level.';
+
+  @override
+  String get hintNoneLeft => 'No more hints for this word.';
 }

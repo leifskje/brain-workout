@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'l10n/generated/app_localizations.dart';
 import 'screens/home_screen.dart';
+import 'services/app_info.dart';
 import 'services/app_locale.dart';
 import 'services/progress_store.dart';
 import 'theme/app_theme.dart';
@@ -9,6 +10,7 @@ import 'theme/app_theme.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await ProgressStore.init();
+  await AppInfo.instance.load();
   final storedLanguage = ProgressStore.instance.appLanguageId;
   if (storedLanguage != null) {
     appLocaleOverride.value = Locale(storedLanguage);

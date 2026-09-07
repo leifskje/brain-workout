@@ -647,4 +647,49 @@ class AppLocalizationsNb extends AppLocalizations {
   @override
   String get creditsFreqChanges =>
       'Tilpasset denne appen: frekvensrangeringer redusert til fire vanskelighetsnivåer og koblet mot ordlisten fra Norsk ordbank.';
+
+  @override
+  String get sendFeedback => 'Send tilbakemelding';
+
+  @override
+  String get feedbackSubject => 'Tilbakemelding om Hjernetrim';
+
+  @override
+  String get feedbackIntro =>
+      'Hva skjedde, og hva forventet du? Alt er nyttig — selv én linje.';
+
+  @override
+  String get feedbackNoMailApp =>
+      'Fant ingen e-postapp. Adressen og detaljene ble kopiert i stedet.';
+
+  @override
+  String appVersion(String version) {
+    return 'Versjon $version';
+  }
+
+  @override
+  String get updateAvailable => 'En ny versjon er klar';
+
+  @override
+  String get updateBody =>
+      'Oppdater nå slik at du spiller den nyeste versjonen.';
+
+  @override
+  String get updateNow => 'Oppdater';
+
+  @override
+  String get updateLater => 'Ikke nå';
+
+  @override
+  String get updateFailed =>
+      'Oppdateringen kunne ikke startes. Åpne Play Butikk og søk opp appen.';
+
+  @override
+  String get useHint => 'Hint';
+
+  @override
+  String get hintCost => 'Et hint betyr høyst 2 stjerner på dette nivået.';
+
+  @override
+  String get hintNoneLeft => 'Ingen flere hint til dette ordet.';
 }

@@ -54,6 +54,24 @@ class ProgressStore {
     }
   }
 
+  /// Records a cleared level: [earned] stars for [level], and [level] + 1 now
+  /// reached.
+  ///
+  /// **Use this rather than [recordStars] from a win handler.** Progress used to
+  /// advance only through the win dialog's "Next level" button, because
+  /// [recordReached] fires from the screen's level loader and nowhere else. A
+  /// player who pressed "Home" instead therefore never unlocked anything: the
+  /// next visit reopened the level they had just beaten, forever. It read as
+  /// "this game always gives me the same board", it affected all thirteen
+  /// level games, and it survived because clearing a level and *reaching* the
+  /// next one were the same event in the code but not in the UI.
+  ///
+  /// Winning is the unlock. Where the player goes afterwards is navigation.
+  void recordCleared(String gameId, int level, int earned) {
+    recordStars(gameId, level, earned);
+    recordReached(gameId, level + 1);
+  }
+
   /// Total stars earned across all levels of [gameId].
   int totalStars(String gameId) {
     var total = 0;

@@ -180,5 +180,18 @@
   "creditsScowlChanges": "Tilpasset denne appen: hvert ord merket med den minste SCOWL-størrelsen det finnes i, som et mål på hvor vanlig det er.",
   "creditsFreqName": "Norske ordfrekvenser",
   "creditsFreqBody": "Vanskelighetsnivået for norske ord kommer fra FrequencyWords-listene (Hermit Dave, laget fra OpenSubtitles-data), brukt under lisensen Creative Commons Navngivelse-DelPåSammeVilkår 4.0. På grunn av del-på-samme-vilkår er den norske ordlisten denne appen bruker også tilgjengelig under CC BY-SA 4.0.",
-  "creditsFreqChanges": "Tilpasset denne appen: frekvensrangeringer redusert til fire vanskelighetsnivåer og koblet mot ordlisten fra Norsk ordbank."
+  "creditsFreqChanges": "Tilpasset denne appen: frekvensrangeringer redusert til fire vanskelighetsnivåer og koblet mot ordlisten fra Norsk ordbank.",
+  "sendFeedback": "Send tilbakemelding",
+  "feedbackSubject": "Tilbakemelding om Hjernetrim",
+  "feedbackIntro": "Hva skjedde, og hva forventet du? Alt er nyttig — selv én linje.",
+  "feedbackNoMailApp": "Fant ingen e-postapp. Adressen og detaljene ble kopiert i stedet.",
+  "appVersion": "Versjon {version}",
+  "updateAvailable": "En ny versjon er klar",
+  "updateBody": "Oppdater nå slik at du spiller den nyeste versjonen.",
+  "updateNow": "Oppdater",
+  "updateLater": "Ikke nå",
+  "updateFailed": "Oppdateringen kunne ikke startes. Åpne Play Butikk og søk opp appen.",
+  "useHint": "Hint",
+  "hintCost": "Et hint betyr høyst 2 stjerner på dette nivået.",
+  "hintNoneLeft": "Ingen flere hint til dette ordet."
 }

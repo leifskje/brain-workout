@@ -50,6 +50,13 @@ class _WordleScreenState extends State<WordleScreen> {
   bool _dailySolved = false;
   List<List<LetterState>> _dailyRows = const [];
 
+  /// Letters revealed by hints, as positions in [_target].
+  ///
+  /// Hints are practice-only. The daily word is the same puzzle for everyone and
+  /// its grid is shareable, so a hinted daily result would misreport how it went
+  /// — and the share is the one place this app makes a claim to another person.
+  final Set<int> _hinted = {};
+
   bool _initedLanguage = false;
 
   @override
@@ -95,6 +102,7 @@ class _WordleScreenState extends State<WordleScreen> {
     setState(() {
       _loading = false;
       _isDaily = true;
+      _hinted.clear();
       _puzzleNumber = puzzle;
       _guesses.clear();
       _results.clear();
@@ -189,7 +197,50 @@ class _WordleScreenState extends State<WordleScreen> {
       _keyStates.clear();
       _current = '';
       _finished = false;
+      _hinted.clear();
     });
+  }
+
+  /// Reveals one unguessed letter of the practice word, in place.
+  ///
+  /// Practice only: see [_hinted]. The revealed letter is typed into the current
+  /// guess at its real position, so it teaches the answer's shape rather than
+  /// just naming a letter.
+  void _useHint() {
+    if (_finished || _loading || _isDaily) return;
+    final t = AppLocalizations.of(context);
+
+    // Positions the player has not already pinned down with a green.
+    final known = <int>{..._hinted};
+    for (final result in _results) {
+      for (var i = 0; i < result.length; i++) {
+        if (result[i] == LetterState.correct) known.add(i);
+      }
+    }
+    final candidates = [
+      for (var i = 0; i < _target.length; i++)
+        if (!known.contains(i)) i,
+    ];
+    if (candidates.isEmpty) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(t.hintNoneLeft)));
+      return;
+    }
+
+    HapticFeedback.lightImpact();
+    final first = _hinted.isEmpty;
+    setState(() {
+      final pos = candidates.first;
+      _hinted.add(pos);
+      // Pad the current guess so the letter lands on its own square.
+      final buf = _current.padRight(_target.length).split('');
+      buf[pos] = _target[pos];
+      _current = buf.join().trimRight();
+    });
+    if (first) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text(t.hintCost)));
+    }
   }
 
   void _changeLanguage(String id) {
@@ -278,7 +329,8 @@ class _WordleScreenState extends State<WordleScreen> {
       context,
       level: n,
       accent: _accent,
-      stars: wordleStars(n),
+      // A hinted practice word cannot be a 3-star result.
+      stars: _hinted.isEmpty ? wordleStars(n) : wordleStars(n).clamp(1, 2),
       message: t.solvedInGuesses(n),
       nextLabel: _isDaily ? t.shareResult : t.newWord,
       closeLabel: _isDaily ? t.closeAction : null,
@@ -506,6 +558,16 @@ class _WordleScreenState extends State<WordleScreen> {
                       fontSize: 24, fontWeight: FontWeight.bold)),
             ),
           ),
+          // Practice only — the daily word is shared, so it gets no hints.
+          if (!_isDaily)
+            IconButton(
+              key: const ValueKey('wordle_hint_button'),
+              icon: const Icon(Icons.lightbulb_outline_rounded),
+              iconSize: 28,
+              color: _accent,
+              tooltip: t.useHint,
+              onPressed: _loading || _finished ? null : _useHint,
+            ),
           IconButton(
             icon: const Icon(Icons.help_outline_rounded),
             iconSize: 28,

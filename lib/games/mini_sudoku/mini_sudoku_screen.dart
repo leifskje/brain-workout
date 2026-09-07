@@ -133,7 +133,7 @@ class _MiniSudokuScreenState extends State<MiniSudokuScreen>
     final stars = _mistakes == 0 ? 3 : (_mistakes <= 2 ? 2 : 1);
     ProgressStore.instance
       ..registerPlay(_gameId)
-      ..recordStars(_gameId, _level, stars);
+      ..recordCleared(_gameId, _level, stars);
     // Local-only personal best. This is save data, not analytics: it lives in
     // SharedPreferences on the device and nothing about it is ever sent anywhere.
     final beat = ProgressStore.instance

@@ -20,8 +20,17 @@ We deliberately spread games across domains for a rounded "workout," and want
 ## Engagement & polish
 
 - ✅ Levels + persistence · level picker · stars · daily workout + streak
+- ✅ **Clearing a level unlocks the next one.** It used not to: `recordReached` fires
+  from each screen's level loader and nowhere else, so progress advanced *only* if the
+  player pressed "Next level" on the win dialog. Anyone who pressed "Home" instead
+  reopened the level they had just beaten, forever — which reads as "this game always
+  gives me the same board", and was reported that way about Memory Match. It affected
+  all thirteen level games. Win handlers now call `ProgressStore.recordCleared`, which
+  records the stars *and* unlocks the next level; a source-level test fails if any game
+  goes back to calling `recordStars` directly.
 - ✅ Haptics · celebratory win dialog · per-game theming · app icon + name
-- ✅ Donate link (⚠️ real Ko-fi/BMC URL still a placeholder in `home_screen.dart`)
+- ✅ Donate link (⚠️ `https://ko-fi.com/loffen` in `home_screen.dart` has never been
+  confirmed to resolve — one browser visit settles it, and testers can already tap it)
 - ✅ Save & resume a board mid-game — see [save-resume.md](save-resume.md).
   Wired for 2048, Picture Logic, Mini Sudoku, Number Cross, Arrow Maze and Arrow
   Escape. Short-round games (Simon, Trail, What Comes Next, Crack the Code, Word
@@ -29,24 +38,42 @@ We deliberately spread games across domains for a rounded "workout," and want
 - ✅ Word of the day + sharing — see [word-of-the-day.md](word-of-the-day.md).
   Date-seeded so there is no server; spoiler-free emoji grid; share sheet *and*
   copy-to-clipboard. Practice words stay available but are never shareable.
-- 💡 **Tester feedback channel** — testers are non-developers, so GitHub issues are too
+- ✅ **Tester feedback channel** — testers are non-developers, so GitHub issues are too
   high a barrier (account, repo, developer-shaped form). Cheapest workable option is an
   in-app "Send feedback" opening a pre-filled `mailto:` with version, level, device and
   locale already in the body, so a one-line reply is still actionable. A Google Form is
   the alternative if replies should land in a sheet. Deliberately *not* an analytics or
   crash SDK — nothing in this app sends data anywhere and that is a property worth
   keeping. See [handoff.md](handoff.md).
-- 💡 **In-app update prompt** (`in_app_update`, wrapping Play Core). Play still
+- ✅ **In-app update prompt** (`in_app_update`, wrapping Play Core). Play still
   auto-updates in the background, but it *defers* updates for apps the user rarely
   opens, and there is no prompt of our own — so a tester can sit on an old build for
   weeks while we wait for feedback on a new one. The "needs an update" dialog other apps
   show on launch is this API, not something Play does for free.
 
-  Use the **immediate** flow rather than flexible: a dismissible banner is exactly what
-  this audience dismisses forever. Awkward test loop, worth knowing before starting — the
-  API only reports an update for a build actually installed *from Play*, so verifying it
-  end to end needs a throwaway version bump, not `flutter run`. Interim workaround is a
-  line in the tester email: Play Store → search the app → **Update**.
+  Uses the **immediate** flow rather than flexible: a dismissible banner is exactly what
+  this audience dismisses forever. Shipped in `lib/services/app_update.dart`, checked once
+  after the home screen's first frame, with every failure path silent.
+
+  Still awkward to verify, and worth knowing: the API only reports an update for a build
+  actually installed *from Play*, so `flutter run` always reports none. Confirming it
+  end to end needs a throwaway version bump on the internal track. Note also that the
+  prompt only helps from the release *after* the one that introduces it — a tester on
+  1.1.0 has to update by hand once (Play Store → search the app → **Update**) before it
+  can ever fire.
+
+- ✅ **Hints in the word games** — a lightbulb in the game header. Word Scramble places
+  the next correct letter, Word Search marks where one unfound word starts (the direction
+  is left to the player), and Wordle reveals one letter in place.
+
+  **A hint costs a star, never a heart**, following the precedent Word Scramble's word-swap
+  already set: the level stays finishable and simply cannot earn 3 stars. Costing a heart
+  would push a player who needs the hint off the level entirely, which is the opposite of
+  the point — this exists because a dyslexic player asked for it.
+
+  **The daily word is excluded on purpose.** It is the same puzzle for everyone and its
+  emoji grid is shareable, so a hinted daily result would misreport how it went to another
+  person. Practice words get the button; the daily does not.
 - 💡 Daily reminder notification (local notifications)
 - ✅ Personal records ("New personal best!") — local only, per game *and* per
   level. Wired for 2048 (score), Memory Match (moves), Mini Sudoku and Picture
@@ -86,6 +113,18 @@ What's left:
   kind rather than two is the next real axis, and it is a mechanic change.
 - 💡 **Number Cross division.** Still untried, and now the main knob left; blanks
   and decoys are spent.
+- ✅ **What Comes Next: the visual patterns never climbed.** `_shapeQuestion` was never
+  passed the tier, so the ~40% of every round that is dots/colour/arrow was identical at
+  level 1 and level 60 — dots always +1, arrows always a quarter clockwise, colour cycles
+  2–4 long. The *number* tiers did climb, which is why `analyze_level_curves.dart` read
+  healthy while nearly half the game was flat. Old-style shape questions now fall from
+  88% of the pool at tier 1 to 25% at tier 5. Dot counts are capped at 12 (they are drawn
+  as dots) and their distractors now straddle the answer — clamped to 1..9, a large answer
+  got only bigger neighbours and was guessable as "the smallest option".
+- ✅ **Memory Match showed the same 21 pictures from level 9 up.** The symbol pool held
+  exactly 21 entries and level 9+ needs 21 pairs, so every level drew all of them.
+  Positions still varied, which is why it looked correctly seeded. Pool is now 44. The
+  lesson generalises: a pool sized *equal* to the largest draw is a pool with no variety.
 
 ### Word-game quality gaps
 

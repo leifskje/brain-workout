@@ -12,6 +12,8 @@ class GameHeader extends StatelessWidget {
     required this.accent,
     required this.onRestart,
     this.onHelp,
+    this.onHint,
+    this.showHint = false,
   });
 
   final String title;
@@ -20,6 +22,13 @@ class GameHeader extends StatelessWidget {
 
   /// Shows a "?" button that reopens the game's how-to-play sheet.
   final VoidCallback? onHelp;
+
+  /// Spends a hint. Shown only when [showHint] is set; a null [onHint] with
+  /// [showHint] true renders the button greyed out, which is deliberate — the
+  /// player should see that hints exist and that this one is spent, rather than
+  /// have the button vanish.
+  final VoidCallback? onHint;
+  final bool showHint;
 
   @override
   Widget build(BuildContext context) {
@@ -44,6 +53,15 @@ class GameHeader extends StatelessWidget {
               ),
             ),
           ),
+          if (showHint)
+            IconButton(
+              key: const ValueKey('game_hint_button'),
+              icon: const Icon(Icons.lightbulb_outline_rounded),
+              iconSize: 28,
+              color: accent,
+              tooltip: AppLocalizations.of(context).useHint,
+              onPressed: onHint,
+            ),
           if (onHelp != null)
             IconButton(
               icon: const Icon(Icons.help_outline_rounded),

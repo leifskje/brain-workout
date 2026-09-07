@@ -67,7 +67,7 @@ class WhatNextRound {
     // ~40% visual pattern questions, the rest number sequences.
     if (rng.nextInt(10) < 4) {
       const shapeKinds = [QuestionKind.dots, QuestionKind.color, QuestionKind.arrow];
-      return _shapeQuestion(shapeKinds[rng.nextInt(shapeKinds.length)], rng);
+      return _shapeQuestion(shapeKinds[rng.nextInt(shapeKinds.length)], rng, tier);
     }
     return _numberQuestion(rng, tier);
   }
@@ -134,11 +134,32 @@ class WhatNextRound {
     );
   }
 
-  static SequenceQuestion _shapeQuestion(QuestionKind kind, Random rng) {
+  /// Visual patterns, graded by [tier].
+  ///
+  /// These used to ignore the tier entirely: dots always counted up by one,
+  /// arrows always turned a quarter clockwise, and colour cycles were 2-4 long.
+  /// Since roughly 40% of every round is a shape question, that left nearly half
+  /// the game exactly as hard at level 60 as at level 1 — "yellow, red, yellow,
+  /// red, ...?" is the two-colour cycle, and it could appear at any level. The
+  /// level audit missed it because the *number* tiers did climb.
+  static SequenceQuestion _shapeQuestion(
+      QuestionKind kind, Random rng, int tier) {
     switch (kind) {
       case QuestionKind.dots:
-        final start = rng.nextInt(2) + 1; // 1 or 2
-        final terms = [for (var i = 0; i <= _visible; i++) start + i];
+        // Tier 1-2 count up by one; higher tiers vary the step, and from tier 4
+        // the step itself grows, so the count can't be read off as "one more".
+        // Bounded on purpose: the answer is drawn as that many dots, and past
+        // a dozen they stop being countable at a glance, which is a different
+        // (and worse) kind of hard. Growing steps therefore start from 1.
+        final growing = tier >= 4 && rng.nextBool();
+        final start = growing ? 1 : rng.nextInt(2) + 1;
+        final step = (tier <= 2 || growing) ? 1 : rng.nextInt(2) + 1;
+        final terms = <int>[start];
+        var d = step;
+        for (var i = 1; i <= _visible; i++) {
+          terms.add(terms.last + d);
+          if (growing) d += 1;
+        }
         return SequenceQuestion(
           kind: kind,
           shown: terms.sublist(0, _visible),
@@ -146,20 +167,49 @@ class WhatNextRound {
           options: _dotOptions(terms[_visible], rng),
         );
       case QuestionKind.color:
-        final cycleLen = rng.nextInt(3) + 2; // 2..4
-        final cycle = ([0, 1, 2, 3]..shuffle(rng)).take(cycleLen).toList();
+        // The cycle has to be longer than the four visible terms before the
+        // answer stops being "look four back". At tier 4+ the cycle also runs
+        // backwards half the time.
+        final minLen = switch (tier) { 1 => 2, 2 => 3, 3 => 4, _ => 5 };
+        final maxLen = switch (tier) { 1 => 3, 2 => 4, _ => 6 };
+        final cycleLen = minLen + rng.nextInt(maxLen - minLen + 1);
+        final cycle = <int>[
+          for (var i = 0; i < cycleLen; i++) rng.nextInt(patternColorCount),
+        ];
+        // A cycle of a single repeated colour is not a pattern.
+        if (cycle.toSet().length < 2) {
+          cycle[0] = (cycle[0] + 1) % patternColorCount;
+        }
+        final reversed = tier >= 4 && rng.nextBool();
+        int at(int i) =>
+            cycle[reversed ? (cycleLen - 1 - (i % cycleLen)) : (i % cycleLen)];
         return SequenceQuestion(
           kind: kind,
-          shown: [for (var i = 0; i < _visible; i++) cycle[i % cycleLen]],
-          answer: cycle[_visible % cycleLen],
+          shown: [for (var i = 0; i < _visible; i++) at(i)],
+          answer: at(_visible),
           options: [0, 1, 2, 3]..shuffle(rng),
         );
-      default: // arrow: rotate one quarter clockwise each step
+      default:
+        // Arrows: a quarter clockwise forever is one rule. Higher tiers pick a
+        // different rotation, may run anticlockwise, and from tier 5 alternate
+        // between two rotations.
         final start = rng.nextInt(4);
+        final stepSize = tier <= 1 ? 1 : rng.nextInt(3) + 1; // 1..3 quarters
+        final dir = tier >= 3 && rng.nextBool() ? -1 : 1;
+        final alternating = tier >= 5 && rng.nextBool();
+        final other = rng.nextInt(3) + 1;
+        int at(int i) {
+          var v = start;
+          for (var k = 0; k < i; k++) {
+            final s = alternating && k.isOdd ? other : stepSize;
+            v += dir * s;
+          }
+          return v % 4 < 0 ? v % 4 + 4 : v % 4;
+        }
         return SequenceQuestion(
           kind: QuestionKind.arrow,
-          shown: [for (var i = 0; i < _visible; i++) (start + i) % 4],
-          answer: (start + _visible) % 4,
+          shown: [for (var i = 0; i < _visible; i++) at(i)],
+          answer: at(_visible),
           options: [0, 1, 2, 3]..shuffle(rng),
         );
     }
@@ -180,13 +230,17 @@ class WhatNextRound {
     return chosen.toList()..shuffle(rng);
   }
 
+  /// Distractors for a dot count. They must sit on *both* sides of the answer:
+  /// clamping them into 1..9 meant a larger answer got only bigger neighbours,
+  /// so "the smallest option" was the answer without counting anything.
   static List<int> _dotOptions(int answer, Random rng) {
     final chosen = <int>{answer};
-    for (final c in [answer - 1, answer + 1, answer + 2, answer - 2, answer + 3]) {
+    for (final delta in [-1, 1, -2, 2, -3, 3, 4]) {
       if (chosen.length >= 4) break;
-      if (c >= 1 && c <= 9) chosen.add(c);
+      final c = answer + delta;
+      if (c >= 1) chosen.add(c);
     }
-    var bump = 3;
+    var bump = 5;
     while (chosen.length < 4) {
       chosen.add(answer + bump);
       bump++;

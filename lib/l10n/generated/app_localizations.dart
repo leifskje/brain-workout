@@ -1099,6 +1099,84 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Adapted for this app: frequency ranks reduced to four difficulty tiers and matched against the Norsk ordbank word list.'**
   String get creditsFreqChanges;
+
+  /// No description provided for @sendFeedback.
+  ///
+  /// In en, this message translates to:
+  /// **'Send feedback'**
+  String get sendFeedback;
+
+  /// No description provided for @feedbackSubject.
+  ///
+  /// In en, this message translates to:
+  /// **'Brain Workout feedback'**
+  String get feedbackSubject;
+
+  /// No description provided for @feedbackIntro.
+  ///
+  /// In en, this message translates to:
+  /// **'What happened, and what did you expect? Anything at all is useful — even one line.'**
+  String get feedbackIntro;
+
+  /// No description provided for @feedbackNoMailApp.
+  ///
+  /// In en, this message translates to:
+  /// **'No email app found. The address and details were copied instead.'**
+  String get feedbackNoMailApp;
+
+  /// No description provided for @appVersion.
+  ///
+  /// In en, this message translates to:
+  /// **'Version {version}'**
+  String appVersion(String version);
+
+  /// No description provided for @updateAvailable.
+  ///
+  /// In en, this message translates to:
+  /// **'A new version is ready'**
+  String get updateAvailable;
+
+  /// No description provided for @updateBody.
+  ///
+  /// In en, this message translates to:
+  /// **'Update now so you are playing the latest version.'**
+  String get updateBody;
+
+  /// No description provided for @updateNow.
+  ///
+  /// In en, this message translates to:
+  /// **'Update'**
+  String get updateNow;
+
+  /// No description provided for @updateLater.
+  ///
+  /// In en, this message translates to:
+  /// **'Not now'**
+  String get updateLater;
+
+  /// No description provided for @updateFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'The update could not be started. Open Play Store and search for the app.'**
+  String get updateFailed;
+
+  /// No description provided for @useHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Hint'**
+  String get useHint;
+
+  /// No description provided for @hintCost.
+  ///
+  /// In en, this message translates to:
+  /// **'A hint means at most 2 stars for this level.'**
+  String get hintCost;
+
+  /// No description provided for @hintNoneLeft.
+  ///
+  /// In en, this message translates to:
+  /// **'No more hints for this word.'**
+  String get hintNoneLeft;
 }
 
 class _AppLocalizationsDelegate
