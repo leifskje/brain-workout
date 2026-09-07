@@ -4,9 +4,8 @@ Written to let a fresh agent pick up without re-deriving anything. Read `CLAUDE.
 first; it holds the conventions and the hard-won lessons. This file is *where things
 stand*, not how to work here.
 
-Last published: **1.1.0 (versionCode 3)**, internal track, Aug 2026.
-`pubspec.yaml` now reads **1.1.1+4** and is *not* published — that bump is prepared, not
-shipped.
+Last published: **1.1.1 (versionCode 4)**, internal track, Sep 2026. `main` is that
+release; the next one needs another `version:` bump.
 
 ## Where the code is
 
@@ -18,7 +17,7 @@ sharing · save & resume across six games · local personal bests · five un-cap
 difficulty curves · Memory Match 15→21 pairs · the how-to-play sheet overflow fix ·
 the daily-word share reachability fix.
 
-**In 1.1.1, built but never on a device:** the level-progression fix (clearing a level
+**Shipped in 1.1.1, and still unverified on real hardware:** the level-progression fix (clearing a level
 now unlocks the next one whichever button you press — it previously only counted if you
 pressed "Next level", in all thirteen level games) · Crack the Code clue counts · the
 Memory Match picture-pool fix · What Comes Next visual-pattern tiers · the tester feedback button ·
@@ -28,12 +27,11 @@ in one line.
 
 ## Open work, ranked
 
-0. **Ship 1.1.1.** Everything above is on `main` and unreleased. `version:` is already
-   bumped; the release itself is a `gradlew publishBundle` from `main` and only on an
-   explicit ask. Two things to settle first: confirm `https://ko-fi.com/loffen` resolves
-   (testers can tap it today), and decide whether `feedbackEmail` in
-   `lib/services/app_info.dart` should stay the author's personal gmail — it is the only
-   place the address appears.
+0. **Chase the 1.1.1 feedback.** Testers must update *by hand* this once — the in-app
+   prompt shipped in 1.1.1 and so cannot fire until 1.1.2. Tell them: Play Store → search
+   the app → **Update**. The two questions worth asking are whether levels now advance,
+   and whether the Send feedback button reaches an inbox at all — that button is the
+   first thing in this app whose only real test is a person using it.
 1. **Re-tune Arrow Maze branching targets.** The generator now reaches *lower*
    branching than the targets ask for, so the curve is not using the difficulty
    available. Cheapest real win left. Tune with
