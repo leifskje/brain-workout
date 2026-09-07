@@ -1,7 +1,7 @@
-New game: Picture Logic — reveal a hidden picture from number clues.
+Fixed: finishing a level now moves you forward. Before, tapping "Home" instead of "Next level" meant the game gave you the same level again — so it felt stuck. Sorry!
 
-Arrow Maze boards are much larger at higher levels. Pinch, or use the zoom buttons, to look closer.
+Memory Match uses many more pictures now, and What Comes Next gets properly harder.
 
-Games now remember where you left off if you stop midway. The Word game has a word of the day you can share, and your personal bests are kept on your phone.
+New: a Hint button in the word games (a hint means at most 2 stars), and a "Send feedback" button at the bottom of the home screen.
 
-Please tell me: is the big Arrow Maze readable before you zoom in, and does sharing the word of the day work?
+Please tell me: does your level go up now when you finish one?

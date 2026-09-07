@@ -1,7 +1,7 @@
-Nytt spill: Bildekryss — finn det skjulte bildet ut fra tallene.
+Rettet: nå går du videre når du fullfører et nivå. Før fikk du samme nivå på nytt hvis du trykket «Hjem» i stedet for «Neste nivå» — så det føltes fast. Beklager!
 
-Brettene i Pillabyrint er mye større på høyere nivåer. Knip, eller bruk zoom-knappene, for å se nærmere.
+Memory har mange flere bilder nå, og Hva kommer etterpå blir skikkelig vanskeligere.
 
-Spillene husker nå hvor du var hvis du må avslutte midt i. Ordspillet har et dagens ord du kan dele, og dine personlige rekorder lagres på telefonen.
+Nytt: Hint-knapp i ordspillene (et hint gir høyst 2 stjerner), og en «Send tilbakemelding»-knapp nederst på hjemskjermen.
 
-Si gjerne fra: er det store Pillabyrint-brettet lesbart før du zoomer, og virker deling av dagens ord?
+Si gjerne fra: går nivået ditt opp nå når du fullfører et?
