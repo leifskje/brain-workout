@@ -37,7 +37,11 @@ in one line.
    available. Cheapest real win left. Tune with
    `dart run tool/analyze_snake_difficulty.dart` and keep targets inside the printed
    spread — see the warnings in [arrow-maze-depth.md](arrow-maze-depth.md).
-2. **Warm the level picker.** `BoardPrefetch` covers only sequential play (win → next
+2. **Warm the level picker.** *Partly mitigated:* entering a level now shows
+   "Setting up the next board…" instead of freezing, because `_loadLevel` routes
+   through `BoardPrefetch.obtain` and yields a frame before generating. The work
+   still happens on the UI isolate, so the pause is real — it just no longer
+   reads as a hang. Actually prefetching for the picker is still open. `BoardPrefetch` covers only sequential play (win → next
    level). Entering from the picker, or the first level, still generates inline, so a
    slow board is felt there. **This is the gate on raising the Arrow Maze cap past 24
    columns.**

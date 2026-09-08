@@ -253,5 +253,6 @@
   "@statsFastest": {"placeholders": {"level": {"type": "int"}, "time": {"type": "String"}}},
   "statsNothingYet": "Play a level and it will show up here.",
   "statsTotalStars": "{count} stars in all",
-  "@statsTotalStars": {"placeholders": {"count": {"type": "int"}}}
+  "@statsTotalStars": {"placeholders": {"count": {"type": "int"}}},
+  "buildingBoard": "Setting up the next board…"
 }

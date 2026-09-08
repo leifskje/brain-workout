@@ -779,4 +779,7 @@ class AppLocalizationsNb extends AppLocalizations {
   String statsTotalStars(int count) {
     return '$count stjerner i alt';
   }
+
+  @override
+  String get buildingBoard => 'Gjør klart neste brett…';
 }

@@ -777,4 +777,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String statsTotalStars(int count) {
     return '$count stars in all';
   }
+
+  @override
+  String get buildingBoard => 'Setting up the next board…';
 }

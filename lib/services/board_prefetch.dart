@@ -26,6 +26,11 @@ class BoardPrefetch {
   static SnakeBoard? _board;
   static Future<void>? _inFlight;
 
+  /// The level the in-flight build is for. Needed because [obtain] has to tell
+  /// "a board for the level I want is nearly ready" from "a board for some other
+  /// level is being built", and those want opposite behaviour.
+  static int? _inFlightLevel;
+
   /// Starts building the board for [level] in a background isolate.
   ///
   /// Fire and forget: callers do not await it. Runs off the UI isolate because
@@ -33,10 +38,15 @@ class BoardPrefetch {
   /// celebration it is meant to hide behind.
   static void warm(int level) {
     if (_level == level && _board != null) return; // already have it
-    if (_inFlight != null) return; // one at a time; the next win will retry
+    if (_inFlightLevel == level) return; // already building this one
+    if (_inFlight != null) return; // busy with another level; obtain() copes
     _level = null;
     _board = null;
-    _inFlight = _run(level).whenComplete(() => _inFlight = null);
+    _inFlightLevel = level;
+    _inFlight = _run(level).whenComplete(() {
+      _inFlight = null;
+      _inFlightLevel = null;
+    });
   }
 
   static Future<void> _run(int level) async {
@@ -54,6 +64,45 @@ class BoardPrefetch {
       _level = null;
       _board = null;
     }
+  }
+
+  /// The board for [level], with the caller's spinner given a chance to paint
+  /// first.
+  ///
+  /// This is what callers should use. [take] alone was the bug: it returns null
+  /// whenever the prefetch has not finished, and the caller then generated
+  /// synchronously with nothing on screen to explain the pause — 144-271ms at
+  /// the upper levels. A player who taps "Next level" before the ~1.1s dialog
+  /// has played out reads that as a hang, taps again, and the second tap lands
+  /// on the board that has meanwhile appeared and fires whatever arrow is under
+  /// their finger. Reported from a live build.
+  ///
+  /// Order of preference: the prefetched board; then an in-flight warm for this
+  /// same level, awaited rather than duplicated; then generate here.
+  ///
+  /// **That last step is deliberately not moved into an isolate.** It is the
+  /// obvious thing to reach for and it makes this path untestable: `Isolate.run`
+  /// never completes inside `testWidgets`' fake-async zone, so every widget test
+  /// that missed the cache would hang rather than fail (see CLAUDE.md). The
+  /// `await` before it yields one turn of the event loop, which is enough for the
+  /// spinner to paint — so the work still blocks, but the player is looking at
+  /// "setting up the next board" while it does, which is the thing that was
+  /// actually wrong.
+  static Future<SnakeBoard> obtain(int level) async {
+    final ready = take(level);
+    if (ready != null) return ready;
+
+    if (_inFlightLevel == level) {
+      final pending = _inFlight;
+      if (pending != null) {
+        await pending;
+        final warmed = take(level);
+        if (warmed != null) return warmed;
+      }
+    }
+
+    await Future<void>.delayed(Duration.zero);
+    return SnakeBoard.generate(level);
   }
 
   /// The prefetched board for [level] if one is ready, else null.
@@ -76,6 +125,7 @@ class BoardPrefetch {
   static void reset() {
     _level = null;
     _board = null;
+    _inFlightLevel = null;
   }
 
   /// Test seam: whether a board for [level] is ready to be taken.

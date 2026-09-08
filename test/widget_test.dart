@@ -936,11 +936,19 @@ void main() {
 
     await tester
         .pumpWidget(localizedApp(const SnakeArrowsScreen(startLevel: 1)));
+    // The board is built asynchronously and the screen holds taps for a moment
+    // after it lands, so settle before measuring or tapping.
+    await tester.pumpAndSettle();
     final board = SnakeBoard.generate(1); // same seed as the screen
     final rect = tester.getRect(find.byKey(const ValueKey('arrow_maze_board')));
     final cell = rect.width / board.cols;
     final arrow = board.arrows.firstWhere(board.isPathClear);
     final target = arrow.cells.first;
+    // The screen ignores board taps for a moment after a board lands (a tap
+    // queued while it was being built used to fire an arrow the player never
+    // aimed at). pumpAndSettle does not cover it: the guard is a Timer, and
+    // settling waits on frames.
+    await tester.pump(const Duration(milliseconds: 450));
     await tester.tapAt(rect.topLeft +
         Offset((target.col + 0.5) * cell, (target.row + 0.5) * cell));
 
@@ -1007,6 +1015,7 @@ void main() {
 
     await tester
         .pumpWidget(localizedApp(const SnakeArrowsScreen(startLevel: 1)));
+    await tester.pumpAndSettle();
     final board = SnakeBoard.generate(1); // same seed as the screen
     expect(find.byIcon(Icons.favorite_border_rounded), findsNothing);
 
@@ -3263,6 +3272,10 @@ void main() {
     await tester.pumpWidget(localizedApp(const SnakeArrowsScreen(startLevel: 3)));
     await tester.pumpAndSettle();
 
+    // The screen ignores board taps for a moment after a board lands; the
+    // guard is a Timer, so pumpAndSettle does not cover it.
+    await tester.pump(const Duration(milliseconds: 450));
+
     final board = SnakeBoard.generate(3); // same seed as the screen
     final rect = tester.getRect(find.byKey(const ValueKey('arrow_maze_board')));
     final cellSize = rect.width / board.cols;
@@ -4160,6 +4173,59 @@ void main() {
     expect(afterRestart.width, closeTo(boardAtRest.width, 0.5),
         reason: 'a new board should start fit to the screen');
   });
+  testWidgets('Arrow Maze: a slow next board says so, and swallows the retry tap',
+      (tester) async {
+    // Reported from a live build: "I feel I often get a hang, so I press again,
+    // then am suddenly in game and have clicked an arrow that cannot escape."
+    //
+    // Both halves were real. BoardPrefetch.take() returns null whenever the
+    // prefetch has not finished, and the screen then generated synchronously on
+    // the UI thread -- 144-271ms at the upper levels with nothing on screen to
+    // explain it. Then the retry tap landed on the board that had meanwhile
+    // appeared and fired whatever arrow was under it, costing a heart.
+    tester.view.physicalSize = const Size(1080, 2280);
+    tester.view.devicePixelRatio = 2.625;
+    addTearDown(tester.view.reset);
+
+    const level = 30;
+    BoardPrefetch.reset(); // nothing warmed: the case the player hit
+    await tester
+        .pumpWidget(localizedApp(const SnakeArrowsScreen(startLevel: level)));
+
+    // First frame: the press has visible feedback rather than a frozen board.
+    await tester.pump();
+    expect(find.byKey(const ValueKey('arrow_maze_loading')), findsOneWidget,
+        reason: 'a board that is not ready must say so, not just freeze');
+    expect(find.text('Setting up the next board…'), findsOneWidget);
+    expect(find.byKey(const ValueKey('arrow_maze_board')), findsNothing,
+        reason: 'the old board must not sit there looking tappable');
+
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('arrow_maze_loading')), findsNothing);
+    final rect = tester.getRect(find.byKey(const ValueKey('arrow_maze_board')));
+
+    // A tap the instant the board lands is swallowed. Aim at a *blocked* arrow,
+    // which is what actually cost the player a heart.
+    final board = SnakeBoard.generate(level);
+    final blocked = board.arrows.firstWhere((a) => !board.isPathClear(a));
+    final cellW = rect.width / board.cols;
+    final cellH = rect.height / board.rows;
+    final head = blocked.cells.last;
+    await tester.tapAt(rect.topLeft +
+        Offset((head.col + 0.5) * cellW, (head.row + 0.5) * cellH));
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(find.byIcon(Icons.favorite_border_rounded), findsNothing,
+        reason: 'a tap arriving with the first frame cost a heart');
+
+    // Once settled, the same tap does register.
+    await tester.pump(const Duration(milliseconds: 450));
+    await tester.tapAt(rect.topLeft +
+        Offset((head.col + 0.5) * cellW, (head.row + 0.5) * cellH));
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(find.byIcon(Icons.favorite_border_rounded), findsWidgets,
+        reason: 'the guard must lift, not disable the board');
+  });
+
   testWidgets('Arrow Maze: freed arrows fly out one by one, not all at once',
       (tester) async {
     // The owner's note: when the golden arrow gets out, the arrows it frees used to
@@ -4218,6 +4284,9 @@ void main() {
 
     await tester.pumpWidget(localizedApp(SnakeArrowsScreen(startLevel: level)));
     await tester.pumpAndSettle();
+    // The screen ignores board taps for a moment after a board lands; the guard
+    // is a Timer, so pumpAndSettle does not cover it.
+    await tester.pump(const Duration(milliseconds: 450));
 
     // Tap the golden arrow via the painted board's own rect, so no transform maths
     // is duplicated here.

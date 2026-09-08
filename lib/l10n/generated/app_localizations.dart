@@ -1285,6 +1285,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{count} stars in all'**
   String statsTotalStars(int count);
+
+  /// No description provided for @buildingBoard.
+  ///
+  /// In en, this message translates to:
+  /// **'Setting up the next board…'**
+  String get buildingBoard;
 }
 
 class _AppLocalizationsDelegate

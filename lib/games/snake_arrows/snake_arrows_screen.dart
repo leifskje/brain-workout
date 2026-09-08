@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -66,6 +67,20 @@ class _SnakeArrowsScreenState extends State<SnakeArrowsScreen>
 
   static const _maxZoom = 4.0;
 
+  /// True while the next board is being built. See [_loadLevel].
+  bool _loading = false;
+
+  /// Releases the post-load tap guard. Held as a field so it can be cancelled
+  /// on dispose — a pending timer outliving the widget tree is both untidy and
+  /// something the test binding refuses outright.
+  Timer? _settleTimer;
+
+  /// Whether [_board] has ever been assigned. `_board` is `late`, and on the
+  /// very first load there is no previous board to fall back on, so anything in
+  /// `build` that reads it has to check this first.
+  bool _boardReady = false;
+
+
   /// Arrows freed by a bonus arrow that are still waiting to fly off.
   ///
   /// They leave one at a time, reusing the ordinary escape animation, so a bonus
@@ -120,6 +135,7 @@ class _SnakeArrowsScreenState extends State<SnakeArrowsScreen>
   void dispose() {
     saveBoardNow();
     stopAutosave();
+    _settleTimer?.cancel();
     _zoom.dispose();
     _escapeCtrl.dispose();
     _shakeCtrl.dispose();
@@ -129,12 +145,39 @@ class _SnakeArrowsScreenState extends State<SnakeArrowsScreen>
   /// Loads [level], resuming a saved position for it when one exists. Hearts
   /// travel with the save — returning to a part-cleared board with full lives
   /// would feel like a bug.
-  void _loadLevel(int level, {bool allowResume = true}) {
+  /// Loads [level], showing a spinner if the board is not ready yet.
+  ///
+  /// Async on purpose. This used to fall back to a synchronous
+  /// `SnakeBoard.generate` whenever the prefetch had not finished, which froze
+  /// the UI for 144-271ms at the upper levels with nothing on screen to say why:
+  /// a player who taps "Next level" before the ~1.1s dialog finishes playing
+  /// reads that as the app hanging, taps again, and the second tap lands on the
+  /// board that has since appeared and fires whatever arrow is under it — losing
+  /// a heart on a blocked arrow they never meant to touch. Reported from a live
+  /// build, and both halves are fixed: the work moved off the UI isolate
+  /// (BoardPrefetch.obtain) and the press now has visible feedback.
+  Future<void> _loadLevel(int level, {bool allowResume = true}) async {
     ProgressStore.instance.recordReached(_gameId, level);
+
+    // Clear the old board first, so the spinner replaces it rather than leaving
+    // the finished level on screen looking tappable. The level number and heart
+    // count are known without the board, so set them now: the header then reads
+    // correctly while the spinner is up, and neither `late` field is left
+    // unassigned on the very first build.
+    setState(() {
+      _loading = true;
+      _busy = true;
+      _level = level;
+      _hearts = snakeConfigForLevel(level).hearts;
+      _escapingId = null;
+      _blockedId = null;
+    });
+
     // Built in the background while the win dialog was up, if we got that far.
     // Identical to generating here — generation is deterministic in the level — so
     // this only changes *when* the work happened, never what the player sees.
-    final board = BoardPrefetch.take(level) ?? SnakeBoard.generate(level);
+    final board = await BoardPrefetch.obtain(level);
+    if (!mounted) return;
     var hearts = snakeConfigForLevel(level).hearts;
     final saved =
         allowResume ? ProgressStore.instance.loadBoard(_gameId, level) : null;
@@ -152,7 +195,19 @@ class _SnakeArrowsScreenState extends State<SnakeArrowsScreen>
       _hearts = hearts;
       _escapingId = null;
       _blockedId = null;
-      _busy = false;
+      _loading = false;
+      _boardReady = true;
+      // Stays busy a moment longer: a tap made while the spinner was up is
+      // delivered once the board's frame lands, and without this it fires an
+      // arrow the player never aimed at — which is how the reported bug cost a
+      // heart. Held via a real delay rather than a wall-clock deadline so tests
+      // can advance past it.
+      _busy = true;
+    });
+
+    _settleTimer?.cancel();
+    _settleTimer = Timer(const Duration(milliseconds: 400), () {
+      if (mounted) setState(() => _busy = false);
     });
   }
 
@@ -171,6 +226,7 @@ class _SnakeArrowsScreenState extends State<SnakeArrowsScreen>
 
   @override
   Map<String, dynamic>? captureBoard() {
+    if (!_boardReady) return null; // still being built
     if (_board.isSolved) return null; // finished
     if (_hearts <= 0) return null; // lost; the level restarts anyway
     if (!_board.hasProgress) return null; // untouched
@@ -251,7 +307,7 @@ class _SnakeArrowsScreenState extends State<SnakeArrowsScreen>
   }
 
   void _handleTapCell(int row, int col) {
-    if (_busy) return;
+    if (_busy || _loading) return;
     final arrow = _board.arrowAt(row, col);
     if (arrow == null || arrow.escaped) return;
 
@@ -356,14 +412,33 @@ class _SnakeArrowsScreenState extends State<SnakeArrowsScreen>
             Expanded(
               child: Padding(
                 padding: const EdgeInsets.all(16),
-                child: Center(child: _buildBoard()),
+                // A spinner with a word, not a bare board: the big late boards
+                // take a moment to build and silence reads as a hang.
+                child: Center(
+                  child: _loading
+                      ? Column(
+                          key: const ValueKey('arrow_maze_loading'),
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            CircularProgressIndicator(color: _accent),
+                            const SizedBox(height: 16),
+                            Text(
+                              AppLocalizations.of(context).buildingBoard,
+                              style: const TextStyle(
+                                  fontSize: 17, color: Colors.black54),
+                            ),
+                          ],
+                        )
+                      : _buildBoard(),
+                ),
               ),
             ),
-            if (_board.cols > 14) _buildZoomBar(),
+            if (_boardReady && !_loading && _board.cols > 14)
+              _buildZoomBar(),
             Padding(
               padding: const EdgeInsets.fromLTRB(24, 0, 24, 20),
               child: Text(
-                _board.cols > 14
+                _boardReady && _board.cols > 14
                     ? AppLocalizations.of(context).arrowMazeHintZoom
                     : AppLocalizations.of(context).arrowMazeHint,
                 textAlign: TextAlign.center,

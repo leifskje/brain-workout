@@ -211,5 +211,6 @@
   "statsLevelsCleared": "{count, plural, =1{1 nivå fullført} other{{count} nivåer fullført}}",
   "statsFastest": "Raskeste: nivå {level} på {time}",
   "statsNothingYet": "Spill et nivå, så vises det her.",
-  "statsTotalStars": "{count} stjerner i alt"
+  "statsTotalStars": "{count} stjerner i alt",
+  "buildingBoard": "Gjør klart neste brett…"
 }
