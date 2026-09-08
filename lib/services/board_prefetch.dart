@@ -88,21 +88,28 @@ class BoardPrefetch {
   /// spinner to paint — so the work still blocks, but the player is looking at
   /// "setting up the next board" while it does, which is the thing that was
   /// actually wrong.
-  static Future<SnakeBoard> obtain(int level) async {
+  /// Returns the board and whether it came from a *finished* prefetch.
+  ///
+  /// `wasWarm` matters to the caller, not just as trivia: on a warm hit the
+  /// board appears in the same frame, so there was no pause and therefore no
+  /// queued tap to defend against. Guarding taps anyway just makes the first
+  /// 400ms of every level dead, which is a new annoyance in place of the old one.
+  static Future<({SnakeBoard board, bool wasWarm})> obtain(int level) async {
     final ready = take(level);
-    if (ready != null) return ready;
+    if (ready != null) return (board: ready, wasWarm: true);
 
     if (_inFlightLevel == level) {
       final pending = _inFlight;
       if (pending != null) {
         await pending;
         final warmed = take(level);
-        if (warmed != null) return warmed;
+        // Not "warm": the player waited for it, so a tap may be queued.
+        if (warmed != null) return (board: warmed, wasWarm: false);
       }
     }
 
     await Future<void>.delayed(Duration.zero);
-    return SnakeBoard.generate(level);
+    return (board: SnakeBoard.generate(level), wasWarm: false);
   }
 
   /// The prefetched board for [level] if one is ready, else null.

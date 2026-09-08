@@ -4491,6 +4491,47 @@ void main() {
     BoardPrefetch.reset();
   });
 
+  testWidgets('Arrow Maze: a warm board is instantly playable, with no spinner',
+      (tester) async {
+    // The other half of the hang fix, and the half that is easy to get wrong in
+    // the opposite direction. On a warm prefetch the board appears in the same
+    // frame, so there was no pause and therefore no queued tap to defend
+    // against -- holding taps for 400ms anyway would make the first moment of
+    // every level dead, which is a new annoyance in place of the old one. The
+    // owner noticed the absent spinner on a device, which is what prompted
+    // checking this path at all.
+    tester.view.physicalSize = const Size(1080, 2280);
+    tester.view.devicePixelRatio = 2.625;
+    addTearDown(tester.view.reset);
+    addTearDown(BoardPrefetch.reset);
+
+    const level = 3;
+    BoardPrefetch.reset();
+    BoardPrefetch.seed(level, SnakeBoard.generate(level));
+
+    await tester
+        .pumpWidget(localizedApp(const SnakeArrowsScreen(startLevel: level)));
+    await tester.pump();
+
+    // No spinner at all: nothing had to be built, so nothing is announced.
+    expect(find.byKey(const ValueKey('arrow_maze_loading')), findsNothing,
+        reason: 'a warm board must not flash a "setting up" message');
+    expect(find.byKey(const ValueKey('arrow_maze_board')), findsOneWidget);
+
+    // And it takes a tap straight away -- no settling delay to sit through.
+    final board = SnakeBoard.generate(level);
+    final rect = tester.getRect(find.byKey(const ValueKey('arrow_maze_board')));
+    final blocked = board.arrows.firstWhere((a) => !board.isPathClear(a));
+    final cellW = rect.width / board.cols;
+    final cellH = rect.height / board.rows;
+    final head = blocked.cells.last;
+    await tester.tapAt(rect.topLeft +
+        Offset((head.col + 0.5) * cellW, (head.row + 0.5) * cellH));
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(find.byIcon(Icons.favorite_border_rounded), findsWidgets,
+        reason: 'a warm board ignored a tap it had no reason to ignore');
+  });
+
   testWidgets('Arrow Maze: winning warms the next board, and entering uses it',
       (tester) async {
     tester.view.physicalSize = const Size(1080, 2280);

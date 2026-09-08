@@ -176,7 +176,8 @@ class _SnakeArrowsScreenState extends State<SnakeArrowsScreen>
     // Built in the background while the win dialog was up, if we got that far.
     // Identical to generating here — generation is deterministic in the level — so
     // this only changes *when* the work happened, never what the player sees.
-    final board = await BoardPrefetch.obtain(level);
+    final (board: board, wasWarm: wasWarm) =
+        await BoardPrefetch.obtain(level);
     if (!mounted) return;
     var hearts = snakeConfigForLevel(level).hearts;
     final saved =
@@ -197,18 +198,23 @@ class _SnakeArrowsScreenState extends State<SnakeArrowsScreen>
       _blockedId = null;
       _loading = false;
       _boardReady = true;
-      // Stays busy a moment longer: a tap made while the spinner was up is
-      // delivered once the board's frame lands, and without this it fires an
-      // arrow the player never aimed at — which is how the reported bug cost a
-      // heart. Held via a real delay rather than a wall-clock deadline so tests
-      // can advance past it.
-      _busy = true;
+      // Only hold taps if the player actually waited. A tap made during the wait
+      // is delivered once the board's frame lands, and without this guard it
+      // fires an arrow they never aimed at — which is how the reported bug cost
+      // a heart. But on a warm prefetch the board appears in the same frame,
+      // there was no wait and so no queued tap, and guarding anyway would make
+      // the first 400ms of every level dead: a new annoyance replacing the old
+      // one. Held via a timer rather than a wall-clock deadline so tests can
+      // advance past it.
+      _busy = !wasWarm;
     });
 
     _settleTimer?.cancel();
-    _settleTimer = Timer(const Duration(milliseconds: 400), () {
-      if (mounted) setState(() => _busy = false);
-    });
+    if (!wasWarm) {
+      _settleTimer = Timer(const Duration(milliseconds: 400), () {
+        if (mounted) setState(() => _busy = false);
+      });
+    }
   }
 
   void _restart() {
