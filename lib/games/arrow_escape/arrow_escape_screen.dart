@@ -47,6 +47,19 @@ class _ArrowEscapeScreenState extends State<ArrowEscapeScreen>
 
   late final AnimationController _shake;
 
+  /// Board zoom, for the boards past the old 9x9 ceiling.
+  ///
+  /// Zoom is an aid and never a requirement: at scale 1 the whole board is on
+  /// screen with every arrow tappable, boundaryMargin is zero so it cannot be
+  /// panned away, and loading or restarting a level returns to fit.
+  late final TransformationController _zoom;
+  Size _viewport = Size.zero;
+  static const _maxZoom = 4.0;
+
+  /// Boards wide enough that ~24dp cells are worth zooming into. Below this the
+  /// controls would only cost the board vertical space.
+  bool get _zoomable => _board.cols > 9;
+
   void _onShakeTick() {
     // The controller can tick during/after a route pop; only rebuild while
     // this widget is still in the tree.
@@ -68,6 +81,7 @@ class _ArrowEscapeScreenState extends State<ArrowEscapeScreen>
       vsync: this,
       duration: const Duration(milliseconds: 400),
     )..addListener(_onShakeTick);
+    _zoom = TransformationController();
     _loadLevel(widget.startLevel);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
@@ -84,6 +98,7 @@ class _ArrowEscapeScreenState extends State<ArrowEscapeScreen>
     saveBoardNow();
     stopAutosave();
     _shake.dispose();
+    _zoom.dispose();
     super.dispose();
   }
 
@@ -107,6 +122,7 @@ class _ArrowEscapeScreenState extends State<ArrowEscapeScreen>
       _hearts = hearts;
       _blockedId = null;
       _busy = false;
+      _zoom.value = Matrix4.identity(); // a new board always starts fitted
     });
   }
 
@@ -231,10 +247,13 @@ class _ArrowEscapeScreenState extends State<ArrowEscapeScreen>
                 child: Center(child: _buildBoard()),
               ),
             ),
+            if (_zoomable) _buildZoomBar(),
             Padding(
               padding: const EdgeInsets.fromLTRB(24, 0, 24, 20),
               child: Text(
-                AppLocalizations.of(context).arrowEscapeHint,
+                _zoomable
+                    ? AppLocalizations.of(context).arrowEscapeHintZoom
+                    : AppLocalizations.of(context).arrowEscapeHint,
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 15,
@@ -267,6 +286,57 @@ class _ArrowEscapeScreenState extends State<ArrowEscapeScreen>
     );
   }
 
+  /// Current zoom factor; 1 means the whole board is on screen.
+  double get _scale => _zoom.value.getMaxScaleOnAxis();
+
+  /// Scales about the centre of the viewport so whatever the player is looking
+  /// at stays put. Buttons exist because pinching is genuinely awkward for this
+  /// audience — pinch still works, it is just not the only way in.
+  void _setZoom(double target) {
+    if (_viewport.isEmpty) return;
+    final s = target.clamp(1.0, _maxZoom);
+    final centre = Offset(_viewport.width / 2, _viewport.height / 2);
+    final inverse = Matrix4.tryInvert(_zoom.value);
+    if (inverse == null) return;
+    final p = MatrixUtils.transformPoint(inverse, centre);
+    setState(() {
+      _zoom.value = Matrix4.identity()
+        ..translateByDouble(centre.dx - s * p.dx, centre.dy - s * p.dy, 0, 1)
+        ..scaleByDouble(s, s, 1, 1);
+    });
+  }
+
+  void _resetZoom() => setState(() => _zoom.value = Matrix4.identity());
+
+  /// Zoom controls, shown only on boards wide enough to need them.
+  Widget _buildZoomBar() {
+    final t = AppLocalizations.of(context);
+    Widget button(String key, IconData icon, String tooltip, VoidCallback? tap) {
+      return IconButton(
+        key: ValueKey(key),
+        onPressed: tap,
+        icon: Icon(icon),
+        iconSize: 28,
+        color: _accent,
+        tooltip: tooltip,
+        // The platform minimum, and this audience needs it.
+        constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+      );
+    }
+
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        button('arrow_escape_zoom_out', Icons.zoom_out_rounded, t.zoomOut,
+            _scale > 1.0 ? () => _setZoom(_scale / 1.5) : null),
+        button('arrow_escape_zoom_fit', Icons.fit_screen_rounded, t.zoomFit,
+            _scale > 1.0 ? _resetZoom : null),
+        button('arrow_escape_zoom_in', Icons.zoom_in_rounded, t.zoomIn,
+            _scale < _maxZoom ? () => _setZoom(_scale * 1.5) : null),
+      ],
+    );
+  }
+
   Widget _buildBoard() {
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -280,7 +350,13 @@ class _ArrowEscapeScreenState extends State<ArrowEscapeScreen>
         final width = cell * _board.cols;
         final height = cell * _board.rows;
 
-        return ClipRRect(
+        _viewport = Size(width, height);
+
+        // The InteractiveViewer sits *outside* the board content, as in Arrow
+        // Maze. Here the arrows are real widgets rather than a painted canvas,
+        // so each one receives its own local taps and there is no cell
+        // arithmetic that could mis-target once zoomed.
+        final board = ClipRRect(
           // Named so tests can aim taps at a cell centre, as in Arrow Maze.
           key: const ValueKey('arrow_escape_board'),
           borderRadius: BorderRadius.circular(18),
@@ -309,6 +385,18 @@ class _ArrowEscapeScreenState extends State<ArrowEscapeScreen>
               ],
             ),
           ),
+        );
+
+        if (!_zoomable) return board;
+        return InteractiveViewer(
+          key: const ValueKey('arrow_escape_viewer'),
+          transformationController: _zoom,
+          minScale: 1.0,
+          maxScale: _maxZoom,
+          // Keeps the board inside the viewport, so it can never be panned off
+          // screen and lost.
+          boundaryMargin: EdgeInsets.zero,
+          child: board,
         );
       },
     );

@@ -1177,6 +1177,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'No more hints for this word.'**
   String get hintNoneLeft;
+
+  /// No description provided for @arrowEscapeHintZoom.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap an arrow to send it off the board. It needs a clear path to the edge. Pinch or use the buttons to zoom in.'**
+  String get arrowEscapeHintZoom;
 }
 
 class _AppLocalizationsDelegate

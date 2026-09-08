@@ -692,4 +692,8 @@ class AppLocalizationsNb extends AppLocalizations {
 
   @override
   String get hintNoneLeft => 'Ingen flere hint til dette ordet.';
+
+  @override
+  String get arrowEscapeHintZoom =>
+      'Trykk på en pil for å sende den ut av brettet. Den må ha fri bane til kanten. Knip eller bruk knappene for å zoome inn.';
 }

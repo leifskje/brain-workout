@@ -3304,6 +3304,188 @@ void main() {
     expect(inButton.onPressed, isNotNull);
   });
 
+  test('Arrow Escape boards grow past the old 9x9 ceiling, and stay solvable',
+      () {
+    // Every level from 21 up used to be config-identical at 9x9 -- the same
+    // plateau Arrow Maze was rescued from.
+    expect(configForLevel(21).cols, 9);
+    expect(configForLevel(41).cols, greaterThan(9));
+    expect(configForLevel(41).cols, greaterThan(configForLevel(29).cols));
+
+    for (final level in [1, 9, 21, 25, 33, 41, 60]) {
+      final board = ArrowBoard.generate(level);
+      // Monotone game: firing whatever is clear is an exact solver, not a
+      // heuristic, so this really does prove solvability.
+      var moved = 0, progress = true;
+      while (progress) {
+        progress = false;
+        for (final p in board.pieces) {
+          if (p.escaped || !board.isPathClear(p)) continue;
+          p.escaped = true;
+          moved++;
+          progress = true;
+          break;
+        }
+      }
+      expect(moved, board.pieces.length,
+          reason: 'Arrow Escape level $level is not solvable');
+    }
+  });
+
+  test('Arrow Escape fills big boards, without re-rolling the tuned ones', () {
+    // A piece stays legal only while its whole ray to the edge is clear, so
+    // success runs at ~(1-density)^rayLength. Picking placements uniformly spent
+    // the empty board on short-ray edge placements and then could not place the
+    // hard ones: a 14x14 board reached 0.53 density against the 0.68 asked for.
+    // Weighting by ray length is the same fix as Arrow Maze's "long-ray heads
+    // first".
+    for (final level in [25, 33, 41, 60]) {
+      final cfg = configForLevel(level);
+      final board = ArrowBoard.generate(level);
+      final achieved = board.pieces.length / (cfg.rows * cfg.cols);
+      final asked = cfg.arrowCount / (cfg.rows * cfg.cols);
+      expect(achieved, greaterThan(asked - 0.05),
+          reason: 'level $level placed only ${board.pieces.length} of '
+              '${cfg.arrowCount} arrows');
+
+      // Fewer free opening moves, but that alone is the wrong target -- see
+      // below.
+      final clearAtStart = board.pieces.where(board.isPathClear).length;
+      expect(clearAtStart / board.pieces.length, lessThan(0.35),
+          reason: 'level $level opens with too many legal moves');
+    }
+
+    // The metric that actually matters. A single-cell arrow is legal only when
+    // its whole ray to the edge is empty, so a dense board leaves *only* rim
+    // pieces playable: it peels from the outside in, there is nothing to plan,
+    // and zooming into the middle shows the player no move they can make. At
+    // density 0.68 that was every board. Density is now tuned per size to keep
+    // some interior moves, and this is what stops a future "make it denser"
+    // change from quietly undoing it.
+    var withInterior = 0, sampled = 0;
+    for (var level = 25; level <= 80; level++) {
+      final cfg = configForLevel(level);
+      final board = ArrowBoard.generate(level);
+      final interior = board.pieces.where(board.isPathClear).where((p) {
+        final ring = [
+          p.row,
+          p.col,
+          cfg.rows - 1 - p.row,
+          cfg.cols - 1 - p.col,
+        ].reduce((a, c) => a < c ? a : c);
+        return ring >= 2;
+      }).length;
+      if (interior > 0) withInterior++;
+      sampled++;
+    }
+    expect(withInterior / sampled, greaterThan(0.85),
+        reason: 'most big boards must open with a legal move away from the rim, '
+            'or zooming in is useless');
+
+    // The weighting is gated on board size so the tuned early levels are
+    // untouched. These counts are what players already have.
+    expect(ArrowBoard.generate(1).pieces.length, 6);
+    expect(ArrowBoard.generate(9).pieces.length, 18);
+    expect(ArrowBoard.generate(21).pieces.length, 55);
+  });
+
+  testWidgets('Arrow Escape: zoom controls appear only where they are needed',
+      (tester) async {
+    tester.view.physicalSize = const Size(1080, 2280);
+    tester.view.devicePixelRatio = 2.625;
+    addTearDown(tester.view.reset);
+
+    await tester.pumpWidget(localizedApp(const ArrowEscapeScreen(startLevel: 1)));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('arrow_escape_zoom_in')), findsNothing,
+        reason: 'a 4x4 board does not need zoom, and the row costs board space');
+    expect(find.byKey(const ValueKey('arrow_escape_viewer')), findsNothing);
+
+    // Tear the State down between the two, or Flutter reuses it and the new
+    // startLevel is never read -- initState is where the level loads.
+    await tester.pumpWidget(const SizedBox());
+    await tester.pumpAndSettle();
+    await tester
+        .pumpWidget(localizedApp(const ArrowEscapeScreen(startLevel: 41)));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('arrow_escape_zoom_in')).hitTestable(),
+        findsOneWidget);
+    expect(find.byKey(const ValueKey('arrow_escape_viewer')), findsOneWidget);
+  });
+
+  testWidgets('Arrow Escape: a zoomed board is still playable', (tester) async {
+    // Deliberately *not* claiming to be Arrow Maze's transform-inversion guard.
+    // That test works because Arrow Maze converts a tap to a cell by hand
+    // (localPosition / cell), so a wrong nesting corrupts arithmetic the test can
+    // check independently. Arrow Escape has no such step: every arrow is its own
+    // widget with its own detector, so hit testing does the mapping and there is
+    // nothing to invert. Wrapping the board in a second Transform.scale was tried
+    // here and this test still passed -- because every coordinate it uses comes
+    // from the rendered widgets, which move together.
+    //
+    // What it does prove, which is worth having: the InteractiveViewer does not
+    // swallow taps, arrows stay hit-testable while transformed, and the arrow
+    // that leaves is the one under the finger.
+    tester.view.physicalSize = const Size(1080, 2280);
+    tester.view.devicePixelRatio = 2.625;
+    addTearDown(tester.view.reset);
+
+    const level = 41;
+    await tester
+        .pumpWidget(localizedApp(const ArrowEscapeScreen(startLevel: level)));
+    await tester.pumpAndSettle();
+
+    final board = ArrowBoard.generate(level); // same seed as the screen
+    final clear = board.pieces.where(board.isPathClear).toList();
+    expect(clear, isNotEmpty, reason: 'level $level should open with a move');
+
+    await tester.tap(find.byKey(const ValueKey('arrow_escape_zoom_in')));
+    await tester.pumpAndSettle();
+
+    final rect =
+        tester.getRect(find.byKey(const ValueKey('arrow_escape_board')));
+    final viewer =
+        tester.getRect(find.byKey(const ValueKey('arrow_escape_viewer')));
+    expect(rect.width, greaterThan(viewer.width),
+        reason: 'the board should be magnified beyond the viewport');
+
+    // Pick a target from what is actually visible. On a board this dense the
+    // clear arrows are the ones with an unobstructed ray, which puts them in the
+    // outer rings -- so most are outside the zoomed window and assuming the
+    // centre-most legal arrow is on screen does not hold.
+    final cellW = rect.width / board.cols;
+    final cellH = rect.height / board.rows;
+    Offset centreOf(ArrowPiece p) =>
+        rect.topLeft + Offset((p.col + 0.5) * cellW, (p.row + 0.5) * cellH);
+
+    final onScreen = clear
+        .where((p) => viewer
+            .deflate(math.min(cellW, cellH) / 2)
+            .contains(tester.getCenter(find.byKey(ValueKey(p.id)))))
+        .toList();
+    expect(onScreen, isNotEmpty,
+        reason: 'no legal arrow is visible while zoomed, so the test cannot '
+            'tell a correct tap from a mis-aimed one');
+    final target = onScreen.first;
+    final point = centreOf(target);
+
+    expect(tester.getRect(find.byKey(ValueKey(target.id))).contains(point),
+        isTrue,
+        reason: 'the board-space point does not fall on the intended arrow');
+
+    await tester.tapAt(point);
+    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 700)); // the slide out
+
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+    await tester.pump();
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    final saved = ProgressStore.instance.loadBoard('arrow_escape', level);
+    expect(saved, isNotNull, reason: 'an arrow should have escaped');
+    expect(saved!['escaped'], contains(target.id),
+        reason: 'the tap landed on a different arrow than the one aimed at');
+  });
+
   testWidgets('Arrow Maze: taps still hit the right cell while zoomed in',
       (tester) async {
     // The real hazard of adding zoom: the InteractiveViewer sits *outside* the

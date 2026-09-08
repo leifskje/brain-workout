@@ -226,5 +226,6 @@
   "updateFailed": "The update could not be started. Open Play Store and search for the app.",
   "useHint": "Hint",
   "hintCost": "A hint means at most 2 stars for this level.",
-  "hintNoneLeft": "No more hints for this word."
+  "hintNoneLeft": "No more hints for this word.",
+  "arrowEscapeHintZoom": "Tap an arrow to send it off the board. It needs a clear path to the edge. Pinch or use the buttons to zoom in."
 }

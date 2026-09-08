@@ -48,12 +48,37 @@ class ArrowLevelConfig {
 
 /// Grows the board size and arrow density as the level increases.
 ArrowLevelConfig configForLevel(int level) {
-  // Grid and density both used to stop at level 13. Single-cell arrows stay
-  // legible far longer than Arrow Maze's snakes — a 9x9 board is ~40dp per cell
-  // on a phone against Arrow Maze's 23dp — so there is room to keep growing.
-  final size = (4 + (level - 1) ~/ 4).clamp(4, 9);
+  // Grid and density both used to stop at level 13, then at level 21 with a 9x9
+  // board — after which every level was config-identical, the same plateau Arrow
+  // Maze was rescued from. Single-cell arrows stay legible far longer than Arrow
+  // Maze's snakes (9x9 is ~40dp per cell on a phone against Arrow Maze's 23dp),
+  // and past 9 the board is zoomable exactly as Arrow Maze's is, so the ladder
+  // now runs to 14x14 at level 41 — ~24dp unzoomed, which is the same bargain
+  // Arrow Maze already makes.
+  final size = (4 + (level - 1) ~/ 4).clamp(4, 14);
   final maxCells = size * size;
-  final density = (0.35 + (level - 1) * 0.02).clamp(0.35, 0.68);
+  // Density has to *fall* as the board grows, which is the opposite of the
+  // obvious move and was measured rather than guessed.
+  //
+  // A single-cell arrow is legal only when its whole ray to the edge is empty,
+  // so on a dense board only pieces already at the rim qualify. On 14x14 the
+  // count of *interior* legal moves goes 5.3 at density 0.45, 2.3 at 0.50, 0.1
+  // at 0.55, and zero from 0.60 up. At 0.68 every legal move sits on the
+  // perimeter: the board can only be peeled from the outside in, there is
+  // nothing to plan, and zooming into the middle shows the player no move they
+  // can make — which defeats the zoom the big boards exist for.
+  //
+  // "Fewer legal opening moves" was the metric being optimised and it rose while
+  // the game got more mechanical. Same trap as the difficulty plateau in
+  // docs/plans/arrow-maze-depth.md: count what makes it feel hard, not what is
+  // easy to count.
+  // Measured, not derived: these are the highest densities per size that still
+  // leave a handful of interior legal moves, chosen so the arrow *count* never
+  // drops as the board grows (55, 55, 57, 65, 76, 88 from 9x9 to 14x14).
+  const bigBoardDensity = {10: 0.55, 11: 0.47, 12: 0.45, 13: 0.45, 14: 0.45};
+  final density = size <= 9
+      ? (0.35 + (level - 1) * 0.02).clamp(0.35, 0.68)
+      : (bigBoardDensity[size] ?? 0.45);
   final count = (maxCells * density).round().clamp(4, maxCells - 2);
   return ArrowLevelConfig(
     rows: size,
@@ -146,22 +171,60 @@ class ArrowBoard {
     final pieces = <ArrowPiece>[];
     var id = 0;
 
+    // Past the old 9x9 ceiling, prefer placements with a *long* ray. A piece is
+    // only legal while its whole path to the edge is clear, so success runs at
+    // roughly (1-density)^rayLength: short-ray placements near an edge stay legal
+    // almost to the end, while an interior piece pointing across the board is
+    // impossible once the board fills. Picking uniformly therefore spends the
+    // empty board on easy placements and then cannot place the hard ones — which
+    // is why a 14x14 board reached only 0.53 density against the 0.68 asked for.
+    //
+    // This is the same fix, and the same reasoning, as Arrow Maze's "place
+    // long-ray heads first" (see CLAUDE.md). Gated on size so every board up to
+    // level 24 is byte-identical to what players already have; the small boards
+    // do not need it and re-rolling them would shift a curve that is already
+    // tuned.
+    final preferLongRays = cfg.rows > 9;
+
     while (pieces.length < cfg.arrowCount) {
       // [row, col, directionIndex] placements that keep the board solvable.
       final candidates = <List<int>>[];
+      final weights = <int>[];
+      var totalWeight = 0;
       for (var r = 0; r < cfg.rows; r++) {
         for (var c = 0; c < cfg.cols; c++) {
           if (occupied[r][c]) continue;
           for (var d = 0; d < Direction.values.length; d++) {
-            if (_rayClear(occupied, r, c, Direction.values[d], cfg)) {
-              candidates.add([r, c, d]);
+            final dir = Direction.values[d];
+            if (!_rayClear(occupied, r, c, dir, cfg)) continue;
+            candidates.add([r, c, d]);
+            if (preferLongRays) {
+              final w = _rayLength(r, c, dir, cfg);
+              weights.add(w);
+              totalWeight += w;
             }
           }
         }
       }
       if (candidates.isEmpty) break;
 
-      final pick = candidates[rng.nextInt(candidates.length)];
+      List<int> pick;
+      if (preferLongRays && totalWeight > 0) {
+        // Weighted by ray length rather than simply taking the longest, so
+        // boards still vary instead of all growing the same skeleton.
+        var target = rng.nextInt(totalWeight);
+        var chosen = candidates.length - 1;
+        for (var i = 0; i < weights.length; i++) {
+          target -= weights[i];
+          if (target < 0) {
+            chosen = i;
+            break;
+          }
+        }
+        pick = candidates[chosen];
+      } else {
+        pick = candidates[rng.nextInt(candidates.length)];
+      }
       occupied[pick[0]][pick[1]] = true;
       pieces.add(ArrowPiece(
         id: id++,
@@ -172,6 +235,19 @@ class ArrowBoard {
     }
 
     return ArrowBoard(rows: cfg.rows, cols: cfg.cols, pieces: pieces);
+  }
+
+  /// How many cells lie between (r, c) and the edge along [dir] — the length of
+  /// the path that has to stay clear for this placement to remain legal.
+  static int _rayLength(int r, int c, Direction dir, ArrowLevelConfig cfg) {
+    var n = 0;
+    var rr = r + dir.dRow, cc = c + dir.dCol;
+    while (rr >= 0 && rr < cfg.rows && cc >= 0 && cc < cfg.cols) {
+      n++;
+      rr += dir.dRow;
+      cc += dir.dCol;
+    }
+    return n;
   }
 
   static bool _rayClear(
