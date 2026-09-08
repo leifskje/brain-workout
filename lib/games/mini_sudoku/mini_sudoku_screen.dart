@@ -5,8 +5,10 @@ import 'package:flutter/services.dart';
 
 import '../../l10n/generated/app_localizations.dart';
 import '../../services/board_autosave.dart';
+import '../../services/level_timer.dart';
 import '../../services/progress_store.dart';
 import '../../widgets/game_header.dart';
+import '../../widgets/level_clock.dart';
 import '../../widgets/how_to_play.dart';
 import '../../widgets/win_dialog.dart';
 import 'mini_sudoku_models.dart';
@@ -35,6 +37,11 @@ class _MiniSudokuScreenState extends State<MiniSudokuScreen>
   int _mistakes = 0;
   bool _busy = false;
 
+  /// Time is the classic sudoku metric, and this board already records fewest
+  /// mistakes, so the two do not overlap. Carried in the save: a resumed board
+  /// that reported only the time since reopening would report nothing.
+  final LevelTimer _timer = LevelTimer();
+
   @override
   void initState() {
     super.initState();
@@ -61,12 +68,16 @@ class _MiniSudokuScreenState extends State<MiniSudokuScreen>
     // A save that doesn't fit is dropped silently: a fresh puzzle is a fine
     // outcome, an exception on opening a game is not.
     if (saved != null) board.applyEntriesJson(saved);
+    // Extra keys are ignored by applyEntriesJson, so the elapsed time rides
+    // along in the same slot without a save-format bump.
+    final carried = saved == null ? 0 : (saved['seconds'] as int? ?? 0);
     setState(() {
       _level = level;
       _board = board;
       _selected = null;
       _mistakes = 0;
       _busy = false;
+      _timer.start(from: Duration(seconds: carried));
     });
   }
 
@@ -91,10 +102,14 @@ class _MiniSudokuScreenState extends State<MiniSudokuScreen>
   int get autosaveLevel => _level;
 
   @override
+  void onLifecycleChange(AppLifecycleState state) =>
+      _timer.handleLifecycle(state);
+
+  @override
   Map<String, dynamic>? captureBoard() {
     if (_board.isSolved) return null; // finished
     if (!_board.hasProgress) return null; // untouched
-    return _board.entriesJson();
+    return {..._board.entriesJson(), 'seconds': _timer.elapsed.inSeconds};
   }
 
   void _onCellTap(int r, int c) {
@@ -136,17 +151,29 @@ class _MiniSudokuScreenState extends State<MiniSudokuScreen>
       ..recordCleared(_gameId, _level, stars);
     // Local-only personal best. This is save data, not analytics: it lives in
     // SharedPreferences on the device and nothing about it is ever sent anywhere.
+    _timer.stop();
+    final seconds = _timer.elapsed.inSeconds;
     final beat = ProgressStore.instance
         .recordBest(_gameId, _level, _mistakes, lowerIsBetter: true);
+    final beatTime =
+        ProgressStore.instance.recordBestTime(_gameId, _level, seconds);
     final best = ProgressStore.instance.bestResult(_gameId, _level);
+    final bestTime = ProgressStore.instance.bestSeconds(_gameId, _level);
+    final timeLine = bestTime == null
+        ? AppLocalizations.of(context)
+            .timeTaken(formatLevelTime(Duration(seconds: seconds)))
+        : AppLocalizations.of(context).timeAndBest(
+            formatLevelTime(Duration(seconds: seconds)),
+            formatLevelTime(Duration(seconds: bestTime)));
     showWinDialog(context,
             level: _level,
             accent: _accent,
             stars: stars,
-            newRecord: beat,
-            bestText: best == null
-                ? null
-                : AppLocalizations.of(context).bestMistakes(best))
+            newRecord: beat || beatTime,
+            bestText: [
+              if (best != null) AppLocalizations.of(context).bestMistakes(best),
+              timeLine,
+            ].join('\n'))
         .then((action) {
       if (!mounted || action == null) return;
       if (action == WinAction.next) {
@@ -170,6 +197,7 @@ class _MiniSudokuScreenState extends State<MiniSudokuScreen>
                 onRestart: _restart,
                 onHelp: () => showHowToPlay(context,
                     body: t.helpMiniSudoku, accent: _accent)),
+            LevelClock(timer: _timer, accent: _accent),
             Expanded(
               child: Padding(
                 padding: const EdgeInsets.all(16),

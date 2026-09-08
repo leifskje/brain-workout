@@ -708,4 +708,27 @@ class AppLocalizationsNb extends AppLocalizations {
   @override
   String get memoryMatchHintTriples =>
       'Trykk på tre kort for å finne en trippel.';
+
+  @override
+  String timeAndBest(String time, String best) {
+    return 'Tid: $time · Beste: $best';
+  }
+
+  @override
+  String timeTaken(String time) {
+    return 'Tid: $time';
+  }
+
+  @override
+  String get showTimer => 'Vis klokken mens du spiller';
+
+  @override
+  String get showTimerNote =>
+      'Tiden din lagres alltid, så du kan slå den. Dette bestemmer bare om du ser den mens du spiller.';
+
+  @override
+  String get settings => 'Innstillinger';
+
+  @override
+  String get statistics => 'Din framgang';
 }

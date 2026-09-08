@@ -197,5 +197,11 @@
   "arrowEscapeHintZoom": "Trykk på en pil for å sende den ut av brettet. Den må ha fri bane til kanten. Knip eller bruk knappene for å zoome inn.",
   "triplesFound": "Tripler funnet: {matched} / {total}",
   "findThreeOfAKind": "Finn 3 like",
-  "memoryMatchHintTriples": "Trykk på tre kort for å finne en trippel."
+  "memoryMatchHintTriples": "Trykk på tre kort for å finne en trippel.",
+  "timeAndBest": "Tid: {time} · Beste: {best}",
+  "timeTaken": "Tid: {time}",
+  "showTimer": "Vis klokken mens du spiller",
+  "showTimerNote": "Tiden din lagres alltid, så du kan slå den. Dette bestemmer bare om du ser den mens du spiller.",
+  "settings": "Innstillinger",
+  "statistics": "Din framgang"
 }

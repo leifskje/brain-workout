@@ -1201,6 +1201,42 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Tap three cards to find a triple.'**
   String get memoryMatchHintTriples;
+
+  /// No description provided for @timeAndBest.
+  ///
+  /// In en, this message translates to:
+  /// **'Time: {time} · Best: {best}'**
+  String timeAndBest(String time, String best);
+
+  /// No description provided for @timeTaken.
+  ///
+  /// In en, this message translates to:
+  /// **'Time: {time}'**
+  String timeTaken(String time);
+
+  /// No description provided for @showTimer.
+  ///
+  /// In en, this message translates to:
+  /// **'Show the clock while playing'**
+  String get showTimer;
+
+  /// No description provided for @showTimerNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Your time is always saved so you can beat it. This only decides whether you see it while you play.'**
+  String get showTimerNote;
+
+  /// No description provided for @settings.
+  ///
+  /// In en, this message translates to:
+  /// **'Settings'**
+  String get settings;
+
+  /// No description provided for @statistics.
+  ///
+  /// In en, this message translates to:
+  /// **'Your progress'**
+  String get statistics;
 }
 
 class _AppLocalizationsDelegate

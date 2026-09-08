@@ -231,5 +231,13 @@
   "triplesFound": "Triples found: {matched} / {total}",
   "@triplesFound": {"placeholders": {"matched": {"type": "int"}, "total": {"type": "int"}}},
   "findThreeOfAKind": "Find 3 of a kind",
-  "memoryMatchHintTriples": "Tap three cards to find a triple."
+  "memoryMatchHintTriples": "Tap three cards to find a triple.",
+  "timeAndBest": "Time: {time} · Best: {best}",
+  "@timeAndBest": {"placeholders": {"time": {"type": "String"}, "best": {"type": "String"}}},
+  "timeTaken": "Time: {time}",
+  "@timeTaken": {"placeholders": {"time": {"type": "String"}}},
+  "showTimer": "Show the clock while playing",
+  "showTimerNote": "Your time is always saved so you can beat it. This only decides whether you see it while you play.",
+  "settings": "Settings",
+  "statistics": "Your progress"
 }

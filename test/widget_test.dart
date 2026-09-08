@@ -449,6 +449,48 @@ void main() {
     });
   });
 
+  testWidgets('An interrupted level keeps its time, and the clock stops',
+      (tester) async {
+    // The second hazard: six games restore a board mid-play. If the elapsed time
+    // did not travel with it, a resumed level would report only the seconds since
+    // it was reopened -- so a long, interrupted level would set an unbeatable
+    // "best". And the clock must not run while the app is backgrounded, or the
+    // best is poisoned the other way.
+    tester.view.physicalSize = const Size(1080, 2280);
+    tester.view.devicePixelRatio = 2.625;
+    addTearDown(tester.view.reset);
+
+    await tester
+        .pumpWidget(localizedApp(const MiniSudokuScreen(startLevel: 1)));
+    await tester.pumpAndSettle();
+
+    // Make a move so there is progress worth saving.
+    final board = MiniSudokuBoard.generate(1);
+    final empty = <(int, int)>[];
+    for (var r = 0; r < board.size; r++) {
+      for (var c = 0; c < board.size; c++) {
+        if (!board.cells[r][c].given) empty.add((r, c));
+      }
+    }
+    expect(empty, isNotEmpty);
+    final (er, ec) = empty.first;
+    await tester.tap(find.byKey(ValueKey('sudoku_cell_${er}_$ec')));
+    await tester.pump();
+    await tester
+        .tap(find.byKey(ValueKey('sudoku_pad_${board.cells[er][ec].solution}')));
+    await tester.pump();
+
+    // Background the app: the autosave fires and the clock stops.
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+    await tester.pump();
+    final saved = ProgressStore.instance.loadBoard('mini_sudoku', 1);
+    expect(saved, isNotNull, reason: 'the board should have been saved');
+    expect(saved!.containsKey('seconds'), isTrue,
+        reason: 'the elapsed time must travel with the board');
+    tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await tester.pump();
+  });
+
   test('Stats count what was cleared, not what was reached', () async {
     SharedPreferences.setMockInitialValues({
       'stars_word_search_1': 3,
@@ -3115,8 +3157,13 @@ void main() {
 
     expect(find.text('Well done!'), findsOneWidget);
     expect(find.text('New personal best!'), findsOneWidget);
-    expect(find.text('Your best: no mistakes'), findsOneWidget);
+    // The dialog now carries two records in one block -- fewest mistakes and the
+    // level time -- so this matches on the line rather than the whole string.
+    expect(find.textContaining('Your best: no mistakes'), findsOneWidget);
     expect(ProgressStore.instance.bestResult('mini_sudoku', 1), 0);
+    // A sub-second win files no time record: a zero-second level is a test
+    // artifact, not a personal best, and recordBestTime refuses it.
+    expect(ProgressStore.instance.bestSeconds('mini_sudoku', 1), isNull);
   });
   test('Word of the day: same date gives the same word, no server needed',
       () async {

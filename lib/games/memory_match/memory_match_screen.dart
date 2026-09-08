@@ -4,8 +4,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../l10n/generated/app_localizations.dart';
+import '../../services/level_timer.dart';
 import '../../services/progress_store.dart';
 import '../../widgets/game_header.dart';
+import '../../widgets/level_clock.dart';
 import '../../widgets/how_to_play.dart';
 import '../../widgets/win_dialog.dart';
 import 'memory_match_models.dart';
@@ -21,7 +23,8 @@ class MemoryMatchScreen extends StatefulWidget {
   State<MemoryMatchScreen> createState() => _MemoryMatchScreenState();
 }
 
-class _MemoryMatchScreenState extends State<MemoryMatchScreen> {
+class _MemoryMatchScreenState extends State<MemoryMatchScreen>
+    with WidgetsBindingObserver {
   static const _gameId = 'memory_match';
   static const _accent = Color(0xFF7E57C2);
 
@@ -30,12 +33,21 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen> {
   /// Cards turned over in the current attempt, up to the board's group size.
   /// A list rather than a single id because a triples board needs three.
   final List<int> _faceUpIds = [];
+
+  /// Always running, never shown unless the player asked for it. Memory Match
+  /// already records fewest *moves*; time is a genuinely different axis, since a
+  /// fast lucky run and a slow systematic one score the same in moves.
+  final LevelTimer _timer = LevelTimer();
   int _moves = 0;
   bool _busy = false; // locked while a mismatched pair flips back
 
   @override
   void initState() {
     super.initState();
+    // Observed for the clock, not for autosave: Memory Match is a short round
+    // and deliberately does not save a board. Without this the timer would keep
+    // running while the phone sat in a pocket and bank an unbeatable best.
+    WidgetsBinding.instance.addObserver(this);
     _loadLevel(widget.startLevel);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
@@ -47,12 +59,23 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen> {
     });
   }
 
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) =>
+      _timer.handleLifecycle(state);
+
   void _loadLevel(int level) {
     ProgressStore.instance.recordReached(_gameId, level);
     setState(() {
       _level = level;
       _board = MemoryBoard.generate(level);
       _faceUpIds.clear();
+      _timer.start();
       _moves = 0;
       _busy = false;
     });
@@ -118,6 +141,8 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen> {
     HapticFeedback.heavyImpact();
     // Scored on *attempts per group*, so the thresholds carry over unchanged
     // from pairs to triples: a perfect game is one attempt per group either way.
+    _timer.stop();
+    final seconds = _timer.elapsed.inSeconds;
     final groups = _board.groups;
     final stars = _moves <= (groups * 1.7).ceil()
         ? 3
@@ -129,18 +154,30 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen> {
     // SharedPreferences on the device and nothing about it is ever sent anywhere.
     final beat = ProgressStore.instance
         .recordBest(_gameId, _level, _moves, lowerIsBetter: true);
+    final beatTime =
+        ProgressStore.instance.recordBestTime(_gameId, _level, seconds);
     final best = ProgressStore.instance.bestResult(_gameId, _level);
+    final bestTime = ProgressStore.instance.bestSeconds(_gameId, _level);
+    final t = AppLocalizations.of(context);
+    // Two records on one line, and the time shows whether or not the clock was
+    // visible during play — it is recorded either way, which is the whole point:
+    // a best only exists to be beaten, and one that starts empty on the day the
+    // setting is turned on would be nothing to beat.
+    final timeLine = bestTime == null
+        ? t.timeTaken(formatLevelTime(Duration(seconds: seconds)))
+        : t.timeAndBest(formatLevelTime(Duration(seconds: seconds)),
+            formatLevelTime(Duration(seconds: bestTime)));
     showWinDialog(
       context,
       level: _level,
       accent: _accent,
       stars: stars,
-      message:
-          AppLocalizations.of(context).clearedLevelInMoves(_level, _moves),
-      newRecord: beat,
-      bestText: best == null
-          ? null
-          : AppLocalizations.of(context).bestMoves(best),
+      message: t.clearedLevelInMoves(_level, _moves),
+      newRecord: beat || beatTime,
+      bestText: [
+        if (best != null) t.bestMoves(best),
+        timeLine,
+      ].join('\n'),
     ).then((action) {
       if (!mounted || action == null) return;
       if (action == WinAction.next) {
@@ -197,6 +234,7 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen> {
                       color: Colors.black87),
                 ),
               ),
+            LevelClock(timer: _timer, accent: _accent),
             const SizedBox(height: 8),
             Expanded(
               child: Padding(

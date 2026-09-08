@@ -53,11 +53,21 @@ mixin BoardAutosave<W extends StatefulWidget> on State<W>
   Map<String, dynamic>? restoreBoard() =>
       ProgressStore.instance.loadBoard(autosaveGameId, autosaveLevel);
 
+  /// Extra lifecycle handling for the screen, if it needs any.
+  ///
+  /// Exists so a game can react to backgrounding *without* overriding
+  /// [didChangeAppLifecycleState] and having to remember to call super — forget
+  /// that and the board silently stops being saved, which is the one thing this
+  /// mixin is for. A level clock needs exactly this hook: it must stop counting
+  /// while the phone is in a pocket.
+  void onLifecycleChange(AppLifecycleState state) {}
+
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.hidden) {
       saveBoardNow();
     }
+    onLifecycleChange(state);
   }
 }

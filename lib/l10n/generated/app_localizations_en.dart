@@ -706,4 +706,27 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get memoryMatchHintTriples => 'Tap three cards to find a triple.';
+
+  @override
+  String timeAndBest(String time, String best) {
+    return 'Time: $time · Best: $best';
+  }
+
+  @override
+  String timeTaken(String time) {
+    return 'Time: $time';
+  }
+
+  @override
+  String get showTimer => 'Show the clock while playing';
+
+  @override
+  String get showTimerNote =>
+      'Your time is always saved so you can beat it. This only decides whether you see it while you play.';
+
+  @override
+  String get settings => 'Settings';
+
+  @override
+  String get statistics => 'Your progress';
 }
