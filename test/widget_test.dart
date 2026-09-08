@@ -491,6 +491,81 @@ void main() {
     await tester.pump();
   });
 
+  test('Exactly the intended games are timed, and the arrow games are not', () {
+    // A source check because the wiring is six near-identical edits across six
+    // screens, and the interesting part is the *list*: a clock argues against
+    // sitting and thinking, so both arrow games are deliberately left out, and
+    // Simon's playback is fixed-duration so a time there would measure the app
+    // rather than the player. Adding a timer to one of those should have to be a
+    // deliberate act, not something that drifts in.
+    const timed = {
+      'memory_match',
+      'mini_sudoku',
+      'word_search',
+      'nonogram',
+      'number_cross',
+      'trail',
+    };
+    const untimed = {
+      'snake_arrows', // Arrow Maze
+      'arrow_escape',
+      'simon',
+      'wordle',
+      'word_scramble',
+      'what_next',
+      'crack_code',
+      'merge',
+    };
+
+    final found = <String>{};
+    for (final dir in Directory('lib/games').listSync()) {
+      if (dir is! Directory) continue;
+      // Via the URI so this needs no path-separator handling.
+      final name =
+          dir.uri.pathSegments.where((seg) => seg.isNotEmpty).last;
+      final screens = dir
+          .listSync()
+          .whereType<File>()
+          .where((f) => f.path.endsWith('_screen.dart'));
+      for (final file in screens) {
+        if (file.readAsStringSync().contains('LevelTimer()')) found.add(name);
+      }
+    }
+
+    for (final game in timed) {
+      expect(found, contains(game), reason: '$game should be timed');
+    }
+    for (final game in untimed) {
+      expect(found, isNot(contains(game)),
+          reason: '$game is deliberately untimed -- see the top of CLAUDE.md');
+    }
+  });
+
+  test('Every timed game stops its clock before filing the result', () {
+    // Reading the clock after stop() is what makes the recorded time the time
+    // the level actually took. Forgetting the stop is invisible in play and in
+    // every other test: the value would just keep creeping while the win dialog
+    // sits on screen.
+    for (final path in Directory('lib/games')
+        .listSync(recursive: true)
+        .whereType<File>()
+        .where((f) => f.path.endsWith('_screen.dart'))) {
+      final src = path.readAsStringSync();
+      if (!src.contains('LevelTimer()')) continue;
+      expect(src.contains('_timer.stop()'), isTrue,
+          reason: '${path.path} times a level but never stops the clock');
+      expect(src.contains('recordBestTime('), isTrue,
+          reason: '${path.path} times a level but files no record');
+      // And the clock has to follow the app lifecycle, or it counts time spent
+      // with the phone in a pocket.
+      expect(
+          src.contains('onLifecycleChange') ||
+              src.contains('didChangeAppLifecycleState'),
+          isTrue,
+          reason: '${path.path} never pauses its clock on backgrounding');
+    }
+  });
+
   test('Stats count what was cleared, not what was reached', () async {
     SharedPreferences.setMockInitialValues({
       'stars_word_search_1': 3,

@@ -5,8 +5,10 @@ import 'package:flutter/services.dart';
 
 import '../../l10n/generated/app_localizations.dart';
 import '../../services/board_autosave.dart';
+import '../../services/level_timer.dart';
 import '../../services/progress_store.dart';
 import '../../widgets/game_header.dart';
+import '../../widgets/level_clock.dart';
 import '../../widgets/how_to_play.dart';
 import '../../widgets/win_dialog.dart';
 import 'number_cross_models.dart';
@@ -27,6 +29,10 @@ class _NumberCrossScreenState extends State<NumberCrossScreen>
     with WidgetsBindingObserver, BoardAutosave<NumberCrossScreen> {
   static const _gameId = 'number_cross';
   static const _accent = Color(0xFFB5651D);
+
+  /// Always recorded, shown only if the player asked for it.
+  /// Number Cross recorded nothing before. It resumes a board, so the elapsed time travels in the same save slot.
+  final LevelTimer _timer = LevelTimer();
   static const _tile = Color(0xFFE8D8C3); // given-number tile (tan)
 
   int _level = 1;
@@ -61,12 +67,16 @@ class _NumberCrossScreenState extends State<NumberCrossScreen>
     // A save that doesn't fit is dropped silently: a fresh puzzle is a fine
     // outcome, an exception on opening a game is not.
     if (saved != null) board.applyPlacementsJson(saved);
+    // Extra keys are ignored by the board's own parser, so the elapsed time
+    // rides in the same slot without a save-format bump.
+    final carried = saved == null ? 0 : (saved['seconds'] as int? ?? 0);
     setState(() {
       _level = level;
       _board = board;
       _selectedPool = null;
       _placements = 0;
       _busy = false;
+      _timer.start(from: Duration(seconds: carried));
     });
   }
 
@@ -94,8 +104,12 @@ class _NumberCrossScreenState extends State<NumberCrossScreen>
   Map<String, dynamic>? captureBoard() {
     if (_board.isSolved) return null; // finished
     if (!_board.hasProgress) return null; // untouched
-    return _board.placementsJson();
+    return {..._board.placementsJson(), 'seconds': _timer.elapsed.inSeconds};
   }
+
+  @override
+  void onLifecycleChange(AppLifecycleState state) =>
+      _timer.handleLifecycle(state);
 
   void _onPoolTap(int index) {
     if (_busy) return;
@@ -147,7 +161,23 @@ class _NumberCrossScreenState extends State<NumberCrossScreen>
     ProgressStore.instance
       ..registerPlay(_gameId)
       ..recordCleared(_gameId, _level, stars);
-    showWinDialog(context, level: _level, accent: _accent, stars: stars)
+    _timer.stop();
+    final seconds = _timer.elapsed.inSeconds;
+    final beatTime =
+        ProgressStore.instance.recordBestTime(_gameId, _level, seconds);
+    final bestTime = ProgressStore.instance.bestSeconds(_gameId, _level);
+    final timeLine = bestTime == null
+        ? AppLocalizations.of(context)
+            .timeTaken(formatLevelTime(Duration(seconds: seconds)))
+        : AppLocalizations.of(context).timeAndBest(
+            formatLevelTime(Duration(seconds: seconds)),
+            formatLevelTime(Duration(seconds: bestTime)));
+    showWinDialog(context,
+            level: _level,
+            accent: _accent,
+            stars: stars,
+            newRecord: beatTime,
+            bestText: timeLine)
         .then((action) {
       if (!mounted || action == null) return;
       if (action == WinAction.next) {
@@ -171,6 +201,7 @@ class _NumberCrossScreenState extends State<NumberCrossScreen>
                 onHelp: () => showHowToPlay(context,
                     body: AppLocalizations.of(context).helpNumberCross,
                     accent: _accent)),
+            LevelClock(timer: _timer, accent: _accent),
             Expanded(
               child: Padding(
                 padding: const EdgeInsets.all(16),

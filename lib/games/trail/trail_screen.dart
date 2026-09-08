@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../l10n/generated/app_localizations.dart';
+import '../../services/level_timer.dart';
 import '../../services/progress_store.dart';
 import '../../widgets/game_header.dart';
+import '../../widgets/level_clock.dart';
 import '../../widgets/how_to_play.dart';
 import '../../widgets/win_dialog.dart';
 import 'trail_models.dart';
@@ -19,9 +21,14 @@ class TrailScreen extends StatefulWidget {
   State<TrailScreen> createState() => _TrailScreenState();
 }
 
-class _TrailScreenState extends State<TrailScreen> {
+class _TrailScreenState extends State<TrailScreen>
+    with WidgetsBindingObserver {
   static const _gameId = 'trail';
   static const _accent = Color(0xFFCC7722);
+
+  /// Always recorded, shown only if the player asked for it.
+  /// Trail is the attention-and-speed game, so time is arguably the point of it; it recorded nothing before.
+  final LevelTimer _timer = LevelTimer();
   static const _nodeSize = 56.0;
 
   int _level = 1;
@@ -34,6 +41,9 @@ class _TrailScreenState extends State<TrailScreen> {
   @override
   void initState() {
     super.initState();
+    // Observed for the clock only: Trail is a short round and does not save a
+    // board. Without it the timer would run on in the background.
+    WidgetsBinding.instance.addObserver(this);
     _loadLevel(widget.startLevel);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
@@ -45,6 +55,16 @@ class _TrailScreenState extends State<TrailScreen> {
     });
   }
 
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) =>
+      _timer.handleLifecycle(state);
+
   void _loadLevel(int level) {
     ProgressStore.instance.recordReached(_gameId, level);
     setState(() {
@@ -54,6 +74,7 @@ class _TrailScreenState extends State<TrailScreen> {
       _visited = 0;
       _wrongFlash = null;
       _busy = false;
+      _timer.start();
     });
   }
 
@@ -97,7 +118,23 @@ class _TrailScreenState extends State<TrailScreen> {
     ProgressStore.instance
       ..registerPlay(_gameId)
       ..recordCleared(_gameId, _level, stars);
-    showWinDialog(context, level: _level, accent: _accent, stars: stars)
+    _timer.stop();
+    final seconds = _timer.elapsed.inSeconds;
+    final beatTime =
+        ProgressStore.instance.recordBestTime(_gameId, _level, seconds);
+    final bestTime = ProgressStore.instance.bestSeconds(_gameId, _level);
+    final timeLine = bestTime == null
+        ? AppLocalizations.of(context)
+            .timeTaken(formatLevelTime(Duration(seconds: seconds)))
+        : AppLocalizations.of(context).timeAndBest(
+            formatLevelTime(Duration(seconds: seconds)),
+            formatLevelTime(Duration(seconds: bestTime)));
+    showWinDialog(context,
+            level: _level,
+            accent: _accent,
+            stars: stars,
+            newRecord: beatTime,
+            bestText: timeLine)
         .then((action) {
       if (!mounted || action == null) return;
       if (action == WinAction.next) {
@@ -151,6 +188,7 @@ class _TrailScreenState extends State<TrailScreen> {
                 onRestart: _restart,
                 onHelp: () =>
                     showHowToPlay(context, body: t.helpTrail, accent: _accent)),
+            LevelClock(timer: _timer, accent: _accent),
             _buildHearts(trailConfigForLevel(_level).hearts),
             const SizedBox(height: 6),
             Text(

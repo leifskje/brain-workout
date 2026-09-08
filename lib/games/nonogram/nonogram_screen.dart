@@ -5,8 +5,10 @@ import 'package:flutter/services.dart';
 
 import '../../l10n/generated/app_localizations.dart';
 import '../../services/board_autosave.dart';
+import '../../services/level_timer.dart';
 import '../../services/progress_store.dart';
 import '../../widgets/game_header.dart';
+import '../../widgets/level_clock.dart';
 import '../../widgets/how_to_play.dart';
 import '../../widgets/win_dialog.dart';
 import 'nonogram_models.dart';
@@ -36,6 +38,10 @@ class _NonogramScreenState extends State<NonogramScreen>
     with WidgetsBindingObserver, BoardAutosave<NonogramScreen> {
   static const _gameId = 'nonogram';
   static const _accent = Color(0xFF00796B);
+
+  /// Always recorded, shown only if the player asked for it.
+  /// Picture Logic already records fewest mistakes; time is a separate axis. It resumes a board, so the time travels with it.
+  final LevelTimer _timer = LevelTimer();
 
   int _level = 1;
   late NonogramBoard _board;
@@ -76,6 +82,7 @@ class _NonogramScreenState extends State<NonogramScreen>
       // outcome, an exception on opening a game is not.
       board.applyMarksJson(saved);
     }
+    final carried = saved == null ? 0 : (saved['seconds'] as int? ?? 0);
     setState(() {
       _level = level;
       _board = board;
@@ -83,6 +90,7 @@ class _NonogramScreenState extends State<NonogramScreen>
       _checksUsed = 0;
       _showingCheck = false;
       _busy = false;
+      _timer.start(from: Duration(seconds: carried));
     });
   }
 
@@ -110,8 +118,12 @@ class _NonogramScreenState extends State<NonogramScreen>
   Map<String, dynamic>? captureBoard() {
     if (_board.isSolved) return null; // finished; nothing to come back to
     if (!_board.hasProgress) return null; // untouched
-    return _board.marksJson();
+    return {..._board.marksJson(), 'seconds': _timer.elapsed.inSeconds};
   }
+
+  @override
+  void onLifecycleChange(AppLifecycleState state) =>
+      _timer.handleLifecycle(state);
 
   void _onCellTap(int r, int c) {
     if (_busy) return;
@@ -162,14 +174,27 @@ class _NonogramScreenState extends State<NonogramScreen>
     final beat = ProgressStore.instance
         .recordBest(_gameId, _level, _mistakes.length, lowerIsBetter: true);
     final best = ProgressStore.instance.bestResult(_gameId, _level);
+    _timer.stop();
+    final seconds = _timer.elapsed.inSeconds;
+    final beatTime =
+        ProgressStore.instance.recordBestTime(_gameId, _level, seconds);
+    final bestTime = ProgressStore.instance.bestSeconds(_gameId, _level);
+    final timeLine = bestTime == null
+        ? AppLocalizations.of(context)
+            .timeTaken(formatLevelTime(Duration(seconds: seconds)))
+        : AppLocalizations.of(context).timeAndBest(
+            formatLevelTime(Duration(seconds: seconds)),
+            formatLevelTime(Duration(seconds: bestTime)));
     showWinDialog(context,
             level: _level,
             accent: _accent,
             stars: stars,
-            newRecord: beat,
-            bestText: best == null
-                ? null
-                : AppLocalizations.of(context).bestMistakes(best))
+            newRecord: beat || beatTime,
+            bestText: [
+              if (best != null)
+                AppLocalizations.of(context).bestMistakes(best),
+              timeLine,
+            ].join('\n'))
         .then((action) {
       if (!mounted || action == null) return;
       if (action == WinAction.next) {
@@ -193,6 +218,7 @@ class _NonogramScreenState extends State<NonogramScreen>
                 onRestart: _restart,
                 onHelp: () =>
                     showHowToPlay(context, body: t.helpNonogram, accent: _accent)),
+            LevelClock(timer: _timer, accent: _accent),
             Expanded(
               child: Padding(
                 padding: const EdgeInsets.all(12),

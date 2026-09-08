@@ -4,9 +4,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../l10n/generated/app_localizations.dart';
+import '../../services/level_timer.dart';
 import '../../services/progress_store.dart';
 import '../../widgets/category_chip.dart';
 import '../../widgets/game_header.dart';
+import '../../widgets/level_clock.dart';
 import '../../widgets/how_to_play.dart';
 import '../../widgets/win_dialog.dart';
 import 'word_search_models.dart';
@@ -22,9 +24,14 @@ class WordSearchScreen extends StatefulWidget {
   State<WordSearchScreen> createState() => _WordSearchScreenState();
 }
 
-class _WordSearchScreenState extends State<WordSearchScreen> {
+class _WordSearchScreenState extends State<WordSearchScreen>
+    with WidgetsBindingObserver {
   static const _gameId = 'word_search';
   static const _accent = Color(0xFFB5527D);
+
+  /// Always recorded, shown only if the player asked for it.
+  /// Word Search recorded nothing at all before this, so there was simply nothing to beat in it. Time is its natural metric.
+  final LevelTimer _timer = LevelTimer();
 
   int _level = 1;
   String _language = 'en';
@@ -48,6 +55,9 @@ class _WordSearchScreenState extends State<WordSearchScreen> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     if (_board != null) return;
+    // Observed for the clock only: Word Search is a short round and does not
+    // save a board. Without it the timer would run on in the background.
+    WidgetsBinding.instance.addObserver(this);
     // The word list follows the app language (needs inherited Localizations,
     // hence didChangeDependencies rather than initState).
     _language =
@@ -63,6 +73,16 @@ class _WordSearchScreenState extends State<WordSearchScreen> {
     });
   }
 
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) =>
+      _timer.handleLifecycle(state);
+
   void _loadLevel(int level) {
     ProgressStore.instance.recordReached(_gameId, level);
     setState(() {
@@ -74,6 +94,7 @@ class _WordSearchScreenState extends State<WordSearchScreen> {
       _busy = false;
       _dragStart = null;
       _selection = const [];
+      _timer.start();
     });
   }
 
@@ -140,7 +161,23 @@ class _WordSearchScreenState extends State<WordSearchScreen> {
     ProgressStore.instance
       ..registerPlay(_gameId)
       ..recordCleared(_gameId, _level, stars);
-    showWinDialog(context, level: _level, accent: _accent, stars: stars)
+    _timer.stop();
+    final seconds = _timer.elapsed.inSeconds;
+    final beatTime =
+        ProgressStore.instance.recordBestTime(_gameId, _level, seconds);
+    final bestTime = ProgressStore.instance.bestSeconds(_gameId, _level);
+    final timeLine = bestTime == null
+        ? AppLocalizations.of(context)
+            .timeTaken(formatLevelTime(Duration(seconds: seconds)))
+        : AppLocalizations.of(context).timeAndBest(
+            formatLevelTime(Duration(seconds: seconds)),
+            formatLevelTime(Duration(seconds: bestTime)));
+    showWinDialog(context,
+            level: _level,
+            accent: _accent,
+            stars: stars,
+            newRecord: beatTime,
+            bestText: timeLine)
         .then((action) {
       if (!mounted || action == null) return;
       if (action == WinAction.next) {
@@ -168,6 +205,7 @@ class _WordSearchScreenState extends State<WordSearchScreen> {
                 onHint: _busy ? null : _hint,
                 onHelp: () => showHowToPlay(context,
                     body: t.helpWordSearch, accent: _accent)),
+            LevelClock(timer: _timer, accent: _accent),
             const SizedBox(height: 4),
             Text(
               t.wordsFound(board.foundCount, board.words.length),
