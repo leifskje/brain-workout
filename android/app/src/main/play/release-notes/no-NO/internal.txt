@@ -1,7 +1,5 @@
-Rettet: nå går du videre når du fullfører et nivå. Før fikk du samme nivå på nytt hvis du trykket «Hjem» i stedet for «Neste nivå» — så det føltes fast. Beklager!
+Nytt: trykk på rekke-kortet for Din framgang — stjerner, dager spilt og dine beste tider. Seks spill lagrer nå tiden din, så du kan slå den. I Innstillinger kan du vise en klokke mens du spiller (av som standard).
 
-Memory har mange flere bilder nå, og Hva kommer etterpå blir skikkelig vanskeligere.
+Rettet: de rare fargeoppgavene i Hva kommer etterpå, og pausen før neste Pillabyrint-brett. Nivåer du klarte men forlot via Hjem er gjenopprettet.
 
-Nytt: Hint-knapp i ordspillene (et hint gir høyst 2 stjerner), og en «Send tilbakemelding»-knapp nederst på hjemskjermen.
-
-Si gjerne fra: går nivået ditt opp nå når du fullfører et?
+Også: større Pilflukt-brett, Memory med tre like fra nivå 10, divisjon i Tallkryss.

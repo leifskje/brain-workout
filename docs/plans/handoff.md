@@ -4,8 +4,9 @@ Written to let a fresh agent pick up without re-deriving anything. Read `CLAUDE.
 first; it holds the conventions and the hard-won lessons. This file is *where things
 stand*, not how to work here.
 
-Last published: **1.1.1 (versionCode 4)**, internal track, Sep 2026. `main` is that
-release; the next one needs another `version:` bump.
+Last published: **1.1.1 (versionCode 4)**, internal track, Sep 2026.
+`pubspec.yaml` now reads **1.1.2+5** with release notes written — prepared, *not*
+shipped.
 
 ## Where the code is
 

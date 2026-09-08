@@ -1,7 +1,5 @@
-Fixed: finishing a level now moves you forward. Before, tapping "Home" instead of "Next level" meant the game gave you the same level again — so it felt stuck. Sorry!
+New: tap the streak card for Your progress — stars, days played and your best times. Six games now save your time so you can beat it; Settings can show a clock while you play (off by default).
 
-Memory Match uses many more pictures now, and What Comes Next gets properly harder.
+Fixed: the odd colour puzzles in What Comes Next, and the pause before the next Arrow Maze board. Levels you cleared but left via Home are restored.
 
-New: a Hint button in the word games (a hint means at most 2 stars), and a "Send feedback" button at the bottom of the home screen.
-
-Please tell me: does your level go up now when you finish one?
+Also: bigger Arrow Escape boards, Memory Match threes from level 10, division in Number Cross.
