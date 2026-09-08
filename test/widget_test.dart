@@ -3074,26 +3074,72 @@ void main() {
             reason: 'level $level frees arrow $id which was never stuck');
       }
 
-      // The property that makes the cascade legal rather than magic. The freed
-      // arrows are a *chain*: the first is clear once the golden arrow leaves, the
-      // second once the first leaves, and so on — so each flies out along a path
-      // that really is empty, under the same rule as every other move. Without
-      // this they slid out through their neighbours, contradicting the one rule the
-      // game spends every level teaching.
+      // The property that makes the cascade legal rather than magic: the freed
+      // arrows are a *chain*, each flying out along a path that really is empty,
+      // under the same rule as every other move. Without it they slid out through
+      // their neighbours, contradicting the one rule the game spends every level
+      // teaching.
+      //
+      // Checked from the *minimal* state in which the bonus can be taken — its
+      // own exit ray cleared and nothing else. This used to be checked from the
+      // untouched board, which is a state that cannot occur (the assertion just
+      // above requires the bonus to start blocked) and which was over-strong in a
+      // way that had a real cost: only a short-ray arrow beside an edge can
+      // cascade from an untouched 90%-full board, so the golden arrow was pinned
+      // to the rim and reachable in the first fifth of the solve. Every state the
+      // player can actually take it in is a superset of this one, and the game is
+      // monotone, so legality here carries over to legality there.
+      final blockers = <int>{};
+      var rr = bonus.head.row + bonus.exitDir.dRow;
+      var cc = bonus.head.col + bonus.exitDir.dCol;
+      while (rr >= 0 && rr < board.rows && cc >= 0 && cc < board.cols) {
+        final occ = board.arrowAt(rr, cc);
+        if (occ != null && occ.id != bonus.id) blockers.add(occ.id);
+        rr += bonus.exitDir.dRow;
+        cc += bonus.exitDir.dCol;
+      }
+      for (final a in board.arrows) {
+        a.escaped = blockers.contains(a.id);
+      }
+
       bonus.escaped = true;
-      final fired = <SnakeArrow>[];
       for (final id in bonus.frees) {
         final linked = board.arrows.firstWhere((a) => a.id == id);
         expect(board.isPathClear(linked), isTrue,
             reason: 'level $level: freed arrow $id has no clear path when its turn '
                 'comes, so it would cheat its way out');
         linked.escaped = true;
-        fired.add(linked);
       }
-      for (final a in fired) {
+      for (final a in board.arrows) {
         a.escaped = false;
       }
-      bonus.escaped = false;
+
+      // And the same thing end to end, which is what a player experiences: play
+      // greedily until the golden arrow is takeable, take it, and require every
+      // arrow it sweeps out to be genuinely clear at its turn in *that* state.
+      var advancing = true;
+      while (advancing && !board.isPathClear(bonus)) {
+        advancing = false;
+        for (final a in board.arrows) {
+          if (a.escaped || a.id == bonus.id || !board.isPathClear(a)) continue;
+          a.escaped = true;
+          advancing = true;
+          break;
+        }
+      }
+      expect(board.isPathClear(bonus), isTrue,
+          reason: 'level $level: the golden arrow never becomes takeable');
+      bonus.escaped = true;
+      for (final id in bonus.frees) {
+        final linked = board.arrows.firstWhere((a) => a.id == id);
+        if (linked.escaped) continue; // already gone; the bonus is simply wasted
+        expect(board.isPathClear(linked), isTrue,
+            reason: 'level $level: in real play, freed arrow $id would cheat out');
+        linked.escaped = true;
+      }
+      for (final a in board.arrows) {
+        a.escaped = false;
+      }
 
       // Still winnable playing normally — the cascade only ever removes arrows,
       // so it cannot strand anything, but the board must be solvable *without*
@@ -3110,6 +3156,60 @@ void main() {
       }
       expect(board.isSolved, isTrue,
           reason: 'level $level must be solvable ignoring the bonus');
+    }
+  });
+
+  test('Arrow Maze: the golden arrow sits mid-board and always exists', () {
+    // Two defects, both found by the owner playing and then measured rather than
+    // eyeballed. The golden arrow became takeable in wave 1-6 of 15-18 -- under a
+    // fifth of the way through -- so taking it was the obvious first move rather
+    // than a decision about order, which is the entire point of the mechanic.
+    // And ~31% of levels had no golden arrow at all while the help text promises
+    // one from level 12.
+    var withBonus = 0, sampled = 0;
+    final fractions = <double>[];
+    for (var level = 12; level <= 60; level += 2) {
+      final board = SnakeBoard.generate(level);
+      sampled++;
+      final bonus = board.bonusArrow;
+      if (bonus == null) continue;
+      withBonus++;
+
+      final waves = board.unblockWaves();
+      final maxWave = waves.values.fold<int>(0, (m, w) => w > m ? w : m);
+      expect(maxWave, greaterThan(0));
+      fractions.add((waves[bonus.id] ?? 0) / maxWave);
+    }
+
+    expect(withBonus, sampled,
+        reason: 'every level from 12 up promises a golden arrow');
+
+    final mean = fractions.reduce((a, b) => a + b) / fractions.length;
+    expect(mean, greaterThan(0.3),
+        reason: 'the golden arrow is reachable too early to be a decision');
+    expect(mean, lessThan(0.7),
+        reason: 'reachable so late that the cascade has little left to free');
+    // And no individual level may sit right at the start.
+    expect(fractions.every((f) => f > 0.2), isTrue,
+        reason: 'some level still opens almost straight onto the golden arrow');
+  });
+
+  test('Arrow Maze: unblock waves are order-independent and complete', () {
+    // The waves underpin the golden-arrow placement, so they need to be right:
+    // wave 0 is what is clear at the start, and every arrow must get a wave or
+    // the board would not be solvable.
+    for (final level in [12, 30, 60]) {
+      final board = SnakeBoard.generate(level);
+      final waves = board.unblockWaves();
+      expect(waves.length, board.arrows.length,
+          reason: 'level $level leaves some arrow with no wave, so it is stuck');
+      for (final a in board.arrows) {
+        expect(waves[a.id] == 0, board.isPathClear(a),
+            reason: 'level $level arrow ${a.id}: wave 0 must mean clear at start');
+      }
+      // Reading the waves must not disturb the board.
+      expect(board.arrows.every((a) => !a.escaped), isTrue);
+      expect(board.unblockWaves(), waves, reason: 'waves are not deterministic');
     }
   });
 

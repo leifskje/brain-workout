@@ -261,6 +261,46 @@ class SnakeBoard {
             orElse: () => null,
           );
 
+  /// For every arrow, the *wave* in which it first becomes takeable: 0 for the
+  /// arrows already clear, 1 for those that open once all of wave 0 has gone,
+  /// and so on.
+  ///
+  /// Waves rather than a move count on purpose. Greedy move order is arbitrary
+  /// (whichever clear arrow is found first), so a per-move depth would depend on
+  /// that arbitrary choice; a wave is order-independent, which makes it a stable
+  /// thing to tune against. One pass costs a single solve and yields the depth
+  /// of every arrow at once — the reason this is affordable at all, since the
+  /// alternative is a solve per bonus candidate inside a pool of hundreds of
+  /// boards.
+  ///
+  /// Restores the board before returning.
+  Map<int, int> unblockWaves() {
+    final saved = {for (final a in arrows) a.id: a.escaped};
+    for (final a in arrows) {
+      a.escaped = false;
+    }
+
+    final waves = <int, int>{};
+    var wave = 0;
+    while (true) {
+      final ready = [
+        for (final a in arrows)
+          if (!a.escaped && isPathClear(a)) a
+      ];
+      if (ready.isEmpty) break;
+      for (final a in ready) {
+        waves[a.id] = wave;
+        a.escaped = true;
+      }
+      wave++;
+    }
+
+    for (final a in arrows) {
+      a.escaped = saved[a.id] ?? false;
+    }
+    return waves;
+  }
+
   /// Assigns one bonus arrow and the arrows it frees, deterministically.
   ///
   /// The freed arrows form a **chain** the bonus arrow unlocks: the first is clear
@@ -279,18 +319,48 @@ class SnakeBoard {
   /// simply get no bonus, rather than a token one.
   void assignBonus(Random rng, {required int freeCount, int minFrees = 2}) {
     if (freeCount < minFrees) return;
-    final clearNow = {
+    final clearAtStart = {
       for (final a in arrows)
         if (isPathClear(a)) a.id
     };
-    final blocked = [for (final a in arrows) if (!clearNow.contains(a.id)) a];
+    // Never a free opening move.
+    final blocked = [
+      for (final a in arrows)
+        if (!clearAtStart.contains(a.id)) a
+    ];
     if (blocked.length < minFrees + 1) return;
 
-    // Bounded scan: each candidate costs a sweep of every arrow's ray, and this
-    // runs once per candidate board in a pool of hundreds.
+    // Prefer a bonus the player cannot reach straight away.
+    //
+    // The mechanic exists to reward choosing an *order*, and it was not doing
+    // that: measured across levels 12-60 the golden arrow became takeable in
+    // wave 1 to 6 of 15 to 18, so typically under a fifth of the way through the
+    // board. Taking it was not a decision, it was the obvious first move.
+    //
+    // Nothing asked for that. The chain filter caused it: a short-ray arrow near
+    // the rim is blocked by few things, so it opens early *and* clears a corridor
+    // others use, which is exactly the profile that yields a cascade. The pool is
+    // shuffled and unbiased; the criterion did the selecting. (Same shape of
+    // mistake as sizing a symbol pool equal to the largest draw.)
+    //
+    // So order candidates by how close their wave is to the middle of the board
+    // and take the first that yields a chain. Distance from the edge would be
+    // only a proxy for this; waves-until-takeable is the thing itself.
+    final waves = unblockWaves();
+    final maxWave =
+        waves.values.fold<int>(0, (m, w) => w > m ? w : m);
+    final idealWave = maxWave * _bonusIdealWaveFraction;
+
     final pool = [...blocked]..shuffle(rng);
-    for (final candidate in pool.take(_bonusCandidateLimit)) {
-      final chain = _cascadeFrom(candidate, clearNow, freeCount);
+    final ranked = pool.take(_bonusCandidateLimit).toList()
+      ..sort((a, b) {
+        final da = ((waves[a.id] ?? 0) - idealWave).abs();
+        final db = ((waves[b.id] ?? 0) - idealWave).abs();
+        return da.compareTo(db);
+      });
+
+    for (final candidate in ranked) {
+      final chain = _cascadeFrom(candidate, freeCount);
       if (chain.length >= minFrees) {
         candidate.frees = chain;
         return;
@@ -298,26 +368,71 @@ class SnakeBoard {
     }
   }
 
-  /// The arrows that come free, in order, if [candidate] leaves — a *chain*, not a
-  /// set: the first becomes clear when the candidate goes, the second when the first
-  /// goes, and so on.
+  /// Where in the solve the golden arrow should become takeable, as a fraction
+  /// of the board's wave depth. Middle-ish: early enough that the cascade still
+  /// has arrows left to free, late enough that reaching it took planning.
+  static const _bonusIdealWaveFraction = 0.5;
+
+  /// The arrows that come free, in order, if [candidate] leaves — evaluated from
+  /// the **minimal** board state in which the candidate can be taken at all:
+  /// only the arrows blocking its own exit ray removed.
   ///
-  /// A chain is what makes this both legal and findable. Requiring one arrow to
-  /// single-handedly unblock several others almost never happens on a 90%-full board,
-  /// because most rays cross more than one arrow — asking for two collapsed the bonus
-  /// entirely. Every arrow in a chain still leaves along a genuinely clear path when
-  /// its own turn comes, which is the property that matters.
+  /// The state this measures from is the whole correctness argument, and getting
+  /// it wrong is caught by the fairness test rather than by reading the code.
+  ///
+  /// Measuring against the *untouched* board is what pinned the golden arrow to
+  /// the rim: an arrow only produces a cascade there if removing it alone
+  /// unblocks others, which on a 90%-full board is almost only true of short-ray
+  /// arrows beside an edge. Ranking candidates by wave could not fix that,
+  /// because no mid-board arrow ever qualified in the first place.
+  ///
+  /// Winding forward to the candidate's whole *wave* fixes the placement and
+  /// breaks the game: the player may reach the bonus having cleared a different,
+  /// smaller set of arrows, and the promised cascade would then sweep arrows whose
+  /// paths are still blocked — arrows cheating their way out.
+  ///
+  /// The ray-blockers are the fix. Every state in which the player can take the
+  /// candidate has *at least* those gone, so it is a superset of this one; the
+  /// game is monotone, so a chain legal here stays legal there. Mid-board arrows
+  /// still qualify, because opening their ray is usually what their cascade
+  /// depends on.
+  ///
+  /// Still a chain, not a set: the first becomes clear when the candidate goes,
+  /// the second when the first goes, and so on.
   ///
   /// Restores the board before returning; nothing here is a lasting change.
-  List<int> _cascadeFrom(
-      SnakeArrow candidate, Set<int> clearNow, int limit) {
+  List<int> _cascadeFrom(SnakeArrow candidate, int limit) {
+    final saved = {for (final a in arrows) a.id: a.escaped};
+
+    // The arrows sitting on the candidate's exit ray — the minimum that must go
+    // before it can ever be taken.
+    final blockers = <int>{};
+    var r = candidate.head.row + candidate.exitDir.dRow;
+    var c = candidate.head.col + candidate.exitDir.dCol;
+    while (r >= 0 && r < rows && c >= 0 && c < cols) {
+      final occ = arrowAt(r, c);
+      if (occ != null && occ.id != candidate.id) blockers.add(occ.id);
+      r += candidate.exitDir.dRow;
+      c += candidate.exitDir.dCol;
+    }
+
+    for (final a in arrows) {
+      a.escaped = blockers.contains(a.id);
+    }
+    // Anything already playable at that moment is not a reward for taking the
+    // candidate, so it cannot count towards the chain.
+    final alreadyAvailable = {
+      for (final a in arrows)
+        if (!a.escaped && a.id != candidate.id && isPathClear(a)) a.id
+    };
+
     candidate.escaped = true;
     final chain = <int>[];
     var progress = true;
     while (progress && chain.length < limit) {
       progress = false;
       for (final a in arrows) {
-        if (a.escaped || clearNow.contains(a.id)) continue;
+        if (a.escaped || alreadyAvailable.contains(a.id)) continue;
         if (!isPathClear(a)) continue;
         a.escaped = true;
         chain.add(a.id);
@@ -325,10 +440,10 @@ class SnakeBoard {
         if (chain.length >= limit) break;
       }
     }
-    for (final id in chain) {
-      arrows.firstWhere((a) => a.id == id).escaped = false;
+
+    for (final a in arrows) {
+      a.escaped = saved[a.id] ?? false;
     }
-    candidate.escaped = false;
     return chain;
   }
 
@@ -601,11 +716,19 @@ class SnakeBoard {
       // as one weighted sum let a wide pool spend itself buying branching
       // precision from 0.1 to 0.0 — worth nothing to a player — while giving up
       // several points of coverage, which is plainly visible.
+      // A level from 12 up promises a golden arrow in the help text, and ~31% of
+      // boards had none: no blocked arrow on them unlocks a chain of two, which
+      // is a property of the board, not of the search. The pool holds hundreds of
+      // candidates, so preferring the ones that *do* carry a bonus costs nothing
+      // and keeps the promise. Ranked below difficulty and coverage.
+      final missingBonus =
+          cfg.bonusFrees >= 2 && board.bonusArrow == null ? 1.0 : 0.0;
       final branchingMiss = (d.meanBranching - target).abs();
       final distance =
           (branchingMiss <= onTargetTolerance ? 0.0 : branchingMiss * 10) +
               fillShortfall * fillShortfallWeight +
               holeExcess * holeExcessWeight +
+              missingBonus * missingBonusWeight +
               d.clearAtStart * 0.1;
       if (distance < bestDistance) {
         bestDistance = distance;
@@ -615,13 +738,19 @@ class SnakeBoard {
       // meaningfully, and generation blocks the UI while a level loads.
       if ((d.meanBranching - target).abs() <= onTargetTolerance &&
           fillShortfall <= fullEnoughShortfall &&
-          holeExcess <= 0) {
+          holeExcess <= 0 &&
+          missingBonus == 0) {
         return board;
       }
     }
 
     return best ?? _build(cfg, _seedFor(level, 0));
   }
+
+  /// How hard to push for a board that carries a golden arrow. Below the
+  /// coverage weights: a bonus-less board is a disappointment, a patchy one
+  /// looks broken.
+  static const missingBonusWeight = 0.25;
 
   /// Candidate boards tried per level before settling for the closest found.
   ///
