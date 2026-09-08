@@ -995,7 +995,9 @@ void main() {
   });
 
   test('Number Cross puzzles are consistent and solvable', () {
-    for (var level = 1; level <= 30; level++) {
+    // To 60, not 30: division only appears from level 14, and its equations are
+    // the ones that can be built wrong.
+    for (var level = 1; level <= 60; level++) {
       // The constructor scans the grid for equations and throws on any
       // malformed segment, so generate() itself asserts the layout shape.
       final board = NumberCrossBoard.generate(level);
@@ -1010,8 +1012,10 @@ void main() {
         final b = board.cellOf(run, 2);
         final res = board.cellOf(run, 4);
         inRuns.addAll([a, b, res]);
-        expect(applyOp(board.cellOf(run, 1).op!, a.value!, b.value!),
-            res.value!,
+        // opHolds, not applyOp: `~/` truncates, so applyOp would accept
+        // "7 ÷ 2 = 3" and this assertion would pass on an unsolvable board.
+        expect(opHolds(board.cellOf(run, 1).op!, a.value!, b.value!, res.value!),
+            isTrue,
             reason: 'level $level run at (${run.r},${run.c})');
       }
       for (final row in board.cells) {
@@ -1972,6 +1976,45 @@ void main() {
     await tester.pump();
 
     expect(find.text('Found 1 of ${board.words.length}'), findsOneWidget);
+  });
+
+  test('Number Cross: division is exact, and only from level 14', () {
+    // Division was the last untried knob -- blanks and decoys are both spent by
+    // level 32. It arrives late because its operands cannot be chosen freely and
+    // it is the hardest of the four to do in the head.
+    expect(numberCrossConfigForLevel(13).ops, isNot(contains(NcOp.div)));
+    expect(numberCrossConfigForLevel(14).ops, contains(NcOp.div));
+
+    // The trap that makes division different from the other three: `a ~/ b`
+    // truncates, so a player putting 7 over 2 would have "7 ÷ 2 = 3" accepted.
+    expect(opHolds(NcOp.div, 7, 2, 3), isFalse,
+        reason: 'inexact division must not satisfy an equation');
+    expect(opHolds(NcOp.div, 6, 2, 3), isTrue);
+    expect(opHolds(NcOp.div, 5, 0, 0), isFalse, reason: 'no divide by zero');
+
+    var divisions = 0, levels = 0;
+    for (var level = 14; level <= 60; level++) {
+      final board = NumberCrossBoard.generate(level);
+      levels++;
+      var sawDivision = false;
+      for (final run in board.runs) {
+        if (board.cellOf(run, 1).op != NcOp.div) continue;
+        sawDivision = true;
+        final a = board.cellOf(run, 0).value!;
+        final b = board.cellOf(run, 2).value!;
+        final res = board.cellOf(run, 4).value!;
+        expect(b, greaterThanOrEqualTo(2),
+            reason: 'level $level divides by $b, which is not a puzzle');
+        expect(a % b, 0,
+            reason: 'level $level has an inexact division: $a / $b');
+        expect(res, greaterThan(0));
+      }
+      if (sawDivision) divisions++;
+    }
+    // Not every board will happen to use it -- the generator picks operators at
+    // random -- but most should, or the knob is not actually turning.
+    expect(divisions / levels, greaterThan(0.7),
+        reason: 'division almost never appears, so it changes nothing');
   });
 
   testWidgets('Number Cross screen renders small and large layouts',

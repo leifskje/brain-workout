@@ -8,19 +8,35 @@ import 'dart:math';
 ///
 /// Pure Dart (no Flutter imports) so it stays unit-testable.
 
-enum NcOp { add, sub, mul }
+enum NcOp { add, sub, mul, div }
 
 int applyOp(NcOp op, int a, int b) => switch (op) {
       NcOp.add => a + b,
       NcOp.sub => a - b,
       NcOp.mul => a * b,
+      // Truncating, and never the whole story: see [opHolds]. Callers that are
+      // *checking* an equation must not use this for division.
+      NcOp.div => b == 0 ? 0 : a ~/ b,
     };
 
 String opSymbol(NcOp op) => switch (op) {
       NcOp.add => '+',
       NcOp.sub => '−', // minus sign
       NcOp.mul => '×', // times sign
+      NcOp.div => '÷', // division sign
     };
+
+/// Whether `a op b == res` really holds.
+///
+/// Division needs its own check rather than a truncating `~/`: 7 ~/ 2 is 3, so a
+/// player who put 7 above 2 would have "7 ÷ 2 = 3" accepted. An equation is only
+/// satisfied when the division is exact and the divisor is non-zero.
+bool opHolds(NcOp op, int a, int b, int res) {
+  if (op == NcOp.div) {
+    return b != 0 && a % b == 0 && a ~/ b == res;
+  }
+  return applyOp(op, a, b) == res;
+}
 
 enum NcKind { blank, number, op, equals }
 
@@ -79,11 +95,17 @@ class NumberCrossConfig {
 }
 
 NumberCrossConfig numberCrossConfigForLevel(int level) {
+  // Division last, and late: it is the only operator whose operands cannot be
+  // chosen freely (they have to divide exactly), and it is the hardest to do in
+  // the head. Blanks and decoys were the only knobs left with room, and both are
+  // spent by level 32 -- this is the one that keeps the ladder moving after that.
   final ops = level < 3
       ? const [NcOp.add]
       : level < 6
           ? const [NcOp.add, NcOp.sub]
-          : const [NcOp.add, NcOp.sub, NcOp.mul];
+          : level < 14
+              ? const [NcOp.add, NcOp.sub, NcOp.mul]
+              : const [NcOp.add, NcOp.sub, NcOp.mul, NcOp.div];
   final maxVal = ops.contains(NcOp.mul) ? 9 : (8 + level).clamp(8, 15);
   final equations = (3 + (level - 1) ~/ 2).clamp(3, 7);
   // Taller than wide — the app is portrait. Sized so 5-cell equations have
@@ -144,7 +166,7 @@ class NumberCrossBoard {
     final b = cellOf(run, 2).effective;
     final res = cellOf(run, 4).effective;
     if (a == null || b == null || res == null) return false;
-    return applyOp(cellOf(run, 1).op!, a, b) == res;
+    return opHolds(cellOf(run, 1).op!, a, b, res);
   }
 
   bool get isSolved => runs.every(runValid);
@@ -291,10 +313,22 @@ class NumberCrossBoard {
     // First equation: across, roomy anchor. Falls back to addition, which
     // always passes the range check.
     for (var t = 0; t < 30 && layout.count == 0; t++) {
-      final a = input(), b = input();
       final op = t < 20 ? pickOp() : NcOp.add;
-      final res = applyOp(op, a, b);
-      if (!ok(res)) continue;
+      // Division is the one operator whose operands cannot be picked freely:
+      // choose the divisor and the answer, then the dividend follows. Picking a
+      // and b and computing a ~/ b would place "7 ÷ 2 = 3" -- which opHolds
+      // rejects, so the board would be unsolvable.
+      final int a, b, res;
+      if (op == NcOp.div) {
+        b = 2 + rng.nextInt(8); // 2..9; a divisor of 1 is not a puzzle
+        res = input();
+        a = b * res;
+      } else {
+        a = input();
+        b = input();
+        res = applyOp(op, a, b);
+      }
+      if (!ok(a) || !ok(b) || !ok(res)) continue;
       final r = 1 + rng.nextInt(cfg.rows - 2);
       final c = rng.nextInt(cfg.cols - 4);
       layout.place(r, c, across: true, a: a, op: op, b: b, res: res);
@@ -335,12 +369,30 @@ class NumberCrossBoard {
       switch (k) {
         case 0:
           a = v;
-          b = input();
-          res = applyOp(op, a, b);
+          if (op == NcOp.div) {
+            // The dividend is fixed, so the divisor has to divide it exactly.
+            if (v < 2) continue;
+            final divisors = [
+              for (var d = 2; d <= v; d++)
+                if (v % d == 0) d
+            ];
+            if (divisors.isEmpty) continue; // v is prime: nothing but 1 and v
+            b = divisors[rng.nextInt(divisors.length)];
+            res = v ~/ b;
+          } else {
+            b = input();
+            res = applyOp(op, a, b);
+          }
         case 2:
           b = v;
-          a = input();
-          res = applyOp(op, a, b);
+          if (op == NcOp.div) {
+            if (v < 2) continue; // a divisor of 0 or 1 is no equation
+            res = input();
+            a = v * res;
+          } else {
+            a = input();
+            res = applyOp(op, a, b);
+          }
         default: // crossing at the result
           res = v;
           switch (op) {
@@ -359,6 +411,11 @@ class NumberCrossBoard {
               ];
               a = divisors[rng.nextInt(divisors.length)];
               b = v ~/ a;
+            case NcOp.div:
+              // The answer is fixed; pick a divisor and the dividend follows.
+              if (v < 1) continue;
+              b = 2 + rng.nextInt(8);
+              a = b * v;
           }
       }
       if (!ok(a) || !ok(b) || !ok(res)) continue;

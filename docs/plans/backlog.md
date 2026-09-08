@@ -80,7 +80,18 @@ We deliberately spread games across domains for a rounded "workout," and want
   Logic (mistakes), Crack the Code (guesses). The arrow games and Trail are left
   out on purpose: their only metric is hearts lost, which the stars already say.
   A first completion sets the best but is never announced as a record.
-- 💡 Sound effects · 💡 achievements/badges · 💡 stats screen
+- 💡 **Sound, as one piece of work — with Simon's extra buttons.** Deliberately held
+  back from 1.1.2 rather than half-done. Simon is the case that wants it most: the
+  traditional game is tones *plus* colour, and the dual encoding is most of why a
+  sequence is memorable, as well as an accessibility win for anyone who reads colour
+  poorly. It needs real audio assets (a package plus one short tone per button), which
+  is why it is not a code-only change.
+
+  Its companion is **more than four buttons**, the only real second difficulty axis
+  Simon has — length is thin, and steepening the curve (done in 1.1.2: starts at four
+  steps, 24 by level 28) is most of what length can give. Needs the hardcoded 2x2
+  layout rethought for 5 or 6.
+- 💡 achievements/badges · 💡 stats screen
 - 💡 Settings screen (language, text size, sound)
 
 ## Difficulty (audit with `dart run tool/analyze_level_curves.dart`)
@@ -111,8 +122,16 @@ What's left:
   ceiling: all layouts are 6 columns wide, so card size is width-bound at ~45dp
   on a 360dp phone and rows are the only thing that can grow. Matching three of a
   kind rather than two is the next real axis, and it is a mechanic change.
-- 💡 **Number Cross division.** Still untried, and now the main knob left; blanks
-  and decoys are spent.
+- ✅ **Number Cross division**, from level 14 — the last knob, since blanks and decoys
+  are both spent by level 32. Deliberately late: it is the hardest of the four to do in
+  the head, and the only one whose operands cannot be chosen freely.
+
+  That last point is the whole implementation. Every other operator picks a and b and
+  computes the result; division has to pick the divisor and the answer and derive the
+  dividend, at each of the three crossing positions separately. Get it wrong and the
+  generator writes "7 ÷ 2 = 3", which is unsolvable. `~/` truncates, so the check has
+  to be `opHolds` rather than `applyOp` — the pre-existing solvability test used
+  `applyOp` and would have accepted exactly that board.
 - ✅ **What Comes Next: the visual patterns never climbed.** `_shapeQuestion` was never
   passed the tier, so the ~40% of every round that is dots/colour/arrow was identical at
   level 1 and level 60 — dots always +1, arrows always a quarter clockwise, colour cycles
