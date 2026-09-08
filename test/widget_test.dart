@@ -4491,15 +4491,19 @@ void main() {
     BoardPrefetch.reset();
   });
 
-  testWidgets('Arrow Maze: a warm board is instantly playable, with no spinner',
+  testWidgets('Arrow Maze: a warm board still swallows the retry tap',
       (tester) async {
-    // The other half of the hang fix, and the half that is easy to get wrong in
-    // the opposite direction. On a warm prefetch the board appears in the same
-    // frame, so there was no pause and therefore no queued tap to defend
-    // against -- holding taps for 400ms anyway would make the first moment of
-    // every level dead, which is a new annoyance in place of the old one. The
-    // owner noticed the absent spinner on a device, which is what prompted
-    // checking this path at all.
+    // The reported bug, on the path it actually happens on.
+    //
+    // The delay that makes a player press twice is not board generation -- that
+    // is ~30ms below level 40. It is the win dialog's 340ms exit transition: the
+    // finished board stays on screen for a third of a second after the press, so
+    // nothing appears to have happened. The second press lands on the new board
+    // and fires whatever arrow is under it.
+    //
+    // A warm prefetch means the board is ready *during* that transition, so this
+    // is the common case, not the exotic one. An earlier version skipped the
+    // guard whenever the board was warm and so left exactly this case unfixed.
     tester.view.physicalSize = const Size(1080, 2280);
     tester.view.devicePixelRatio = 2.625;
     addTearDown(tester.view.reset);
@@ -4513,23 +4517,36 @@ void main() {
         .pumpWidget(localizedApp(const SnakeArrowsScreen(startLevel: level)));
     await tester.pump();
 
-    // No spinner at all: nothing had to be built, so nothing is announced.
+    // Warm: no spinner, because nothing had to be built. That part is correct
+    // and the owner observed it on a device.
     expect(find.byKey(const ValueKey('arrow_maze_loading')), findsNothing,
-        reason: 'a warm board must not flash a "setting up" message');
-    expect(find.byKey(const ValueKey('arrow_maze_board')), findsOneWidget);
+        reason: 'a ready board must not flash a "setting up" message');
+    final boardFinder = find.byKey(const ValueKey('arrow_maze_board'));
+    expect(boardFinder, findsOneWidget);
 
-    // And it takes a tap straight away -- no settling delay to sit through.
     final board = SnakeBoard.generate(level);
-    final rect = tester.getRect(find.byKey(const ValueKey('arrow_maze_board')));
+    final rect = tester.getRect(boardFinder);
     final blocked = board.arrows.firstWhere((a) => !board.isPathClear(a));
     final cellW = rect.width / board.cols;
     final cellH = rect.height / board.rows;
     final head = blocked.cells.last;
-    await tester.tapAt(rect.topLeft +
+    Future<void> tapBlocked() => tester.tapAt(rect.topLeft +
         Offset((head.col + 0.5) * cellW, (head.row + 0.5) * cellH));
+
+    // A tap in the window where the dialog is still animating out is swallowed,
+    // warm board or not.
+    await tapBlocked();
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(find.byIcon(Icons.favorite_border_rounded), findsNothing,
+        reason: 'a tap arriving during the dialog transition cost a heart');
+
+    // Once the moment has passed the board is fully live again -- the guard
+    // lifts, it does not disable anything.
+    await tester.pump(const Duration(milliseconds: 450));
+    await tapBlocked();
     await tester.pump(const Duration(milliseconds: 100));
     expect(find.byIcon(Icons.favorite_border_rounded), findsWidgets,
-        reason: 'a warm board ignored a tap it had no reason to ignore');
+        reason: 'the guard must lift rather than deaden the board');
   });
 
   testWidgets('Arrow Maze: winning warms the next board, and entering uses it',

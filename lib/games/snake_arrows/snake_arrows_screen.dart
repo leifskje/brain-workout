@@ -176,8 +176,7 @@ class _SnakeArrowsScreenState extends State<SnakeArrowsScreen>
     // Built in the background while the win dialog was up, if we got that far.
     // Identical to generating here — generation is deterministic in the level — so
     // this only changes *when* the work happened, never what the player sees.
-    final (board: board, wasWarm: wasWarm) =
-        await BoardPrefetch.obtain(level);
+    final (board: board, wasWarm: _) = await BoardPrefetch.obtain(level);
     if (!mounted) return;
     var hearts = snakeConfigForLevel(level).hearts;
     final saved =
@@ -198,23 +197,32 @@ class _SnakeArrowsScreenState extends State<SnakeArrowsScreen>
       _blockedId = null;
       _loading = false;
       _boardReady = true;
-      // Only hold taps if the player actually waited. A tap made during the wait
-      // is delivered once the board's frame lands, and without this guard it
-      // fires an arrow they never aimed at — which is how the reported bug cost
-      // a heart. But on a warm prefetch the board appears in the same frame,
-      // there was no wait and so no queued tap, and guarding anyway would make
-      // the first 400ms of every level dead: a new annoyance replacing the old
-      // one. Held via a timer rather than a wall-clock deadline so tests can
-      // advance past it.
-      _busy = !wasWarm;
+      // Always hold taps briefly, warm board or not.
+      //
+      // The delay that makes a player press twice is *not* board generation —
+      // that is ~30ms below level 40. It is the win dialog's 340ms exit
+      // transition (see win_dialog.dart): the old, finished board stays on
+      // screen for a third of a second after the press, so nothing appears to
+      // have happened. The second press then lands on the new board and fires
+      // whatever arrow is under it, costing a heart on an arrow never aimed at.
+      //
+      // A previous version skipped this guard when the board came from a warm
+      // prefetch, reasoning that an instant board cannot have queued a tap.
+      // Wrong, and wrong on the common path: the warm case is precisely when the
+      // board is ready *during* the transition, so it is the case the reported
+      // bug lives in. The trade is not close either way — nobody chooses an
+      // arrow within 400ms of a fresh board appearing, and a stray tap costs a
+      // heart.
+      //
+      // Held via a timer rather than a wall-clock deadline so tests can advance
+      // past it.
+      _busy = true;
     });
 
     _settleTimer?.cancel();
-    if (!wasWarm) {
-      _settleTimer = Timer(const Duration(milliseconds: 400), () {
-        if (mounted) setState(() => _busy = false);
-      });
-    }
+    _settleTimer = Timer(const Duration(milliseconds: 400), () {
+      if (mounted) setState(() => _busy = false);
+    });
   }
 
   void _restart() {
