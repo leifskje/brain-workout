@@ -137,26 +137,36 @@ class _HomeScreenState extends State<HomeScreen> {
     final complete = store.dailyWorkoutComplete;
     final streak = store.currentStreak;
 
-    // Tapping the card opens the stats screen. It already shows the streak and
-    // today's progress, so "how am I doing" is what a player is asking when they
-    // touch it — and routing from here costs no vertical space. Both a header
-    // icon and a footer button were tried: each pushed a game card off a 360dp
-    // screen at the app's 1.3x text scale, which is a bad trade for a screen
-    // visited occasionally.
-    return GestureDetector(
-      key: const ValueKey('home_stats'),
-      onTap: () => Navigator.push(
-        context,
-        MaterialPageRoute(builder: (_) => const StatsScreen()),
-      ).then((_) {
-        if (mounted) setState(() {});
-      }),
-      child: Container(
-      margin: const EdgeInsets.fromLTRB(20, 4, 20, 8),
+    // The daily card is the way in to the stats screen: it already shows the
+    // streak and today's progress, so "how am I doing" is what a player is
+    // asking when they touch it, and routing from here costs almost no vertical
+    // space (a header icon and a footer button were each tried and pushed a game
+    // card off a 360dp screen at 1.3x text scale).
+    //
+    // But it needs a *visible* affordance, which the first version had none of —
+    // no label, no chevron, not even a ripple, because it was a GestureDetector.
+    // The owner went looking for the stats screen on a device and could not find
+    // it, which is the whole feature lost to save one grid row.
+    // "Elderly-friendly" means obvious affordances before it means anything else.
+    final radius = BorderRadius.circular(20);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 4, 20, 8),
+      child: Material(
+        color: complete ? const Color(0xFFE8F5E9) : Colors.white,
+        borderRadius: radius,
+        child: InkWell(
+          key: const ValueKey('home_stats'),
+          borderRadius: radius,
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const StatsScreen()),
+          ).then((_) {
+            if (mounted) setState(() {});
+          }),
+          child: Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: complete ? const Color(0xFFE8F5E9) : Colors.white,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: radius,
         border: Border.all(
           color: complete ? const Color(0xFF66BB6A) : Colors.black12,
         ),
@@ -233,8 +243,33 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
           ],
+          // The visible affordance. A label, not just a chevron: this audience
+          // does not read a lone arrow as "there is a screen behind this".
+          const SizedBox(height: 10),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              Text(
+                t.statistics,
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
+                  color: complete
+                      ? const Color(0xFF2E7D32)
+                      : Theme.of(context).colorScheme.primary,
+                ),
+              ),
+              Icon(Icons.chevron_right_rounded,
+                  size: 22,
+                  color: complete
+                      ? const Color(0xFF2E7D32)
+                      : Theme.of(context).colorScheme.primary),
+            ],
+          ),
         ],
       ),
+          ),
+        ),
       ),
     );
   }

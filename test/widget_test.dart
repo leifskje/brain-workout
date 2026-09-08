@@ -574,6 +574,36 @@ void main() {
     }
   });
 
+  testWidgets('The way into the stats screen is visible, not just tappable',
+      (tester) async {
+    // The bug this guards: the daily card was made tappable with no affordance
+    // at all -- no label, no chevron, not even a ripple, because it was a
+    // GestureDetector. The owner went looking for the stats screen on a device
+    // and could not find it. A feature nobody can find is worth nothing, so
+    // "findsOneWidget" on the label is the assertion that matters here, not the
+    // navigation.
+    tester.view.physicalSize = const Size(1080, 2280);
+    tester.view.devicePixelRatio = 2.625;
+    addTearDown(tester.view.reset);
+    SharedPreferences.setMockInitialValues({});
+    await ProgressStore.init();
+
+    await tester.pumpWidget(const BrainWorkoutApp());
+    await tester.pumpAndSettle();
+
+    // A readable label on screen, reachable without scrolling.
+    final label = find.text('Your progress');
+    expect(label, findsOneWidget,
+        reason: 'the entry point must be labelled, not an invisible tap target');
+    expect(label.hitTestable(), findsOneWidget);
+    expect(find.byIcon(Icons.chevron_right_rounded), findsWidgets);
+
+    // And it goes where it says.
+    await tester.tap(label);
+    await tester.pumpAndSettle();
+    expect(find.text('What you have done so far'), findsOneWidget);
+  });
+
   testWidgets('Stats show achievements only, never shortfalls', (tester) async {
     tester.view.physicalSize = const Size(1080, 2280);
     tester.view.devicePixelRatio = 2.625;
