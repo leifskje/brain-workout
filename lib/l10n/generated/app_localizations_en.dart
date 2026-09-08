@@ -729,4 +729,52 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get statistics => 'Your progress';
+
+  @override
+  String get statsHeader => 'What you have done so far';
+
+  @override
+  String statsDaysPlayed(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count days played',
+      one: '1 day played',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String statsStreakNow(int count) {
+    return 'Streak: $count';
+  }
+
+  @override
+  String statsStars(int count) {
+    return '$count stars';
+  }
+
+  @override
+  String statsLevelsCleared(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count levels cleared',
+      one: '1 level cleared',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String statsFastest(int level, String time) {
+    return 'Fastest: level $level in $time';
+  }
+
+  @override
+  String get statsNothingYet => 'Play a level and it will show up here.';
+
+  @override
+  String statsTotalStars(int count) {
+    return '$count stars in all';
+  }
 }

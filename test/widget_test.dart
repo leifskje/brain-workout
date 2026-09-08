@@ -45,6 +45,8 @@ import 'package:brain_workout/games/wordle/wordle_models.dart';
 import 'package:brain_workout/l10n/generated/app_localizations.dart';
 import 'package:brain_workout/main.dart';
 import 'package:brain_workout/screens/home_screen.dart';
+import 'package:brain_workout/screens/stats_screen.dart';
+import 'package:brain_workout/screens/settings_screen.dart';
 import 'package:brain_workout/games/wordle/word_repository.dart';
 import 'package:brain_workout/games/wordle/wordle_screen.dart';
 import 'package:brain_workout/services/board_prefetch.dart';
@@ -181,7 +183,13 @@ void main() {
     await tester.pumpWidget(const BrainWorkoutApp());
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byIcon(Icons.info_outline_rounded));
+    // The route moved: credits used to have its own home-screen icon, and now
+    // sits one tap inside Settings. The licence obliges the *app* to carry the
+    // credit, not to put it on the front page — but it must stay reachable, so
+    // this walks the real path rather than pushing the screen directly.
+    await tester.tap(find.byKey(const ValueKey('home_settings')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('settings_credits')));
     await tester.pumpAndSettle();
 
     expect(find.textContaining('Språkrådet'), findsOneWidget,
@@ -564,6 +572,101 @@ void main() {
           isTrue,
           reason: '${path.path} never pauses its clock on backgrounding');
     }
+  });
+
+  testWidgets('Stats show achievements only, never shortfalls', (tester) async {
+    tester.view.physicalSize = const Size(1080, 2280);
+    tester.view.devicePixelRatio = 2.625;
+    addTearDown(tester.view.reset);
+    SharedPreferences.setMockInitialValues({
+      'stars_word_search_1': 3,
+      'stars_word_search_2': 2,
+      'besttime_word_search_2': 95,
+      'days_played': <String>['2026-09-01', '2026-09-02'],
+    });
+    await ProgressStore.init();
+
+    await tester.pumpWidget(localizedApp(const StatsScreen()));
+    await tester.pumpAndSettle();
+
+    expect(find.text('5 stars in all'), findsOneWidget);
+    expect(find.text('2 days played'), findsOneWidget);
+    expect(find.byKey(const ValueKey('stats_word_search')), findsOneWidget);
+    expect(find.textContaining('2 levels cleared'), findsOneWidget);
+    expect(find.textContaining('level 2 in 1:35'), findsOneWidget);
+
+    // The point of the screen: a player opens it to feel she is getting
+    // somewhere. Games she has not touched are absent rather than listed at
+    // zero, and nothing anywhere reads as a fraction of what is left.
+    expect(find.byKey(const ValueKey('stats_trail')), findsNothing,
+        reason: 'an untouched game must not appear as a zero');
+    expect(find.textContaining('%'), findsNothing,
+        reason: 'no completion percentages -- that is a scoreboard of failure');
+    expect(find.textContaining(' of '), findsNothing,
+        reason: 'no "3 of 60" framing');
+  });
+
+  testWidgets('Stats invite a first game rather than showing nothing',
+      (tester) async {
+    tester.view.physicalSize = const Size(1080, 2280);
+    tester.view.devicePixelRatio = 2.625;
+    addTearDown(tester.view.reset);
+    SharedPreferences.setMockInitialValues({});
+    await ProgressStore.init();
+
+    await tester.pumpWidget(localizedApp(const StatsScreen()));
+    await tester.pumpAndSettle();
+    expect(find.text('Play a level and it will show up here.'), findsOneWidget);
+  });
+
+  testWidgets('The clock is off by default and the switch turns it on',
+      (tester) async {
+    tester.view.physicalSize = const Size(1080, 2280);
+    tester.view.devicePixelRatio = 2.625;
+    addTearDown(tester.view.reset);
+    SharedPreferences.setMockInitialValues({});
+    await ProgressStore.init();
+
+    await tester.pumpWidget(localizedApp(const SettingsScreen()));
+    await tester.pumpAndSettle();
+
+    final toggle = find.byKey(const ValueKey('settings_show_timer'));
+    expect(tester.widget<SwitchListTile>(toggle).value, isFalse,
+        reason: 'displaying the clock is opt-in');
+    // The note has to say the thing that is easy to get wrong: turning this on
+    // later loses nothing, because the time was always being recorded.
+    expect(find.textContaining('always saved'), findsOneWidget);
+
+    await tester.tap(toggle);
+    await tester.pumpAndSettle();
+    expect(ProgressStore.instance.showTimerDuringPlay, isTrue);
+    expect(tester.widget<SwitchListTile>(toggle).value, isTrue);
+  });
+
+  testWidgets('The clock appears in a game only once switched on',
+      (tester) async {
+    tester.view.physicalSize = const Size(1080, 2280);
+    tester.view.devicePixelRatio = 2.625;
+    addTearDown(tester.view.reset);
+
+    SharedPreferences.setMockInitialValues({});
+    await ProgressStore.init();
+    for (final game in gamesCatalog) {
+      ProgressStore.instance.markHelpSeen(game.id);
+    }
+    await tester
+        .pumpWidget(localizedApp(const MemoryMatchScreen(startLevel: 1)));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('level_clock')), findsNothing,
+        reason: 'the default experience has no clock on screen');
+
+    await tester.pumpWidget(const SizedBox());
+    await tester.pumpAndSettle();
+    await ProgressStore.instance.setShowTimerDuringPlay(true);
+    await tester
+        .pumpWidget(localizedApp(const MemoryMatchScreen(startLevel: 1)));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('level_clock')), findsOneWidget);
   });
 
   test('Stats count what was cleared, not what was reached', () async {

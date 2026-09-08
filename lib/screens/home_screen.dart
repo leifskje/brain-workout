@@ -10,7 +10,8 @@ import '../services/progress_store.dart';
 import '../services/app_info.dart';
 import '../services/app_update.dart';
 import 'coming_soon_screen.dart';
-import 'credits_screen.dart';
+import 'settings_screen.dart';
+import 'stats_screen.dart';
 import 'level_select_screen.dart';
 
 const String _supportUrl = 'https://ko-fi.com/loffen';
@@ -136,7 +137,21 @@ class _HomeScreenState extends State<HomeScreen> {
     final complete = store.dailyWorkoutComplete;
     final streak = store.currentStreak;
 
-    return Container(
+    // Tapping the card opens the stats screen. It already shows the streak and
+    // today's progress, so "how am I doing" is what a player is asking when they
+    // touch it — and routing from here costs no vertical space. Both a header
+    // icon and a footer button were tried: each pushed a game card off a 360dp
+    // screen at the app's 1.3x text scale, which is a bad trade for a screen
+    // visited occasionally.
+    return GestureDetector(
+      key: const ValueKey('home_stats'),
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const StatsScreen()),
+      ).then((_) {
+        if (mounted) setState(() {});
+      }),
+      child: Container(
       margin: const EdgeInsets.fromLTRB(20, 4, 20, 8),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -219,6 +234,7 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ],
         ],
+      ),
       ),
     );
   }
@@ -307,17 +323,23 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  /// Route to the word-list attribution. Norsk ordbank is CC BY 4.0, which
-  /// obliges the app itself to carry the credit — so this button is a licence
-  /// requirement, not a nicety, and shouldn't be removed.
-  Widget _buildCreditsButton() {
+  /// Settings, and through it the word-list attribution.
+  ///
+  /// Credits used to have its own header icon. Norsk ordbank is CC BY 4.0, which
+  /// obliges the *app* to carry the credit, so a route to it must exist in-app —
+  /// but it need not be a top-level icon, and the header only has room for two
+  /// controls before the title column narrows enough to push game cards off a
+  /// 360dp screen at the app's 1.3x text scale. It now lives one tap inside
+  /// Settings; don't remove that route.
+  Widget _buildSettingsButton() {
     return IconButton(
-      tooltip: AppLocalizations.of(context).credits,
-      icon: const Icon(Icons.info_outline_rounded,
+      key: const ValueKey('home_settings'),
+      tooltip: AppLocalizations.of(context).settings,
+      icon: const Icon(Icons.settings_outlined,
           size: 28, color: Colors.black45),
       onPressed: () => Navigator.push(
         context,
-        MaterialPageRoute(builder: (_) => const CreditsScreen()),
+        MaterialPageRoute(builder: (_) => const SettingsScreen()),
       ),
     );
   }
@@ -354,7 +376,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ),
                   _buildLanguageMenu(),
-                  _buildCreditsButton(),
+                  _buildSettingsButton(),
                 ],
               ),
             ),
@@ -406,6 +428,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         label: Text(AppLocalizations.of(context).sendFeedback),
                         style: _footerButtonStyle,
                       ),
+
                     ],
                   ),
                   if (AppInfo.instance.versionLabel.isNotEmpty)

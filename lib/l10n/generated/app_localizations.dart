@@ -1237,6 +1237,54 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Your progress'**
   String get statistics;
+
+  /// No description provided for @statsHeader.
+  ///
+  /// In en, this message translates to:
+  /// **'What you have done so far'**
+  String get statsHeader;
+
+  /// No description provided for @statsDaysPlayed.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 day played} other{{count} days played}}'**
+  String statsDaysPlayed(int count);
+
+  /// No description provided for @statsStreakNow.
+  ///
+  /// In en, this message translates to:
+  /// **'Streak: {count}'**
+  String statsStreakNow(int count);
+
+  /// No description provided for @statsStars.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} stars'**
+  String statsStars(int count);
+
+  /// No description provided for @statsLevelsCleared.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 level cleared} other{{count} levels cleared}}'**
+  String statsLevelsCleared(int count);
+
+  /// No description provided for @statsFastest.
+  ///
+  /// In en, this message translates to:
+  /// **'Fastest: level {level} in {time}'**
+  String statsFastest(int level, String time);
+
+  /// No description provided for @statsNothingYet.
+  ///
+  /// In en, this message translates to:
+  /// **'Play a level and it will show up here.'**
+  String get statsNothingYet;
+
+  /// No description provided for @statsTotalStars.
+  ///
+  /// In en, this message translates to:
+  /// **'{count} stars in all'**
+  String statsTotalStars(int count);
 }
 
 class _AppLocalizationsDelegate

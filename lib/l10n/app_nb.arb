@@ -203,5 +203,13 @@
   "showTimer": "Vis klokken mens du spiller",
   "showTimerNote": "Tiden din lagres alltid, så du kan slå den. Dette bestemmer bare om du ser den mens du spiller.",
   "settings": "Innstillinger",
-  "statistics": "Din framgang"
+  "statistics": "Din framgang",
+  "statsHeader": "Dette har du gjort så langt",
+  "statsDaysPlayed": "{count, plural, =1{1 dag spilt} other{{count} dager spilt}}",
+  "statsStreakNow": "Rekke: {count}",
+  "statsStars": "{count} stjerner",
+  "statsLevelsCleared": "{count, plural, =1{1 nivå fullført} other{{count} nivåer fullført}}",
+  "statsFastest": "Raskeste: nivå {level} på {time}",
+  "statsNothingYet": "Spill et nivå, så vises det her.",
+  "statsTotalStars": "{count} stjerner i alt"
 }

@@ -731,4 +731,52 @@ class AppLocalizationsNb extends AppLocalizations {
 
   @override
   String get statistics => 'Din framgang';
+
+  @override
+  String get statsHeader => 'Dette har du gjort så langt';
+
+  @override
+  String statsDaysPlayed(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count dager spilt',
+      one: '1 dag spilt',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String statsStreakNow(int count) {
+    return 'Rekke: $count';
+  }
+
+  @override
+  String statsStars(int count) {
+    return '$count stjerner';
+  }
+
+  @override
+  String statsLevelsCleared(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count nivåer fullført',
+      one: '1 nivå fullført',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String statsFastest(int level, String time) {
+    return 'Raskeste: nivå $level på $time';
+  }
+
+  @override
+  String get statsNothingYet => 'Spill et nivå, så vises det her.';
+
+  @override
+  String statsTotalStars(int count) {
+    return '$count stjerner i alt';
+  }
 }

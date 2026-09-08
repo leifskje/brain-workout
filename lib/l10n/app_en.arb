@@ -239,5 +239,19 @@
   "showTimer": "Show the clock while playing",
   "showTimerNote": "Your time is always saved so you can beat it. This only decides whether you see it while you play.",
   "settings": "Settings",
-  "statistics": "Your progress"
+  "statistics": "Your progress",
+  "statsHeader": "What you have done so far",
+  "statsDaysPlayed": "{count, plural, =1{1 day played} other{{count} days played}}",
+  "@statsDaysPlayed": {"placeholders": {"count": {"type": "int"}}},
+  "statsStreakNow": "Streak: {count}",
+  "@statsStreakNow": {"placeholders": {"count": {"type": "int"}}},
+  "statsStars": "{count} stars",
+  "@statsStars": {"placeholders": {"count": {"type": "int"}}},
+  "statsLevelsCleared": "{count, plural, =1{1 level cleared} other{{count} levels cleared}}",
+  "@statsLevelsCleared": {"placeholders": {"count": {"type": "int"}}},
+  "statsFastest": "Fastest: level {level} in {time}",
+  "@statsFastest": {"placeholders": {"level": {"type": "int"}, "time": {"type": "String"}}},
+  "statsNothingYet": "Play a level and it will show up here.",
+  "statsTotalStars": "{count} stars in all",
+  "@statsTotalStars": {"placeholders": {"count": {"type": "int"}}}
 }

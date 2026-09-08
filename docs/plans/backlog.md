@@ -91,8 +91,40 @@ We deliberately spread games across domains for a rounded "workout," and want
   Simon has — length is thin, and steepening the curve (done in 1.1.2: starts at four
   steps, 24 by level 28) is most of what length can give. Needs the hardcoded 2x2
   layout rethought for 5 or 6.
-- 💡 achievements/badges · 💡 stats screen
-- 💡 Settings screen (language, text size, sound)
+- ✅ **Stats screen** ("Your progress"), reached by tapping the daily card. Shows total
+  stars, days played, streak, and per game: levels cleared, stars, fastest level.
+
+  **Achievements only, never shortfalls.** No "3 of 60", no completion bars, no
+  percentages, and games with nothing recorded are absent rather than listed at zero.
+  This is the screen someone opens *because* they want to feel they are getting
+  somewhere; telling a retired teacher she has finished 5% of a game is a scoreboard
+  of failure. A test asserts the absence, since it is the kind of thing that gets
+  "helpfully" added back.
+
+  Routing cost two attempts. A header icon and then a footer button each pushed a game
+  card off a 360dp screen at the app's 1.3x text scale. The daily card already shows the
+  streak and today's progress, so "how am I doing" is what a player is asking when they
+  touch it — and routing from there costs no vertical space. Credits moved into Settings
+  to keep the header at two controls; that route is a CC BY requirement, so don't remove
+  it.
+- ✅ **Level times**, for Memory Match, Mini Sudoku, Word Search, Picture Logic, Number
+  Cross and Trail — the "competitive without sharing" axis. Three of those recorded
+  nothing at all before, so there was literally nothing to beat in them.
+
+  Always recorded, displayed only on opt-in (Settings → show the clock). An opt-in
+  *clock* would be dead on arrival: nothing to beat until you had replayed everything.
+  Both arrow games stay untimed — a clock argues against sitting and thinking — as does
+  Simon, whose playback is fixed-duration, so a time there measures the app. A source
+  test asserts that list.
+
+  See the reworded principle at the top of `CLAUDE.md`, and the two hazards it names:
+  foreground-only counting, and time persisted with a resumed board.
+- 💡 achievements/badges — the other answer to "competitive without sharing", competing
+  against a fixed bar rather than yourself. Deliberately *after* stats: awarding medals
+  over data the player cannot see yet is backwards.
+- ✅ Settings screen (show the clock; and the route to credits). 💡 Still no language or
+  text-size entry there — language lives in the home header on purpose, where someone
+  who opened the app in the wrong language can find it.
 
 ## Difficulty (audit with `dart run tool/analyze_level_curves.dart`)
 
