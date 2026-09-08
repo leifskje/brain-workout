@@ -167,26 +167,34 @@ class WhatNextRound {
           options: _dotOptions(terms[_visible], rng),
         );
       case QuestionKind.color:
-        // The cycle has to be longer than the four visible terms before the
-        // answer stops being "look four back". At tier 4+ the cycle also runs
-        // backwards half the time.
-        final minLen = switch (tier) { 1 => 2, 2 => 3, 3 => 4, _ => 5 };
-        final maxLen = switch (tier) { 1 => 3, 2 => 4, _ => 6 };
-        final cycleLen = minLen + rng.nextInt(maxLen - minLen + 1);
-        final cycle = <int>[
-          for (var i = 0; i < cycleLen; i++) rng.nextInt(patternColorCount),
-        ];
-        // A cycle of a single repeated colour is not a pattern.
-        if (cycle.toSet().length < 2) {
-          cycle[0] = (cycle[0] + 1) % patternColorCount;
-        }
-        final reversed = tier >= 4 && rng.nextBool();
-        int at(int i) =>
-            cycle[reversed ? (cycleLen - 1 - (i % cycleLen)) : (i % cycleLen)];
+        // A colour question is only fair if the *period is visible*: the cycle
+        // has to repeat at least once inside the terms on screen, or there is
+        // nothing to spot and the answer is a guess.
+        //
+        // This was got badly wrong once. Lengthening the cycle looked like a way
+        // to stop the answer being "look four back", but with four terms shown a
+        // five-long cycle simply never repeats -- 94% of colour questions became
+        // undeducible, and level 7 could ask "red, red, red, blue -> ?" where
+        // red, red, red, blue, blue is exactly as consistent as the wanted
+        // answer. Difficulty comes from a longer cycle *and* more terms shown,
+        // together; cycle length alone is not a difficulty knob.
+        final cycleLen = switch (tier) {
+          1 => 2,
+          2 => 2 + rng.nextInt(2),
+          3 => 3,
+          4 => 3 + rng.nextInt(2),
+          _ => 4 + rng.nextInt(2),
+        };
+        // One full repeat, sometimes two terms into it, so the answer is not
+        // always at the same offset. Capped at six terms: seven 64dp boxes still
+        // wrap onto two readable rows.
+        final shownCount =
+            (cycleLen + 1 + rng.nextInt(2)).clamp(_visible, 6);
+        final cycle = _colorCycle(cycleLen, rng);
         return SequenceQuestion(
           kind: kind,
-          shown: [for (var i = 0; i < _visible; i++) at(i)],
-          answer: at(_visible),
+          shown: [for (var i = 0; i < shownCount; i++) cycle[i % cycleLen]],
+          answer: cycle[shownCount % cycleLen],
           options: [0, 1, 2, 3]..shuffle(rng),
         );
       default:
@@ -213,6 +221,48 @@ class WhatNextRound {
           options: [0, 1, 2, 3]..shuffle(rng),
         );
     }
+  }
+
+  /// A colour cycle of exactly [length], with no shorter period hiding inside
+  /// it. Without that check a "length 4" cycle could come out as ABAB, which is
+  /// really length 2 -- the question would then be easier than the tier claims
+  /// while showing the extra terms that a long cycle earns.
+  static List<int> _colorCycle(int length, Random rng) {
+    List<int> build() =>
+        [for (var i = 0; i < length; i++) rng.nextInt(patternColorCount)];
+
+    var cycle = build();
+    for (var attempt = 0; attempt < 24 && _minPeriod(cycle) != length;
+        attempt++) {
+      cycle = build();
+    }
+    if (_minPeriod(cycle) != length) {
+      // Deterministic fallback: distinct colours while they last, then a repeat
+      // that cannot shorten the period.
+      cycle = [
+        for (var i = 0; i < length; i++)
+          i < patternColorCount
+              ? i
+              : (i % patternColorCount + 1) % patternColorCount,
+      ];
+    }
+    return cycle;
+  }
+
+  /// The smallest p for which the cycle is p repeated.
+  static int _minPeriod(List<int> cycle) {
+    for (var p = 1; p < cycle.length; p++) {
+      if (cycle.length % p != 0) continue;
+      var ok = true;
+      for (var i = p; i < cycle.length; i++) {
+        if (cycle[i] != cycle[i - p]) {
+          ok = false;
+          break;
+        }
+      }
+      if (ok) return p;
+    }
+    return cycle.length;
   }
 
   static List<int> _numberOptions(int answer, int last, Random rng) {

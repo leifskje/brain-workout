@@ -292,6 +292,47 @@ void main() {
     expect(find.text('Number Cross — Level 1'), findsOneWidget);
   });
 
+  test('Progress lost to the old Home bug is repaired from the star records',
+      () async {
+    // A player who cleared levels 1-6 of Memory Match but always pressed Home:
+    // stars were written, highest_level never moved.
+    SharedPreferences.setMockInitialValues({
+      'stars_memory_match_1': 3,
+      'stars_memory_match_2': 2,
+      'stars_memory_match_6': 1,
+      'highest_level_memory_match': 1,
+      // A game with underscores in the id, to catch the key-splitting.
+      'stars_word_scramble_4': 2,
+      'highest_level_word_scramble': 1,
+      // A level opened but never cleared must not count as progress.
+      'stars_simon_9': 0,
+      'highest_level_simon': 3,
+    });
+    await ProgressStore.init();
+    final store = ProgressStore.instance;
+
+    expect(store.highestLevel('memory_match'), 7,
+        reason: 'furthest cleared was 6, so 7 is unlocked');
+    expect(store.highestLevel('word_scramble'), 5,
+        reason: 'game ids contain underscores; the level is after the last one');
+    expect(store.highestLevel('simon'), 3,
+        reason: 'zero stars is not a clear, and progress never goes backwards');
+  });
+
+  test('The repair runs once and never lowers progress', () async {
+    SharedPreferences.setMockInitialValues({
+      'stars_trail_2': 3,
+      'highest_level_trail': 10, // already further along than the stars imply
+    });
+    await ProgressStore.init();
+    expect(ProgressStore.instance.highestLevel('trail'), 10,
+        reason: 'the repair must not pull a player back to the star records');
+
+    // Second launch: the flag is set, so nothing is re-derived.
+    await ProgressStore.init();
+    expect(ProgressStore.instance.highestLevel('trail'), 10);
+  });
+
   test('Clearing a level unlocks the next one, wherever the player then goes',
       () {
     final store = ProgressStore.instance;
@@ -774,6 +815,88 @@ void main() {
         reason: 'visual patterns do not get harder with the tier');
   });
 
+  test('What Comes Next: a colour pattern always repeats before it asks', () {
+    // The bug this guards, found by playing level 7: cycles were lengthened to
+    // make colour questions harder, but with only four terms on screen a cycle
+    // of five never repeats, so there is no pattern to see and the answer is a
+    // guess. "red, red, red, blue -> ?" was a real level 7 question, and
+    // red, red, red, blue, blue is exactly as consistent as the answer it
+    // wanted. 94% of colour questions were undeducible.
+    //
+    // The invariant: the smallest period consistent with everything the player
+    // can see must already repeat *within the shown terms*, so it can be spotted
+    // rather than guessed.
+    int minPeriod(List<int> seq) {
+      for (var p = 1; p < seq.length; p++) {
+        var ok = true;
+        for (var i = p; i < seq.length; i++) {
+          if (seq[i] != seq[i - p]) {
+            ok = false;
+            break;
+          }
+        }
+        if (ok) return p;
+      }
+      return seq.length;
+    }
+
+    for (var l = 1; l <= 200; l++) {
+      for (final q in WhatNextRound.generate(l)) {
+        if (q.kind != QuestionKind.color) continue;
+        final period = minPeriod([...q.shown, q.answer]);
+        expect(period, lessThanOrEqualTo(q.shown.length - 1),
+            reason: 'level $l shows ${q.shown} then asks for ${q.answer}: '
+                'the period ($period) never repeats on screen');
+        // Two colours minimum, or it is not a pattern at all.
+        expect({...q.shown, q.answer}.length, greaterThanOrEqualTo(2),
+            reason: 'level $l colour question is all one colour');
+      }
+    }
+  });
+
+  test('What Comes Next: arrow and dot patterns are predictable too', () {
+    // Written alongside the colour fix rather than after another bug report:
+    // the same commit changed all three visual kinds, and having got one wrong
+    // by not checking it against the terms on screen, the other two are worth
+    // asserting rather than assuming. Both were already sound.
+    for (var l = 1; l <= 200; l++) {
+      for (final q in WhatNextRound.generate(l)) {
+        if (q.kind == QuestionKind.arrow) {
+          final steps = [
+            for (var i = 1; i < q.shown.length; i++)
+              (q.shown[i] - q.shown[i - 1] + 4) % 4,
+          ];
+          final next = (q.answer - q.shown.last + 4) % 4;
+          final constant = steps.toSet().length == 1 && next == steps.first;
+          final alternating = steps.length >= 3 &&
+              steps[0] == steps[2] &&
+              steps[0] != steps[1] &&
+              next == steps[1];
+          expect(constant || alternating, isTrue,
+              reason: 'level $l arrows turn by $steps then $next, which is '
+                  'neither a constant nor a visible alternation');
+        }
+        if (q.kind == QuestionKind.dots) {
+          final steps = [
+            for (var i = 1; i < q.shown.length; i++)
+              q.shown[i] - q.shown[i - 1],
+          ];
+          final next = q.answer - q.shown.last;
+          final constant = steps.toSet().length == 1 && next == steps.first;
+          final growth = [
+            for (var i = 1; i < steps.length; i++) steps[i] - steps[i - 1],
+          ];
+          final growing = growth.isNotEmpty &&
+              growth.toSet().length == 1 &&
+              next == steps.last + growth.first;
+          expect(constant || growing, isTrue,
+              reason: 'level $l dots step by $steps then $next, which is '
+                  'neither constant nor a steady growth');
+        }
+      }
+    }
+  });
+
   test('What Comes Next: dot counts stay countable and options straddle them',
       () {
     for (var l = 1; l <= 120; l++) {
@@ -1007,6 +1130,34 @@ void main() {
         }
       }
       expect(board.isSolved, isTrue, reason: 'level $level should solve');
+    }
+  });
+
+  test('Simon climbs past an average adult span early on', () {
+    // Level 6 used to be a six-step sequence, under an average digit span, and
+    // the player it is built for called it unchallenging. The point is not that
+    // level 6 must be hard, but that the early ladder has to move.
+    expect(simonConfigForLevel(1).targetLength, greaterThanOrEqualTo(4),
+        reason: 'a three-step Simon is a demo, not a puzzle');
+    expect(simonConfigForLevel(6).targetLength, greaterThanOrEqualTo(7));
+    expect(simonConfigForLevel(10).targetLength, greaterThanOrEqualTo(10));
+
+    // Strictly increasing until the cap, then flat -- and the cap has to arrive
+    // late enough that the levels before it are not decorative.
+    var last = 0;
+    var capAt = -1;
+    for (var l = 1; l <= 60; l++) {
+      final n = simonConfigForLevel(l).targetLength;
+      expect(n, greaterThanOrEqualTo(last));
+      if (n == simonConfigForLevel(60).targetLength && capAt == -1) capAt = l;
+      last = n;
+    }
+    expect(capAt, greaterThanOrEqualTo(25),
+        reason: 'the ceiling arrives too early and the ladder goes flat');
+
+    // The flash floor is a legibility constraint, not a difficulty knob.
+    for (var l = 1; l <= 80; l++) {
+      expect(simonConfigForLevel(l).flashMs, greaterThanOrEqualTo(300));
     }
   });
 
@@ -1443,6 +1594,42 @@ void main() {
     expect(ProgressStore.instance.stars('word_scramble', 1),
         lessThanOrEqualTo(2),
         reason: 'a hinted level still awarded three stars');
+  });
+
+  testWidgets('Hint: a partly wrong answer is repaired, not fought',
+      (tester) async {
+    tester.view.physicalSize = const Size(1080, 2280);
+    tester.view.devicePixelRatio = 2.625;
+    addTearDown(tester.view.reset);
+
+    await tester
+        .pumpWidget(localizedApp(const WordScrambleScreen(startLevel: 1)));
+    await tester.pump();
+    final word = generateScrambleRound(1, 'en').first;
+
+    // Fill all but one slot in tile order, which for most scrambles is wrong.
+    // Stopping one short matters: a *full* wrong answer auto-submits and the
+    // board clears itself, so the only board a hint ever has to repair is a
+    // partly filled one.
+    for (var i = 0; i < word.word.length - 1; i++) {
+      await tester.tap(find.byKey(ValueKey('ws_tile_$i')));
+      await tester.pump();
+    }
+
+    // Each hint fixes the first bad slot, moving a tile out of a later slot
+    // when every copy of the needed letter is already placed. With a repeated
+    // letter the tile it takes must be a misplaced one, never a slot the player
+    // already got right -- otherwise hints undo their own work and this loop
+    // never converges.
+    for (var i = 0; i < word.word.length * 3; i++) {
+      if (find.text('Word 2 of 3').evaluate().isNotEmpty) break;
+      final button = find.byKey(const ValueKey('game_hint_button'));
+      if (button.evaluate().isEmpty) break;
+      await tester.tap(button);
+      await tester.pump(const Duration(milliseconds: 500));
+    }
+    expect(find.text('Word 2 of 3'), findsOneWidget,
+        reason: 'hints could not repair a partly wrong answer');
   });
 
   testWidgets('Hint: the daily word never offers one', (tester) async {

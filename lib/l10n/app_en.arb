@@ -85,7 +85,7 @@
   "helpMiniSudoku": "Fill the empty squares so every row, column and box contains each number exactly once. Tap a square, then tap a number. Clashing numbers turn red so you can fix them.",
   "helpMemoryMatch": "All the cards lie face down, and every picture has a twin. Flip two cards at a time and remember what you see. Find all the pairs to win.",
   "helpSimon": "Watch the buttons light up, one after another. Then tap the same buttons in the same order. The sequence grows one step each round — keep up to the end!",
-  "helpWhatNext": "Look at the row of numbers and figure out the pattern. Then pick the number that comes next. A wrong pick costs a heart.",
+  "helpWhatNext": "Look at the row and work out the pattern — it may be numbers, dots, colours or arrows. Then pick what comes next. A wrong pick costs a heart.",
   "helpWordScramble": "The letters of a familiar word have been shuffled. Tap them in the right order to spell the word. Tap a letter in your answer to put it back. The category above the letters tells you what kind of word to look for. If the letters also spell a different real word, saying that one costs you nothing — just try again.",
   "helpCrackCode": "Find the secret code! After each guess you get two numbers: the green one is how many digits are correct and in the correct spot, the yellow one is how many are correct but in the wrong spot.\n\nThey are counts only. They never tell you which digit is which — working that out is the puzzle. Crack the code before your guesses run out.",
   "helpTrail": "Tap the circles in order: 1, 2, 3 … On higher levels you alternate numbers and letters: 1, A, 2, B. A wrong tap costs a heart.",

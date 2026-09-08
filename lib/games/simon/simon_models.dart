@@ -23,9 +23,19 @@ class SimonConfig {
 SimonConfig simonConfigForLevel(int level) {
   return SimonConfig(
     buttons: 4,
-    // Sequence length is the whole difficulty of Simon, so it keeps climbing.
-    // The old ceiling of 12 was reached at level 18 and never moved again.
-    targetLength: (3 + level ~/ 2).clamp(3, 20),
+    // Sequence length is the whole difficulty of Simon while there are only
+    // four buttons, so it keeps climbing.
+    //
+    // Steepened twice now. The old ceiling of 12 arrived at level 18 and never
+    // moved; then 3 + level/2 left level 6 at a six-step sequence, which is
+    // under an average adult digit span and read as "not challenging" to the
+    // player this is built for. Starts at four (a three-step Simon is a demo,
+    // not a puzzle), climbs three steps every four levels, and tops out at 24
+    // around level 28 rather than 20 at level 34.
+    //
+    // Length is a *thin* axis, though: the next real one is more than four
+    // buttons, which needs the 2x2 layout rethought. See docs/plans/backlog.md.
+    targetLength: (4 + ((level - 1) * 3) ~/ 4).clamp(4, 24),
     // Playback speeds up gently on higher levels. 300ms is about the floor at
     // which a flash is still clearly *seen* rather than guessed at.
     flashMs: (650 - level * 12).clamp(300, 650),

@@ -515,7 +515,7 @@ abstract class AppLocalizations {
   /// No description provided for @helpWhatNext.
   ///
   /// In en, this message translates to:
-  /// **'Look at the row of numbers and figure out the pattern. Then pick the number that comes next. A wrong pick costs a heart.'**
+  /// **'Look at the row and work out the pattern — it may be numbers, dots, colours or arrows. Then pick what comes next. A wrong pick costs a heart.'**
   String get helpWhatNext;
 
   /// No description provided for @helpWordScramble.

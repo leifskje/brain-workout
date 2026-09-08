@@ -21,8 +21,52 @@ class ProgressStore {
   }
 
   static Future<void> init() async {
-    _instance = ProgressStore._(await SharedPreferences.getInstance());
+    final store = ProgressStore._(await SharedPreferences.getInstance());
+    _instance = store;
+    store._repairLostProgress();
   }
+
+  /// One-time repair for progress lost to the "Home forfeits the unlock" bug.
+  ///
+  /// Until 1.1.1, clearing a level only advanced [highestLevel] if the player
+  /// pressed "Next level"; pressing "Home" recorded nothing, so their stored
+  /// level sat below where they had actually got to. Fixing the write path does
+  /// not undo that — every existing install is still carrying the shortfall.
+  ///
+  /// The star records know what really happened: a level with stars was cleared,
+  /// whichever button followed. So the furthest cleared level, plus one, is a
+  /// sound lower bound on where the player belongs. [recordReached] only ever
+  /// raises, so this can never walk someone backwards.
+  ///
+  /// Runs once and remembers it, since after 1.1.1 the write path is correct and
+  /// re-deriving on every launch would just be work.
+  void _repairLostProgress() {
+    if (_prefs.getBool(_repairedKey) ?? false) return;
+
+    final furthestCleared = <String, int>{};
+    for (final key in _prefs.getKeys()) {
+      if (!key.startsWith('stars_')) continue;
+      if ((_prefs.getInt(key) ?? 0) <= 0) continue;
+      // 'stars_<gameId>_<level>', and gameId itself contains underscores
+      // ('word_scramble'), so split on the *last* one.
+      final rest = key.substring('stars_'.length);
+      final cut = rest.lastIndexOf('_');
+      if (cut <= 0) continue;
+      final gameId = rest.substring(0, cut);
+      final level = int.tryParse(rest.substring(cut + 1));
+      if (level == null) continue;
+      if (level > (furthestCleared[gameId] ?? 0)) {
+        furthestCleared[gameId] = level;
+      }
+    }
+
+    furthestCleared.forEach((gameId, level) {
+      recordReached(gameId, level + 1);
+    });
+    _prefs.setBool(_repairedKey, true);
+  }
+
+  static const _repairedKey = 'progress_repaired_v1';
 
   // ---------------------------------------------------------------- levels ---
 

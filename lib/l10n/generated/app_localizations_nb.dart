@@ -250,7 +250,7 @@ class AppLocalizationsNb extends AppLocalizations {
 
   @override
   String get helpWhatNext =>
-      'Se på tallrekken og finn mønsteret. Velg så tallet som kommer etterpå. Feil svar koster et hjerte.';
+      'Se på rekken og finn mønsteret — det kan være tall, prikker, farger eller piler. Velg så det som kommer etterpå. Feil svar koster et hjerte.';
 
   @override
   String get helpWordScramble =>

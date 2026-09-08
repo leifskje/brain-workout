@@ -76,7 +76,7 @@
   "helpMiniSudoku": "Fyll de tomme rutene slik at hver rad, kolonne og boks inneholder hvert tall nøyaktig én gang. Trykk på en rute, og så på et tall. Tall som krasjer blir røde, så du kan rette dem.",
   "helpMemoryMatch": "Alle kortene ligger med bildesiden ned, og hvert bilde har en tvilling. Snu to kort om gangen og husk hva du ser. Finn alle parene for å vinne.",
   "helpSimon": "Se på knappene som lyser opp, én etter én. Trykk så på de samme knappene i samme rekkefølge. Rekken blir ett trinn lengre for hver runde — heng med til slutten!",
-  "helpWhatNext": "Se på tallrekken og finn mønsteret. Velg så tallet som kommer etterpå. Feil svar koster et hjerte.",
+  "helpWhatNext": "Se på rekken og finn mønsteret — det kan være tall, prikker, farger eller piler. Velg så det som kommer etterpå. Feil svar koster et hjerte.",
   "helpWordScramble": "Bokstavene i et kjent ord er stokket om. Trykk på dem i riktig rekkefølge for å stave ordet. Trykk på en bokstav i svaret for å legge den tilbake. Kategorien over bokstavene sier hva slags ord du skal se etter. Hvis bokstavene også danner et annet ekte ord, koster det deg ingenting — bare prøv igjen.",
   "helpCrackCode": "Finn den hemmelige koden! Etter hvert forsøk får du to tall: det grønne viser hvor mange som er riktige og står på riktig plass, det gule hvor mange som er riktige, men står på feil plass.\n\nDu får bare antallet — aldri hvilke. Det er nettopp det du skal regne ut. Knekk koden før forsøkene er brukt opp.",
   "helpTrail": "Trykk på sirklene i rekkefølge: 1, 2, 3 … På høyere nivåer veksler du mellom tall og bokstaver: 1, A, 2, B. Feil trykk koster et hjerte.",

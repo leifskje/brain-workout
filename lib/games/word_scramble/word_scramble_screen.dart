@@ -167,9 +167,20 @@ class _WordScrambleScreenState extends State<WordScrambleScreen> {
       }
     }
     if (tile == -1) {
-      // The needed tile is parked in a later slot; free it first.
-      final holder = _slots.indexWhere(
-          (t) => t != null && _word.letters[t] == wanted);
+      // Every tile carrying this letter is already placed, so one has to be
+      // moved. Prefer a tile sitting in the *wrong* place: with a repeated
+      // letter (LETTER, ØYNENE) the first match can be one that is already
+      // correct, and taking that one would undo work the player got right.
+      var holder = -1;
+      for (var i = 0; i < _slots.length; i++) {
+        final t = _slots[i];
+        if (t == null || _word.letters[t] != wanted) continue;
+        if (_word.letters[t] != target[i]) {
+          holder = i;
+          break;
+        }
+        if (holder == -1) holder = i; // fallback: nothing misplaced
+      }
       if (holder == -1) return; // cannot happen for a well-formed scramble
       tile = _slots[holder]!;
       _slots[holder] = null;
