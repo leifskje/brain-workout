@@ -431,8 +431,11 @@ void main() {
         lessThan(snakeTargetBranchingForLevel(40)));
     expect(snakeConfigForLevel(50).minLength,
         greaterThan(snakeConfigForLevel(35).minLength));
-    expect(memoryConfigForLevel(9).pairs,
-        greaterThan(memoryConfigForLevel(7).pairs));
+    expect(memoryConfigForLevel(9).groups,
+        greaterThan(memoryConfigForLevel(7).groups));
+    // Past 21 pairs the ladder switches mechanic rather than stopping.
+    expect(memoryConfigForLevel(9).groupSize, 2);
+    expect(memoryConfigForLevel(13).groupSize, 3);
     // 2048's target tile is a structural ceiling, so the spawn mix carries the
     // curve past it — that is the knob that has to keep moving.
     expect(mergeConfigForLevel(18).fourChance,
@@ -683,23 +686,29 @@ void main() {
         reason: 'maze should be dense, not sparse');
   });
 
-  test('Memory boards are well-formed (every symbol appears exactly twice)', () {
-    for (var level = 1; level <= 10; level++) {
+  test('Memory boards are well-formed (every symbol appears a full group)', () {
+    for (var level = 1; level <= 20; level++) {
       final board = MemoryBoard.generate(level);
+      final cfg = memoryConfigForLevel(level);
       expect(board.cards.length, board.rows * board.cols);
-      expect(board.cards.length.isEven, isTrue);
+      expect(board.groupSize, cfg.groupSize);
+      // A board whose card count is not a whole number of groups would leave
+      // cards that can never be matched, and the level unwinnable.
+      expect(board.cards.length % board.groupSize, 0,
+          reason: 'memory level $level cannot be split into groups');
       expect(board.isSolved, isFalse);
 
       final counts = <String, int>{};
       for (final card in board.cards) {
         counts[card.symbol] = (counts[card.symbol] ?? 0) + 1;
       }
-      expect(counts.values.every((n) => n == 2), isTrue,
-          reason: 'memory level $level has a non-paired symbol');
-      // The board grew to 21 pairs, so the symbol pool has to keep up. Without
-      // this, too few symbols would quietly shrink the deck instead of failing.
-      expect(counts.length, board.cards.length ~/ 2,
+      expect(counts.values.every((n) => n == board.groupSize), isTrue,
+          reason: 'memory level $level has an incomplete group');
+      // The symbol pool has to keep up. Without this, too few symbols would
+      // quietly shrink the deck instead of failing.
+      expect(counts.length, board.groups,
           reason: 'memory level $level ran short of distinct symbols');
+      expect(board.groupsFound, 0);
     }
   });
 
@@ -1707,6 +1716,65 @@ void main() {
         of: find.byKey(const ValueKey('cc_exact_0')),
         matching: find.byIcon(Icons.circle));
     expect(dots, findsOneWidget);
+  });
+
+  testWidgets('Memory Match: a triples board needs three, and says so',
+      (tester) async {
+    tester.view.physicalSize = const Size(1080, 2280);
+    tester.view.devicePixelRatio = 2.625;
+    addTearDown(tester.view.reset);
+
+    await tester
+        .pumpWidget(localizedApp(const MemoryMatchScreen(startLevel: 13)));
+    await tester.pumpAndSettle();
+    final board = MemoryBoard.generate(13); // same seed as the screen
+    expect(board.groupSize, 3);
+
+    // The mechanic must be visible before anything is matched -- a player who
+    // has only ever matched two of a kind will otherwise keep trying to and read
+    // the board as broken.
+    expect(find.byKey(const ValueKey('memory_triples_banner')).hitTestable(),
+        findsOneWidget);
+    expect(find.textContaining('Triples found'), findsOneWidget);
+    expect(find.textContaining('Pairs found'), findsNothing);
+
+    final bySymbol = <String, List<int>>{};
+    for (final card in board.cards) {
+      bySymbol.putIfAbsent(card.symbol, () => []).add(card.id);
+    }
+    final trioSymbol = bySymbol.keys.first;
+    final trio = bySymbol[trioSymbol]!;
+    expect(trio.length, 3);
+
+    // Two of a kind must *not* count: the pair logic would have matched here.
+    for (final id in trio.take(2)) {
+      await tester.tap(find.byKey(ValueKey('memory-card-$id')));
+      await tester.pump();
+    }
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(find.textContaining('Triples found: 0'), findsOneWidget,
+        reason: 'two matching cards were accepted as a triple');
+
+    // The third completes it.
+    await tester.tap(find.byKey(ValueKey('memory-card-${trio[2]}')));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(find.textContaining('Triples found: 1'), findsOneWidget);
+
+    // And a mismatched third turns the whole attempt back over: two of one
+    // symbol, then one of another.
+    final rest = bySymbol.keys.where((k) => k != trioSymbol).toList();
+    expect(rest.length, greaterThanOrEqualTo(2));
+    final pairOf = bySymbol[rest[0]]!;
+    final oddOne = bySymbol[rest[1]]!;
+    await tester.tap(find.byKey(ValueKey('memory-card-${pairOf[0]}')));
+    await tester.pump();
+    await tester.tap(find.byKey(ValueKey('memory-card-${pairOf[1]}')));
+    await tester.pump();
+    await tester.tap(find.byKey(ValueKey('memory-card-${oddOne[0]}')));
+    await tester.pump(const Duration(milliseconds: 1400));
+    expect(find.textContaining('Triples found: 1'), findsOneWidget,
+        reason: 'a mismatched third card should not complete a triple');
   });
 
   testWidgets('Winning then choosing Home still unlocks the next level',

@@ -242,7 +242,7 @@ class AppLocalizationsNb extends AppLocalizations {
 
   @override
   String get helpMemoryMatch =>
-      'Alle kortene ligger med bildesiden ned, og hvert bilde har en tvilling. Snu to kort om gangen og husk hva du ser. Finn alle parene for å vinne.';
+      'Alle kortene ligger med bildesiden ned, og hvert bilde har en tvilling. Snu to kort om gangen og husk hva du ser. Finn alle parene for å vinne.\n\nFra nivå 10 kommer bildene i tre og tre i stedet for to og to: du snur tre kort om gangen, og alle tre må være like. Brettet sier «Finn 3 like» når det er i den modusen.';
 
   @override
   String get helpSimon =>
@@ -696,4 +696,16 @@ class AppLocalizationsNb extends AppLocalizations {
   @override
   String get arrowEscapeHintZoom =>
       'Trykk på en pil for å sende den ut av brettet. Den må ha fri bane til kanten. Knip eller bruk knappene for å zoome inn.';
+
+  @override
+  String triplesFound(int matched, int total) {
+    return 'Tripler funnet: $matched / $total';
+  }
+
+  @override
+  String get findThreeOfAKind => 'Finn 3 like';
+
+  @override
+  String get memoryMatchHintTriples =>
+      'Trykk på tre kort for å finne en trippel.';
 }

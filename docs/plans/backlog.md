@@ -118,10 +118,24 @@ What's left:
   taking level 60 from 24 arrows to ~70 with `clear@start` 22% → 4%. Next is re-tuning
   the branching targets, which the generator can now beat. See
   [arrow-maze-depth.md](arrow-maze-depth.md) and [handoff.md](handoff.md).
-- 💡 **Memory Match needs *triples* to go further.** 21 pairs is the structural
-  ceiling: all layouts are 6 columns wide, so card size is width-bound at ~45dp
-  on a 360dp phone and rows are the only thing that can grow. Matching three of a
-  kind rather than two is the next real axis, and it is a mechanic change.
+- ✅ **Memory Match triples**, from level 10. 21 pairs is the structural ceiling —
+  all layouts are 6 columns wide, so card size is width-bound at ~45dp on a 360dp
+  phone and rows are the only thing that can grow. Matching three of a kind is the
+  only axis left, and it is a change of mechanic rather than a bigger board.
+
+  **Level-gated, not a setting.** Word Search does the same with its hidden word
+  list. A toggle asks this audience to self-assess difficulty, which they will not
+  do, and the level ladder is already the difficulty dial.
+
+  The mechanic has to be visible *before* the first match, which is the part worth
+  keeping: a player who has only ever matched two of a kind will keep trying to and
+  read the board as broken. So there is a banner ("Find 3 of a kind"), the counter
+  reads "Triples found", the bottom hint changes, and the how-to-play sheet says so.
+  Mismatches also linger longer (1150ms against 850ms) — three cards is more to take
+  in, and remembering them is the whole game.
+
+  Triples restart at 8 groups against the 21 pairs just before. A new rule should not
+  arrive at full difficulty. Plateau moves from level 9 to level 13.
 - ✅ **Number Cross division**, from level 14 — the last knob, since blanks and decoys
   are both spent by level 32. Deliberately late: it is the hardest of the four to do in
   the head, and the only one whose operands cannot be chosen freely.

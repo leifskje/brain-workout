@@ -242,7 +242,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get helpMemoryMatch =>
-      'All the cards lie face down, and every picture has a twin. Flip two cards at a time and remember what you see. Find all the pairs to win.';
+      'All the cards lie face down, and every picture has a twin. Flip two cards at a time and remember what you see. Find all the pairs to win.\n\nFrom level 10 the pictures come in threes instead of twos: you turn over three cards at a time and all three must match. The board says \"Find 3 of a kind\" when it is in that mode.';
 
   @override
   String get helpSimon =>
@@ -695,4 +695,15 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get arrowEscapeHintZoom =>
       'Tap an arrow to send it off the board. It needs a clear path to the edge. Pinch or use the buttons to zoom in.';
+
+  @override
+  String triplesFound(int matched, int total) {
+    return 'Triples found: $matched / $total';
+  }
+
+  @override
+  String get findThreeOfAKind => 'Find 3 of a kind';
+
+  @override
+  String get memoryMatchHintTriples => 'Tap three cards to find a triple.';
 }

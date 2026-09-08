@@ -83,7 +83,7 @@
   "helpNumberCross": "Place the numbers from the tray into the empty squares so every equation is correct — across and down. Tap a number and then a square, or drag it in. Tap a placed number to take it back.",
   "helpWordSearch": "All the words below the grid are hidden among the letters. Drag your finger across a word to mark it — forwards or backwards. Find them all to win. From level 10 every word belongs to the same category, and on the hardest levels the list is hidden: you get only the category and how many words to find.",
   "helpMiniSudoku": "Fill the empty squares so every row, column and box contains each number exactly once. Tap a square, then tap a number. Clashing numbers turn red so you can fix them.",
-  "helpMemoryMatch": "All the cards lie face down, and every picture has a twin. Flip two cards at a time and remember what you see. Find all the pairs to win.",
+  "helpMemoryMatch": "All the cards lie face down, and every picture has a twin. Flip two cards at a time and remember what you see. Find all the pairs to win.\n\nFrom level 10 the pictures come in threes instead of twos: you turn over three cards at a time and all three must match. The board says \"Find 3 of a kind\" when it is in that mode.",
   "helpSimon": "Watch the buttons light up, one after another. Then tap the same buttons in the same order. The sequence grows one step each round — keep up to the end!",
   "helpWhatNext": "Look at the row and work out the pattern — it may be numbers, dots, colours or arrows. Then pick what comes next. A wrong pick costs a heart.",
   "helpWordScramble": "The letters of a familiar word have been shuffled. Tap them in the right order to spell the word. Tap a letter in your answer to put it back. The category above the letters tells you what kind of word to look for. If the letters also spell a different real word, saying that one costs you nothing — just try again.",
@@ -227,5 +227,9 @@
   "useHint": "Hint",
   "hintCost": "A hint means at most 2 stars for this level.",
   "hintNoneLeft": "No more hints for this word.",
-  "arrowEscapeHintZoom": "Tap an arrow to send it off the board. It needs a clear path to the edge. Pinch or use the buttons to zoom in."
+  "arrowEscapeHintZoom": "Tap an arrow to send it off the board. It needs a clear path to the edge. Pinch or use the buttons to zoom in.",
+  "triplesFound": "Triples found: {matched} / {total}",
+  "@triplesFound": {"placeholders": {"matched": {"type": "int"}, "total": {"type": "int"}}},
+  "findThreeOfAKind": "Find 3 of a kind",
+  "memoryMatchHintTriples": "Tap three cards to find a triple."
 }

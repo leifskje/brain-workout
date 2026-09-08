@@ -74,7 +74,7 @@
   "helpNumberCross": "Plasser tallene fra brettet i de tomme rutene slik at alle regnestykkene stemmer — både bortover og nedover. Trykk på et tall og så en rute, eller dra det inn. Trykk på et plassert tall for å ta det tilbake.",
   "helpWordSearch": "Alle ordene under rutenettet er gjemt blant bokstavene. Dra fingeren over et ord for å markere det — forlengs eller baklengs. Finn alle for å vinne. Fra nivå 10 hører alle ordene til samme kategori, og på de vanskeligste nivåene er listen skjult: du får bare kategorien og hvor mange ord du skal finne.",
   "helpMiniSudoku": "Fyll de tomme rutene slik at hver rad, kolonne og boks inneholder hvert tall nøyaktig én gang. Trykk på en rute, og så på et tall. Tall som krasjer blir røde, så du kan rette dem.",
-  "helpMemoryMatch": "Alle kortene ligger med bildesiden ned, og hvert bilde har en tvilling. Snu to kort om gangen og husk hva du ser. Finn alle parene for å vinne.",
+  "helpMemoryMatch": "Alle kortene ligger med bildesiden ned, og hvert bilde har en tvilling. Snu to kort om gangen og husk hva du ser. Finn alle parene for å vinne.\n\nFra nivå 10 kommer bildene i tre og tre i stedet for to og to: du snur tre kort om gangen, og alle tre må være like. Brettet sier «Finn 3 like» når det er i den modusen.",
   "helpSimon": "Se på knappene som lyser opp, én etter én. Trykk så på de samme knappene i samme rekkefølge. Rekken blir ett trinn lengre for hver runde — heng med til slutten!",
   "helpWhatNext": "Se på rekken og finn mønsteret — det kan være tall, prikker, farger eller piler. Velg så det som kommer etterpå. Feil svar koster et hjerte.",
   "helpWordScramble": "Bokstavene i et kjent ord er stokket om. Trykk på dem i riktig rekkefølge for å stave ordet. Trykk på en bokstav i svaret for å legge den tilbake. Kategorien over bokstavene sier hva slags ord du skal se etter. Hvis bokstavene også danner et annet ekte ord, koster det deg ingenting — bare prøv igjen.",
@@ -194,5 +194,8 @@
   "useHint": "Hint",
   "hintCost": "Et hint betyr høyst 2 stjerner på dette nivået.",
   "hintNoneLeft": "Ingen flere hint til dette ordet.",
-  "arrowEscapeHintZoom": "Trykk på en pil for å sende den ut av brettet. Den må ha fri bane til kanten. Knip eller bruk knappene for å zoome inn."
+  "arrowEscapeHintZoom": "Trykk på en pil for å sende den ut av brettet. Den må ha fri bane til kanten. Knip eller bruk knappene for å zoome inn.",
+  "triplesFound": "Tripler funnet: {matched} / {total}",
+  "findThreeOfAKind": "Finn 3 like",
+  "memoryMatchHintTriples": "Trykk på tre kort for å finne en trippel."
 }

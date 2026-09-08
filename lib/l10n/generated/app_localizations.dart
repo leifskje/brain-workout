@@ -503,7 +503,7 @@ abstract class AppLocalizations {
   /// No description provided for @helpMemoryMatch.
   ///
   /// In en, this message translates to:
-  /// **'All the cards lie face down, and every picture has a twin. Flip two cards at a time and remember what you see. Find all the pairs to win.'**
+  /// **'All the cards lie face down, and every picture has a twin. Flip two cards at a time and remember what you see. Find all the pairs to win.\n\nFrom level 10 the pictures come in threes instead of twos: you turn over three cards at a time and all three must match. The board says \"Find 3 of a kind\" when it is in that mode.'**
   String get helpMemoryMatch;
 
   /// No description provided for @helpSimon.
@@ -1183,6 +1183,24 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Tap an arrow to send it off the board. It needs a clear path to the edge. Pinch or use the buttons to zoom in.'**
   String get arrowEscapeHintZoom;
+
+  /// No description provided for @triplesFound.
+  ///
+  /// In en, this message translates to:
+  /// **'Triples found: {matched} / {total}'**
+  String triplesFound(int matched, int total);
+
+  /// No description provided for @findThreeOfAKind.
+  ///
+  /// In en, this message translates to:
+  /// **'Find 3 of a kind'**
+  String get findThreeOfAKind;
+
+  /// No description provided for @memoryMatchHintTriples.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap three cards to find a triple.'**
+  String get memoryMatchHintTriples;
 }
 
 class _AppLocalizationsDelegate

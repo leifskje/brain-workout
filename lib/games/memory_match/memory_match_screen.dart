@@ -27,7 +27,9 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen> {
 
   int _level = 1;
   late MemoryBoard _board;
-  int? _firstId; // first card of an in-progress pair
+  /// Cards turned over in the current attempt, up to the board's group size.
+  /// A list rather than a single id because a triples board needs three.
+  final List<int> _faceUpIds = [];
   int _moves = 0;
   bool _busy = false; // locked while a mismatched pair flips back
 
@@ -50,7 +52,7 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen> {
     setState(() {
       _level = level;
       _board = MemoryBoard.generate(level);
-      _firstId = null;
+      _faceUpIds.clear();
       _moves = 0;
       _busy = false;
     });
@@ -62,22 +64,29 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen> {
     if (_busy || card.faceUp || card.matched) return;
 
     HapticFeedback.selectionClick();
-    setState(() => card.faceUp = true);
+    setState(() {
+      card.faceUp = true;
+      _faceUpIds.add(card.id);
+    });
 
-    if (_firstId == null) {
-      _firstId = card.id;
-      return;
-    }
+    // Still filling the attempt: on a triples board the first two taps decide
+    // nothing, and a mismatch is only known once the third is over.
+    if (_faceUpIds.length < _board.groupSize) return;
 
-    final first = _board.cards.firstWhere((c) => c.id == _firstId);
+    final turned = [
+      for (final id in _faceUpIds)
+        _board.cards.firstWhere((c) => c.id == id)
+    ];
     setState(() => _moves++);
 
-    if (first.symbol == card.symbol) {
+    final matched = turned.every((c) => c.symbol == turned.first.symbol);
+    if (matched) {
       HapticFeedback.lightImpact();
       setState(() {
-        first.matched = true;
-        card.matched = true;
-        _firstId = null;
+        for (final c in turned) {
+          c.matched = true;
+        }
+        _faceUpIds.clear();
       });
       if (_board.isSolved) {
         _busy = true;
@@ -88,12 +97,16 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen> {
     } else {
       HapticFeedback.mediumImpact();
       _busy = true;
-      Future.delayed(const Duration(milliseconds: 850), () {
+      // Longer on a triples board: three cards is more to take in before they
+      // turn back, and the whole game is remembering what was under them.
+      final linger = _board.isTriples ? 1150 : 850;
+      Future.delayed(Duration(milliseconds: linger), () {
         if (!mounted) return;
         setState(() {
-          first.faceUp = false;
-          card.faceUp = false;
-          _firstId = null;
+          for (final c in turned) {
+            c.faceUp = false;
+          }
+          _faceUpIds.clear();
           _busy = false;
         });
       });
@@ -103,10 +116,12 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen> {
   void _showWin() {
     if (!mounted) return;
     HapticFeedback.heavyImpact();
-    final pairs = _board.cards.length ~/ 2;
-    final stars = _moves <= (pairs * 1.7).ceil()
+    // Scored on *attempts per group*, so the thresholds carry over unchanged
+    // from pairs to triples: a perfect game is one attempt per group either way.
+    final groups = _board.groups;
+    final stars = _moves <= (groups * 1.7).ceil()
         ? 3
-        : (_moves <= (pairs * 2.6).ceil() ? 2 : 1);
+        : (_moves <= (groups * 2.6).ceil() ? 2 : 1);
     ProgressStore.instance
       ..registerPlay(_gameId)
       ..recordCleared(_gameId, _level, stars);
@@ -138,8 +153,9 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final matched = _board.cards.where((c) => c.matched).length ~/ 2;
-    final total = _board.cards.length ~/ 2;
+    final t = AppLocalizations.of(context);
+    final found = _board.groupsFound;
+    final total = _board.groups;
     return Scaffold(
       body: SafeArea(
         child: Column(
@@ -152,10 +168,35 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen> {
                     body: AppLocalizations.of(context).helpMemoryMatch,
                     accent: _accent)),
             Text(
-              AppLocalizations.of(context).pairsFound(matched, total),
+              _board.isTriples
+                  ? t.triplesFound(found, total)
+                  : t.pairsFound(found, total),
               style: const TextStyle(
                   fontSize: 18, fontWeight: FontWeight.w600, color: _accent),
             ),
+            // The mechanic has to be unmissable *before* the first match, not
+            // inferred from it: a player who has only ever matched two of a kind
+            // will keep trying to, and read the board as broken. A banner rather
+            // than a line of body text for the same reason.
+            if (_board.isTriples)
+              Container(
+                key: const ValueKey('memory_triples_banner'),
+                margin: const EdgeInsets.only(top: 6),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                decoration: BoxDecoration(
+                  color: _accent.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: _accent.withValues(alpha: 0.45)),
+                ),
+                child: Text(
+                  t.findThreeOfAKind,
+                  style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.black87),
+                ),
+              ),
             const SizedBox(height: 8),
             Expanded(
               child: Padding(
@@ -166,7 +207,7 @@ class _MemoryMatchScreenState extends State<MemoryMatchScreen> {
             Padding(
               padding: const EdgeInsets.fromLTRB(24, 0, 24, 20),
               child: Text(
-                AppLocalizations.of(context).memoryMatchHint,
+                _board.isTriples ? t.memoryMatchHintTriples : t.memoryMatchHint,
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 15,
