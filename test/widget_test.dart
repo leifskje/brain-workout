@@ -16,6 +16,7 @@ import 'package:brain_workout/data/word_tier.dart';
 import 'package:brain_workout/games/arrow_escape/arrow_escape_models.dart';
 import 'package:brain_workout/games/arrow_escape/arrow_escape_screen.dart';
 import 'package:brain_workout/services/app_info.dart';
+import 'package:brain_workout/services/level_timer.dart';
 import 'package:brain_workout/games/crack_code/crack_code_models.dart';
 import 'package:brain_workout/games/crack_code/crack_code_screen.dart';
 import 'package:brain_workout/games/games_catalog.dart';
@@ -368,6 +369,107 @@ void main() {
     expect(offenders, isEmpty,
         reason: 'these call recordStars directly; use recordCleared, which '
             'also unlocks the next level');
+  });
+
+  group('Level times', () {
+    test('a time best is separate from a moves best, and faster wins', () {
+      final store = ProgressStore.instance;
+      // Memory Match already records fewest *moves*. Time must not overwrite it:
+      // both records belong to the player, and one slot would make "best"
+      // ambiguous.
+      store.recordBest('memory_match', 3, 30, lowerIsBetter: true);
+      expect(store.recordBestTime('memory_match', 3, 120), isFalse,
+          reason: 'a first completion sets the record without announcing one');
+      expect(store.bestResult('memory_match', 3), 30);
+      expect(store.bestSeconds('memory_match', 3), 120);
+
+      expect(store.recordBestTime('memory_match', 3, 95), isTrue);
+      expect(store.bestSeconds('memory_match', 3), 95);
+      expect(store.recordBestTime('memory_match', 3, 200), isFalse,
+          reason: 'a slower run must not replace the best');
+      expect(store.bestSeconds('memory_match', 3), 95);
+      expect(store.bestResult('memory_match', 3), 30, reason: 'moves untouched');
+
+      // A zero-second level is a bug, not a record.
+      expect(store.recordBestTime('memory_match', 9, 0), isFalse);
+      expect(store.bestSeconds('memory_match', 9), isNull);
+    });
+
+    test('the clock counts foreground time only', () {
+      // The hazard this exists for: this audience puts the phone down mid-level.
+      // Wall-clock timing would record hours and poison the best permanently.
+      final timer = LevelTimer();
+      timer.start();
+      expect(timer.isRunning, isTrue);
+
+      timer.handleLifecycle(AppLifecycleState.paused);
+      expect(timer.isRunning, isFalse);
+      final banked = timer.elapsed;
+      // However long the phone sits in a pocket, the reading does not move.
+      expect(timer.elapsed, banked);
+
+      timer.handleLifecycle(AppLifecycleState.resumed);
+      expect(timer.isRunning, isTrue);
+
+      // `inactive` is transient (the notification shade, a rotation) and must
+      // not stop the clock, or it stutters for no reason.
+      timer.handleLifecycle(AppLifecycleState.inactive);
+      expect(timer.isRunning, isTrue);
+
+      timer.stop();
+      expect(timer.isRunning, isFalse);
+      timer.stop(); // idempotent
+    });
+
+    test('a resumed board carries its time forward', () {
+      // Without this a resumed level reports only the time since it was
+      // reopened, which is not a number that means anything.
+      final timer = LevelTimer();
+      timer.start(from: const Duration(minutes: 2, seconds: 30));
+      expect(timer.elapsed.inSeconds, greaterThanOrEqualTo(150));
+      timer.pause();
+      expect(timer.elapsed.inSeconds, greaterThanOrEqualTo(150));
+    });
+
+    test('times read as minutes and seconds, not decimals', () {
+      // Read aloud by people who do not think in 118 seconds.
+      expect(formatLevelTime(const Duration(seconds: 5)), '0:05');
+      expect(formatLevelTime(const Duration(seconds: 118)), '1:58');
+      expect(formatLevelTime(const Duration(minutes: 12, seconds: 4)), '12:04');
+      expect(
+          formatLevelTime(const Duration(hours: 1, minutes: 2, seconds: 33)),
+          '1:02:33');
+    });
+
+    test('showing the clock while playing is off until asked for', () async {
+      // Recording is always allowed; displaying is opt-in. See CLAUDE.md.
+      expect(ProgressStore.instance.showTimerDuringPlay, isFalse);
+      await ProgressStore.instance.setShowTimerDuringPlay(true);
+      expect(ProgressStore.instance.showTimerDuringPlay, isTrue);
+    });
+  });
+
+  test('Stats count what was cleared, not what was reached', () async {
+    SharedPreferences.setMockInitialValues({
+      'stars_word_search_1': 3,
+      'stars_word_search_2': 1,
+      'stars_word_search_5': 0, // opened, never beaten
+      'highest_level_word_search': 9,
+      'besttime_word_search_1': 240,
+      'besttime_word_search_2': 95,
+      // A different game must not leak into these counts.
+      'stars_word_scramble_1': 3,
+      'besttime_word_scramble_1': 10,
+    });
+    await ProgressStore.init();
+    final store = ProgressStore.instance;
+
+    expect(store.levelsCleared('word_search'), 2,
+        reason: 'reaching a level and beating it are different things');
+    expect(store.fastestLevel('word_search'), (2, 95));
+    expect(store.levelsCleared('word_scramble'), 1);
+    expect(store.levelsCleared('trail'), 0);
+    expect(store.fastestLevel('trail'), isNull);
   });
 
   test('totalStars sums the best result per level', () {

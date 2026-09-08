@@ -209,6 +209,86 @@ class ProgressStore {
     return beaten;
   }
 
+  // ----------------------------------------------------------- level times ---
+
+  String _timeKey(String gameId, int level) => 'besttime_${gameId}_$level';
+
+  /// Best time for a level in seconds, or null if never timed.
+  ///
+  /// A *separate* key from [bestResult] rather than a replacement: several games
+  /// already record a best of another kind (moves, mistakes, guesses), those
+  /// records belong to the player, and overloading one slot would either lose
+  /// them or make "best" ambiguous. A game can now have both.
+  int? bestSeconds(String gameId, int level) =>
+      _prefs.getInt(_timeKey(gameId, level));
+
+  /// Files a level time and reports whether it beat the previous best. Faster is
+  /// always better, and as with [recordBest] a first completion sets the record
+  /// without announcing one.
+  bool recordBestTime(String gameId, int level, int seconds) {
+    if (seconds <= 0) return false; // a zero-second level is a bug, not a record
+    final key = _timeKey(gameId, level);
+    final previous = _prefs.getInt(key);
+    if (previous == null) {
+      _prefs.setInt(key, seconds);
+      return false;
+    }
+    if (seconds < previous) {
+      _prefs.setInt(key, seconds);
+      return true;
+    }
+    return false;
+  }
+
+  // --------------------------------------------------------------- settings ---
+
+  /// Whether the level clock is shown while playing. Off by default: the time is
+  /// always *recorded*, but showing it unasked is the time pressure the app
+  /// deliberately avoids. See the top of CLAUDE.md.
+  bool get showTimerDuringPlay => _prefs.getBool('show_timer') ?? false;
+
+  Future<void> setShowTimerDuringPlay(bool value) =>
+      _prefs.setBool('show_timer', value);
+
+  // ------------------------------------------------------------- statistics ---
+
+  /// How many levels of [gameId] the player has actually cleared.
+  ///
+  /// Counted from the star records, not from [highestLevel]: reaching a level and
+  /// beating it are different things, and only the stars know which.
+  int levelsCleared(String gameId) {
+    var n = 0;
+    for (final key in _prefs.getKeys()) {
+      if (!key.startsWith('stars_$gameId')) continue;
+      // 'stars_<gameId>_<level>' — guard against a prefix collision between
+      // ids like 'word_search' and a hypothetical 'word_search_2'.
+      final rest = key.substring('stars_'.length);
+      final cut = rest.lastIndexOf('_');
+      if (cut <= 0 || rest.substring(0, cut) != gameId) continue;
+      if ((_prefs.getInt(key) ?? 0) > 0) n++;
+    }
+    return n;
+  }
+
+  /// Best time across every level of [gameId], with the level it was set on.
+  (int level, int seconds)? fastestLevel(String gameId) {
+    (int, int)? best;
+    for (final key in _prefs.getKeys()) {
+      if (!key.startsWith('besttime_$gameId')) continue;
+      final rest = key.substring('besttime_'.length);
+      final cut = rest.lastIndexOf('_');
+      if (cut <= 0 || rest.substring(0, cut) != gameId) continue;
+      final level = int.tryParse(rest.substring(cut + 1));
+      final seconds = _prefs.getInt(key);
+      if (level == null || seconds == null) continue;
+      if (best == null || seconds < best.$2) best = (level, seconds);
+    }
+    return best;
+  }
+
+  /// Distinct days the player has finished at least one level on.
+  int get daysPlayed => (_prefs.getStringList('days_played') ?? const []).length;
+
   // ------------------------------------------------------- saved board state ---
 
   // Bump when a game's saved shape changes incompatibly. Old saves are then
@@ -327,6 +407,13 @@ class ProgressStore {
   void registerPlay(String gameId) {
     final now = DateTime.now();
     final today = _dateString(now);
+
+    // Distinct days played, for the stats screen. A set, so replaying five
+    // levels in one afternoon is still one day.
+    final days = _prefs.getStringList('days_played') ?? const <String>[];
+    if (!days.contains(today)) {
+      _prefs.setStringList('days_played', [...days, today]);
+    }
 
     // Daily count — reset when the calendar day changes.
     final isNewDay = _prefs.getString('daily_date') != today;

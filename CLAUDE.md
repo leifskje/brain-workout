@@ -5,10 +5,26 @@ with my mother in mind). A home screen lists selectable games; each game is
 self-contained. Cross-platform Flutter, primary target Android.
 
 **"Elderly-friendly" means the interface, not the content.** Large text, big tap
-targets, high contrast, calm flows, no timers — yes. Easy puzzles — no. The player
-this was built for is a retired English teacher, widely read in Norwegian and
-English, so watering the content down makes the games boring rather than
-accessible. Judge every game on whether it is *entertaining* and *appropriately
+targets, high contrast, calm flows, **no time pressure** — yes. Easy puzzles — no.
+
+The rule used to read "no timers", which was too blunt: it forbade *measuring*
+time as well as *imposing* it. What the app must never do is make you lose
+because you were slow — no countdowns, no fail-on-time, nothing ticking at you
+while you think. A stopwatch you opted into, which cannot cost you anything, is a
+different thing, and it is how a player competes with themselves without any of
+this being shared anywhere. Recording is always allowed; *displaying* during play
+is opt-in; penalising is never.
+
+Two consequences that are easy to get wrong: a clock has to count
+foreground-active time only (this audience puts the phone down mid-level, and
+wall-clock would record hours), and it has to persist with a resumed board or the
+time it reports is nonsense. The planning games — both arrow games — are
+deliberately left untimed, because a clock argues against sitting and thinking,
+which is the entire activity there.
+
+The player this was built for is a retired English teacher, widely read in
+Norwegian and English, so watering the content down makes the games boring rather
+than accessible. Judge every game on whether it is *entertaining* and *appropriately
 hard for its level number*, not on whether one specific person could manage it.
 Difficulty must keep climbing past the early levels; see the Arrow Maze notes
 under *Conventions* for how to measure that rather than guess at it.
