@@ -4,9 +4,12 @@ Written to let a fresh agent pick up without re-deriving anything. Read `CLAUDE.
 first; it holds the conventions and the hard-won lessons. This file is *where things
 stand*, not how to work here.
 
-Last published: **1.1.1 (versionCode 4)**, internal track, Sep 2026.
-`pubspec.yaml` now reads **1.1.2+5** with release notes written — prepared, *not*
-shipped.
+Last published: **1.1.2 (versionCode 5)**, internal track, Sep 2026. `main` is
+that release; the next one needs another `version:` bump.
+
+Check what testers actually have with `python tool/play_track_status.py` rather
+than reading `pubspec.yaml` — that file describes the *next* build, and a
+versionCode in git is no evidence it was uploaded.
 
 ## Where the code is
 
@@ -18,7 +21,13 @@ sharing · save & resume across six games · local personal bests · five un-cap
 difficulty curves · Memory Match 15→21 pairs · the how-to-play sheet overflow fix ·
 the daily-word share reachability fix.
 
-**Shipped in 1.1.1, and still unverified on real hardware:** the level-progression fix (clearing a level
+**Shipped in 1.1.2**, and only partly seen on a device — the owner checked the stats
+screen and played Arrow Maze to level 50; the rest is test-verified only: the colour
+pattern fix · progress repair · Arrow Escape 14x14 + zoom · the golden arrow mid-board ·
+Memory Match triples · Number Cross division · Simon's steeper curve · level times in six
+games · the stats and settings screens · the Arrow Maze spinner and retry-tap guard.
+
+**Shipped in 1.1.1:** the level-progression fix (clearing a level
 now unlocks the next one whichever button you press — it previously only counted if you
 pressed "Next level", in all thirteen level games) · Crack the Code clue counts · the
 Memory Match picture-pool fix · What Comes Next visual-pattern tiers · the tester feedback button ·
