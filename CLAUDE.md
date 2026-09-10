@@ -337,7 +337,14 @@ for a release, never as the natural end of a piece of work, and never to "verify
 something.
 
 What is always fine: `flutter build appbundle --release`, `tool/build_release.ps1`,
-and `tool/play_listing_status.py` (which opens a draft edit, reads, and discards).
+and the two read-only status scripts, which each open a draft edit, read, and
+discard it:
+
+- `tool/play_listing_status.py` — what the store *listing* currently says.
+- `tool/play_track_status.py` — which build is actually live on each track. Use
+  this to answer "what are my testers running?": the repo cannot tell you, since
+  `pubspec.yaml` describes the *next* build and a versionCode sitting in git is no
+  evidence it was ever uploaded.
 
 What needs asking first: `publishBundle`, `publishListing`,
 `ensure_play_listings.py` — all three write to the live Play account.
