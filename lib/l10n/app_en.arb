@@ -227,6 +227,7 @@
   "useHint": "Hint",
   "hintCost": "A hint means at most 2 stars for this level.",
   "hintNoneLeft": "No more hints for this word.",
+  "hintAllWordsHinted": "Every word still to find already has its hint.",
   "arrowEscapeHintZoom": "Tap an arrow to send it off the board. It needs a clear path to the edge. Pinch or use the buttons to zoom in.",
   "triplesFound": "Triples found: {matched} / {total}",
   "@triplesFound": {"placeholders": {"matched": {"type": "int"}, "total": {"type": "int"}}},

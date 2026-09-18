@@ -194,6 +194,7 @@
   "useHint": "Hint",
   "hintCost": "Et hint betyr høyst 2 stjerner på dette nivået.",
   "hintNoneLeft": "Ingen flere hint til dette ordet.",
+  "hintAllWordsHinted": "Alle ordene som er igjen har allerede fått hint.",
   "arrowEscapeHintZoom": "Trykk på en pil for å sende den ut av brettet. Den må ha fri bane til kanten. Knip eller bruk knappene for å zoome inn.",
   "triplesFound": "Tripler funnet: {matched} / {total}",
   "findThreeOfAKind": "Finn 3 like",

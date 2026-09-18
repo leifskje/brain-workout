@@ -693,6 +693,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get hintNoneLeft => 'No more hints for this word.';
 
   @override
+  String get hintAllWordsHinted =>
+      'Every word still to find already has its hint.';
+
+  @override
   String get arrowEscapeHintZoom =>
       'Tap an arrow to send it off the board. It needs a clear path to the edge. Pinch or use the buttons to zoom in.';
 
