@@ -14,7 +14,7 @@ We deliberately spread games across domains for a rounded "workout," and want
 | Logic / pattern | ✅ What Comes Next · ✅ Crack the Code — see [crack-code.md](crack-code.md) · ✅ Picture Logic (nonogram) — see [nonogram.md](nonogram.md) |
 | Language | ✅ Word (Wordle-style) — see [wordle.md](wordle.md) · ✅ Word Search — see [word-search.md](word-search.md) · ✅ Word Scramble — see [word-scramble.md](word-scramble.md) · ⛔ Compound Words — see [compound-words.md](compound-words.md) |
 | Numeracy | ✅ Number Cross — see [number-cross.md](number-cross.md) · ✅ Mini Sudoku — see [mini-sudoku.md](mini-sudoku.md) · ✅ 2048 — see [merge.md](merge.md) |
-| Attention / speed | ✅ Follow the Trail — see [trail.md](trail.md) · 💡 Odd One Out |
+| Attention / speed | ✅ Follow the Trail — see [trail.md](trail.md) · 📝 Odd One Out — see [odd-one-out.md](odd-one-out.md) |
 | Memory (other) | ✅ Simon — see [simon.md](simon.md) |
 
 ## Engagement & polish
