@@ -221,7 +221,27 @@ class _SnakeArrowsScreenState extends State<SnakeArrowsScreen>
 
     _settleTimer?.cancel();
     _settleTimer = Timer(const Duration(milliseconds: 400), () {
-      if (mounted) setState(() => _busy = false);
+      if (!mounted) return;
+      setState(() => _busy = false);
+
+      // Warm the *next* board now, while the player is thinking about this one.
+      //
+      // This used to happen only when the win dialog went up, which gives the
+      // build ~1.1s. Generation at high levels is a median of ~359ms but a p90 of
+      // ~1290ms on desktop, and 2-3x that on a phone — so the budget was missed
+      // on a large minority of levels, and since the cost is fixed per level but
+      // uneven between levels, it read as random hangs. Warming here spends the
+      // whole time the player is on the level instead, which is minutes.
+      //
+      // Deliberately on the tail of the settle timer rather than as soon as the
+      // board arrives: the board has painted by then, so the isolate spawn cannot
+      // compete with the first frame. It is a separate isolate, so the work
+      // itself never touches the UI thread.
+      //
+      // `level`, not `_level`: a load that superseded this one cancelled this
+      // timer, so the parameter cannot be stale.
+      BoardPrefetch.remember(level, board);
+      BoardPrefetch.warm(level + 1);
     });
   }
 
@@ -356,9 +376,11 @@ class _SnakeArrowsScreenState extends State<SnakeArrowsScreen>
   void _showWin() {
     if (!mounted) return;
     ProgressStore.instance.clearBoard(_gameId);
-    // Start the next board now, in the background. The dialog takes ~1.1s to play
-    // out before the player can even choose, which is enough to hide a generation
-    // that would otherwise be felt as a pause after tapping "Next level".
+    // Normally a no-op: the next board has been warming since 400ms into this
+    // level (see _loadLevel), which is far more time than the dialog's ~1.1s.
+    // Kept as the backstop for the cases where that did not happen or did not
+    // land — an isolate that failed to spawn, a warm superseded by a level-picker
+    // jump — since asking for a board that is already there costs nothing.
     BoardPrefetch.warm(_level + 1);
     HapticFeedback.heavyImpact();
     final lost = snakeConfigForLevel(_level).hearts - _hearts;

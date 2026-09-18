@@ -42,11 +42,16 @@ class _WordSearchScreenState extends State<WordSearchScreen>
   (int, int)? _dragStart;
   List<(int, int)> _selection = const [];
 
-  /// First letters of words revealed by a hint. The starting cell is all a hint
-  /// gives: the player still has to work out the direction, which is most of the
-  /// finding. Matters most from level 24, where the word list is hidden and
-  /// being stuck means having nothing at all to go on.
-  final Set<(int, int)> _hintCells = {};
+  /// Indices into `board.words` of words whose first letter a hint has
+  /// revealed. The starting cell is all a hint gives: the player still has to
+  /// work out the direction, which is most of the finding. Matters most from
+  /// level 24, where the word list is hidden and being stuck means having
+  /// nothing at all to go on.
+  ///
+  /// Keyed by *word*, never by cell: two words can start on the same cell (en
+  /// level 26 has WEAVER and WOMAN both at (5,10)), and keying by cell made the
+  /// second of them unhintable — "no more hints" on the last word left.
+  final Set<int> _hintedWords = {};
 
   /// Caps the level at 2 stars, the same bargain Word Scramble's word-swap makes.
   bool _usedHint = false;
@@ -87,7 +92,7 @@ class _WordSearchScreenState extends State<WordSearchScreen>
     ProgressStore.instance.recordReached(_gameId, level);
     setState(() {
       _level = level;
-      _hintCells.clear();
+      _hintedWords.clear();
       _usedHint = false;
       _board = WordSearchBoard.generate(level, _language);
       _wrongAttempts = 0;
@@ -244,6 +249,13 @@ class _WordSearchScreenState extends State<WordSearchScreen>
         if (w.found) ...w.cells
     };
     final selected = _selection.toSet();
+    // A hint on a word already found is spent: leaving it lit would mean a
+    // later hint on a word starting from the same cell lights nothing.
+    final hintCells = <(int, int)>{
+      for (var i = 0; i < board.words.length; i++)
+        if (_hintedWords.contains(i) && !board.words[i].found)
+          (board.words[i].row, board.words[i].col)
+    };
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -290,9 +302,10 @@ class _WordSearchScreenState extends State<WordSearchScreen>
                         _letterCell(
                           board.letterAt(r, c),
                           cell,
+                          key: ValueKey('ws_cell_${r}_$c'),
                           found: foundCells.contains((r, c)),
                           selected: selected.contains((r, c)),
-                          hinted: _hintCells.contains((r, c)),
+                          hinted: hintCells.contains((r, c)),
                         ),
                     ]),
                 ],
@@ -309,19 +322,23 @@ class _WordSearchScreenState extends State<WordSearchScreen>
     final board = _board;
     if (board == null || _busy) return;
     final t = AppLocalizations.of(context);
-    final target = board.words.where((w) => !w.found).cast<PlacedWord?>().firstWhere(
-        (w) => !_hintCells.contains((w!.row, w.col)),
-        orElse: () => null);
-    if (target == null) {
+    var target = -1;
+    for (var i = 0; i < board.words.length; i++) {
+      if (!board.words[i].found && !_hintedWords.contains(i)) {
+        target = i;
+        break;
+      }
+    }
+    if (target < 0) {
       ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text(t.hintNoneLeft)));
+          .showSnackBar(SnackBar(content: Text(t.hintAllWordsHinted)));
       return;
     }
     HapticFeedback.lightImpact();
     final first = !_usedHint;
     setState(() {
       _usedHint = true;
-      _hintCells.add((target.row, target.col));
+      _hintedWords.add(target);
     });
     // Said once. The star cost is already paid by the first hint, so repeating
     // it on every press is nagging rather than informing.
@@ -332,20 +349,26 @@ class _WordSearchScreenState extends State<WordSearchScreen>
   }
 
   Widget _letterCell(String letter, double size,
-      {required bool found,
+      {required Key key,
+      required bool found,
       required bool selected,
       required bool hinted}) {
     // A hinted start is amber, not another shade of the accent: it has to be
     // told apart from "found" at a glance and by someone who reads colour badly.
+    // It also outranks "found" and carries a ring, because a word's first letter
+    // often sits inside another word that is already found — colour alone would
+    // then either be hidden under the found tint or read as one more shade.
     const hintBg = Color(0xFFFFE082);
+    const hintRing = Color(0xFF7A4F00);
     final bg = selected
         ? _accent.withValues(alpha: 0.45)
-        : found
-            ? _accent.withValues(alpha: 0.18)
-            : hinted
-                ? hintBg
+        : hinted
+            ? hintBg
+            : found
+                ? _accent.withValues(alpha: 0.18)
                 : Colors.white;
     return SizedBox(
+      key: key,
       width: size,
       height: size,
       child: Padding(
@@ -353,6 +376,10 @@ class _WordSearchScreenState extends State<WordSearchScreen>
         child: Container(
           decoration: BoxDecoration(
             color: bg,
+            border: hinted && !selected
+                ? Border.all(
+                    color: hintRing, width: math.max(2.0, size * 0.08))
+                : null,
             borderRadius: BorderRadius.circular(size * 0.18),
           ),
           alignment: Alignment.center,
@@ -363,7 +390,7 @@ class _WordSearchScreenState extends State<WordSearchScreen>
               fontWeight: FontWeight.w700,
               color: selected
                   ? Colors.white
-                  : found
+                  : found && !hinted
                       ? _accent
                       : Colors.black87,
             ),

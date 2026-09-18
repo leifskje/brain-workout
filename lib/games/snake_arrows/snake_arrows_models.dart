@@ -215,6 +215,14 @@ double snakeTargetBranchingForLevel(int level) {
 class SnakeBoard {
   SnakeBoard({required this.rows, required this.cols, required this.arrows});
 
+  /// Bump this whenever a change alters what [generate] produces for a level.
+  ///
+  /// Boards are cached on disk between launches, and a cached board built by an
+  /// older version is not just stale — it is a board this build would never
+  /// generate for that level number. The stamp is what lets a cached board be
+  /// dropped instead of silently contradicting the generator.
+  static const int generatorVersion = 1;
+
   final int rows;
   final int cols;
   final List<SnakeArrow> arrows;

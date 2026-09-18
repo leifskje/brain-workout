@@ -1178,6 +1178,12 @@ abstract class AppLocalizations {
   /// **'No more hints for this word.'**
   String get hintNoneLeft;
 
+  /// No description provided for @hintAllWordsHinted.
+  ///
+  /// In en, this message translates to:
+  /// **'Every word still to find already has its hint.'**
+  String get hintAllWordsHinted;
+
   /// No description provided for @arrowEscapeHintZoom.
   ///
   /// In en, this message translates to:

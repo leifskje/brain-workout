@@ -156,6 +156,34 @@ A pre-commit hook (`.githooks/pre-commit`, enabled via `core.hooksPath`) runs
   The cap then moved 14 → 24 once zoom shipped (3× the area, ~70 arrows, `clear@start`
   22% → 4%). Not higher because generation cost is superlinear in area: 24×35 is
   ~50–240ms, 26×38 ~1.8s, 28×41 ~9.6s.
+- **Run the game forwards from a full board, don't place pieces onto an empty one.**
+  Arrow Escape hit the same plateau: every level from 41 up was config-identical at
+  14×14/45%, and level 100 measured *easier* than level 20 (branching 11.3 vs 8.3, 27
+  of 88 arrows firable on the first tap). The density ceiling that caused it was
+  blamed on geometry — "a dense board can only be peeled from the rim" — and that was
+  wrong in the same way Arrow Maze's board-size ceiling was wrong: it was the
+  generator, not the shape. Reverse-solve placement paints itself into a corner as the
+  grid fills, so it could never reach high density with anything but rim-pointing
+  arrows. `_buildDense` instead starts from a **completely full** grid and plays it
+  out: take a cell that has some clear ray, give it that direction, remove it. The
+  removal order is a solution by construction, and it cannot fail — a non-empty board
+  always has a topmost live cell, which can always be pointed up — so 100% coverage is
+  where it lands rather than something it has to be lucky to reach. Give each arrow its
+  **longest** clear ray and the board is hard (branching 2–4, `clear@start` ~3%); give
+  it the shortest and the same 100%-full board plays itself (branching ~25). That one
+  choice is the entire difficulty mechanism; fill barely moves it (the achievable floor
+  goes 2.8 → 2.0 between 46% and 100% fill), so fill is for how the board *reads* and
+  the branching target is for how it plays. Tune with
+  `dart run tool/analyze_arrow_escape_difficulty.dart`, and **re-run it after any
+  generator change** — it prints the achievable spread per level, and a target outside
+  that spread degrades silently to "closest board found", which is the flattening the
+  metric exists to catch (96 candidates was not enough for the top of the ramp; 320 is).
+  Two things that fall out of the same fact and are worth knowing: the legal moves are
+  always exactly the edge-most live cell of each row and column (`_Frontier`), which is
+  what makes measuring a 196-arrow board cheap; and because the game is monotone,
+  *which* legal arrow you fire never changes whether the board clears, only the
+  branching counts along the way. Levels 1–40 are frozen behind `arrowDenseFirstLevel`
+  and pinned by fingerprint in the tests — players have progress there.
 - **Move slow generation off the critical path before optimising it.** Arrow Maze board
   cost grows with area, and the ~400ms budget that capped board size only existed
   because generation sat between "Next level" and seeing a board. `BoardPrefetch` builds
@@ -165,8 +193,19 @@ A pre-commit hook (`.githooks/pre-commit`, enabled via `core.hooksPath`) runs
   falls back to generating on the spot. It must be a real isolate (the work is
   synchronous CPU and would freeze the celebration), so boards cross the boundary as
   plain ints/lists, and the isolate test must be a plain `test()`: `testWidgets`' fake
-  async never lets a real isolate finish. Note it only covers *sequential* play — the
-  level picker and first entry still generate inline.
+  async never lets a real isolate finish. **Warm from the level load, not from the win
+  dialog.** The dialog buys ~1.1s, which was enough when generation was ~400ms and is
+  not: measured over levels 40-70 it is a median of 359ms but a p90 of 1290ms and a max
+  of 1947ms, and a phone is 2-3x slower again. Because the cost is deterministic per
+  level but wildly uneven *between* levels, blowing that budget read to the player as
+  random hangs rather than as slow levels. Warming from `_loadLevel` spends the whole
+  time the player is on the level instead. Boards are also persisted
+  (`ProgressStore.savePrefetchedBoard`, two slots, stamped with
+  `SnakeBoard.generatorVersion`), because memory alone only ever helped *sequential*
+  play. A level-picker jump to a never-warmed level still generates inline, but warms
+  and stores itself on arrival. One invariant to keep: `SnakeBoard.toJson` does **not**
+  serialise `escaped`, which is what makes it safe to cache the board being played —
+  adding it would let a half-cleared board come back as a fresh one.
 - **Arrow Maze is monotone, and that is why the Rush Hour literature does not apply.**
   Arrows are *removed*, never repositioned, so removing one can only open paths, never
   close them. Consequences: firing whatever is clear is an *exact* solver rather than a
@@ -178,7 +217,21 @@ A pre-commit hook (`.githooks/pre-commit`, enabled via `core.hooksPath`) runs
   *constructs* one in a single pass, which is why it scales. Untried idea actually worth
   borrowing: the blocking relation is a DAG, and its **longest chain** is a difficulty
   axis we don't measure — mean branching can't tell a long forced spine from many short
-  ones, and the spine is what feels hard.
+  ones. Now measured for Arrow Escape (`ArrowBoard.longestBlockingChain`, printed by its
+  analyzer), and the result is a warning rather than a new knob.
+- **Neither branching nor chain depth measures difficulty in a monotone game — they
+  measure the solution, not the player.** Filling Arrow Escape's boards took mean
+  branching 11.3 → 3.4 and the longest blocking chain 7 → 38, by far the largest
+  difficulty move ever made in that game, and the owner played level 100 and could not
+  feel a difference. The reason is structural: arrows are only ever removed, so *any*
+  legal move is always correct and there is never a wrong-but-legal choice. A deep chain
+  is not planned, it unfolds as you tap; low branching does not make you choose
+  carefully, it makes you scan longer. So density can only ever buy *harder to see*, and
+  never *harder to work out* — which is exactly what "it didn't add anything" feels like
+  from the inside. Both numbers were right and both were answering the wrong question.
+  The only lever that adds real depth to a monotone board is introducing a **decision**,
+  which is what Arrow Maze's bonus arrows are and what Arrow Escape still has no
+  equivalent of. Measure the metric, but don't mistake it for the experience.
 - **A zoomable board must wrap its gesture detector, not the reverse.** Arrow Maze puts
   `InteractiveViewer` *outside* the `GestureDetector`, so hit testing passes down through
   the transform and the detector still receives board-space coordinates — the cell

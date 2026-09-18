@@ -694,6 +694,10 @@ class AppLocalizationsNb extends AppLocalizations {
   String get hintNoneLeft => 'Ingen flere hint til dette ordet.';
 
   @override
+  String get hintAllWordsHinted =>
+      'Alle ordene som er igjen har allerede fått hint.';
+
+  @override
   String get arrowEscapeHintZoom =>
       'Trykk på en pil for å sende den ut av brettet. Den må ha fri bane til kanten. Knip eller bruk knappene for å zoome inn.';
 
