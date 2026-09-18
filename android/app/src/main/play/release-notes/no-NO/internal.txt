@@ -1,5 +1,5 @@
-Nytt: trykk på rekke-kortet for Din framgang — stjerner, dager spilt og dine beste tider. Seks spill lagrer nå tiden din, så du kan slå den. I Innstillinger kan du vise en klokke mens du spiller (av som standard).
+Rettet: i Ordleting kunne hintet si at det ikke var flere igjen selv om det var det, og et hint kunne være usynlig når det havnet på en bokstav du allerede hadde funnet. Begge deler er i orden nå.
 
-Rettet: de rare fargeoppgavene i Hva kommer etterpå, og pausen før neste Pillabyrint-brett. Nivåer du klarte men forlot via Hjem er gjenopprettet.
+Rettet: Pillabyrint lager neste brett mens du spiller, så ventetiden før et nytt brett er borte nesten hver gang.
 
-Også: større Pilflukt-brett, Memory med tre like fra nivå 10, divisjon i Tallkryss.
+Også: Pilflukt-brettene fortsetter å bli fullere og vanskeligere etter nivå 40 i stedet for å stå stille, og de største brettene gir flere hjerter.

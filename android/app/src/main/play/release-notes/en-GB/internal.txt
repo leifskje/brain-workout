@@ -1,5 +1,5 @@
-New: tap the streak card for Your progress — stars, days played and your best times. Six games now save your time so you can beat it; Settings can show a clock while you play (off by default).
+Fixed: in Word Search, the hint would say there were none left when there still were, and a hint could be invisible when it landed on a letter you had already found. Both are sorted.
 
-Fixed: the odd colour puzzles in What Comes Next, and the pause before the next Arrow Maze board. Levels you cleared but left via Home are restored.
+Fixed: Arrow Maze now builds the next board while you play, so the wait before a new board is gone in almost every case.
 
-Also: bigger Arrow Escape boards, Memory Match threes from level 10, division in Number Cross.
+Also: Arrow Escape boards keep getting fuller and harder past level 40 instead of staying the same, with more hearts on the biggest boards.
