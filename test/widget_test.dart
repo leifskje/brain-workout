@@ -64,6 +64,41 @@ Widget localizedApp(Widget home) => MaterialApp(
       home: home,
     );
 
+/// The painted decoration of one Word Search letter cell. Hint state lives in
+/// private screen state, so what the player can actually see is read back from
+/// the cell itself.
+BoxDecoration wsCellDecoration(WidgetTester tester, int r, int c) =>
+    tester
+        .widget<Container>(find.descendant(
+            of: find.byKey(ValueKey('ws_cell_${r}_$c')),
+            matching: find.byType(Container)))
+        .decoration! as BoxDecoration;
+
+/// Whether a cell carries the hint marking (amber fill, amber ring, or both).
+bool wsCellIsHinted(WidgetTester tester, int r, int c) {
+  final d = wsCellDecoration(tester, r, c);
+  return d.color == const Color(0xFFFFE082) || d.border != null;
+}
+
+/// Drags across [word] on the Word Search grid, mirroring the screen's
+/// LayoutBuilder geometry (8px panel padding).
+Future<void> wsDragWord(
+    WidgetTester tester, WordSearchBoard board, PlacedWord word) async {
+  final grid = find.byWidgetPredicate(
+      (w) => w is GestureDetector && w.onPanStart != null);
+  final rect = tester.getRect(grid);
+  const pad = 8.0;
+  final cell = (math.min(rect.width, rect.height) - pad * 2) / board.size;
+  Offset center(int r, int c) =>
+      rect.topLeft +
+      Offset(pad + c * cell + cell / 2, pad + r * cell + cell / 2);
+  final (r0, c0) = word.cells.first;
+  final (r1, c1) = word.cells.last;
+  await tester.timedDragFrom(center(r0, c0), center(r1, c1) - center(r0, c0),
+      const Duration(milliseconds: 300));
+  await tester.pump();
+}
+
 void main() {
   // Asset reads never progress inside testWidgets' fake-async zone, so a screen
   // that loads a word list sits on its spinner and pumpAndSettle times out.
@@ -776,6 +811,13 @@ void main() {
     expect(configForLevel(21).rows, greaterThan(configForLevel(13).rows));
     expect(configForLevel(21).arrowCount,
         greaterThan(configForLevel(13).arrowCount));
+    // Arrow Escape's board size stops at 14x14, so past level 41 the curve is
+    // carried by fill and by the branching target instead. Lower branching is
+    // harder, hence lessThan.
+    expect(configForLevel(80).arrowCount,
+        greaterThan(configForLevel(41).arrowCount));
+    expect(arrowTargetBranchingForLevel(150),
+        lessThan(arrowTargetBranchingForLevel(60)));
 
     // Uncapped after a tester reached level 50 in Arrow Maze and found it
     // identical to level 35. Lower branching is harder, hence lessThan.
@@ -2407,6 +2449,99 @@ void main() {
     expect(find.text('Found 1 of ${board.words.length}'), findsOneWidget);
   });
 
+  testWidgets('Word Search: two words sharing a start cell each get a hint',
+      (tester) async {
+    tester.view.physicalSize = const Size(1080, 2280);
+    tester.view.devicePixelRatio = 2.625;
+    addTearDown(tester.view.reset);
+
+    // The reported board: English level 26, where WEAVER and WOMAN both begin
+    // at (5,10). Tracking hints by *cell* meant hinting WEAVER silently used up
+    // WOMAN's hint, so the last word left answered "no more hints".
+    await tester
+        .pumpWidget(localizedApp(const WordSearchScreen(startLevel: 26)));
+    await tester.pump();
+    final board = WordSearchBoard.generate(26, 'en'); // same seed as the screen
+    final weaver = board.words.indexWhere((w) => w.word == 'WEAVER');
+    final woman = board.words.indexWhere((w) => w.word == 'WOMAN');
+    expect(weaver, isNonNegative);
+    expect(woman, isNonNegative);
+    expect((board.words[weaver].row, board.words[weaver].col),
+        (board.words[woman].row, board.words[woman].col),
+        reason: 'level 26 no longer reproduces the shared start cell');
+
+    // Hints walk the word list in order, so one per word reaches WEAVER.
+    for (var i = 0; i <= weaver; i++) {
+      await tester.tap(find.byKey(const ValueKey('game_hint_button')));
+      await tester.pump();
+    }
+    expect(wsCellIsHinted(tester, 5, 10), isTrue);
+
+    // Finding WEAVER is what put its start cell in the "already hinted" set
+    // while WOMAN, starting there too, was still unfound.
+    await wsDragWord(tester, board, board.words[weaver]);
+    expect(find.text('Found 1 of ${board.words.length}'), findsOneWidget);
+
+    // Snackbars queue, so let the "a hint costs a star" one expire first --
+    // otherwise the next press's message would sit behind it unseen. Its timer
+    // firing is not enough: the slide-out still needs frames of its own.
+    await tester.pump(const Duration(seconds: 5));
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.byType(SnackBar), findsNothing,
+        reason: 'a leftover snackbar would hide whatever the next press says');
+
+    await tester.tap(find.byKey(const ValueKey('game_hint_button')));
+    await tester.pump();
+    expect(find.text('Every word still to find already has its hint.'),
+        findsNothing,
+        reason: 'the last unfound word was refused a hint');
+    expect(wsCellIsHinted(tester, 5, 10), isTrue,
+        reason: "WOMAN's hint was not shown");
+
+    // Only now, with every unfound word hinted, is that message the truth.
+    await tester.tap(find.byKey(const ValueKey('game_hint_button')));
+    await tester.pump();
+    expect(find.text('Every word still to find already has its hint.'),
+        findsOneWidget);
+    await tester.pump(const Duration(seconds: 6));
+  });
+
+  testWidgets('Word Search: a hint inside a found word stays visible',
+      (tester) async {
+    tester.view.physicalSize = const Size(1080, 2280);
+    tester.view.devicePixelRatio = 2.625;
+    addTearDown(tester.view.reset);
+
+    // WOMAN's first letter sits on a cell of WEAVER. Once WEAVER is found, a
+    // hint there used to be painted in the "found" colour -- a star spent on
+    // nothing. This is common, not a corner case: English levels 20-40 are full
+    // of it.
+    await tester
+        .pumpWidget(localizedApp(const WordSearchScreen(startLevel: 26)));
+    await tester.pump();
+    final board = WordSearchBoard.generate(26, 'en');
+    final weaver = board.words.firstWhere((w) => w.word == 'WEAVER');
+    await wsDragWord(tester, board, weaver);
+    expect(find.text('Found 1 of ${board.words.length}'), findsOneWidget);
+
+    // Spend a hint on every remaining word, which includes WOMAN at (5,10).
+    for (var i = 0; i < board.words.length - 1; i++) {
+      await tester.tap(find.byKey(const ValueKey('game_hint_button')));
+      await tester.pump();
+    }
+
+    final hinted = wsCellDecoration(tester, 5, 10); // WOMAN's start, in WEAVER
+    final plainFound = wsCellDecoration(tester, 5, 9); // WEAVER, no hint
+    expect(plainFound.color, isNot(Colors.white),
+        reason: '(5,9) is not being drawn as a found cell, so this proves nothing');
+    expect(hinted.color, isNot(plainFound.color),
+        reason: 'a hint on a found cell is indistinguishable from the found cell');
+    expect(hinted.border, isNotNull,
+        reason: 'the hint ring is what carries the marking for a poor colour reader');
+    expect(plainFound.border, isNull);
+    await tester.pump(const Duration(seconds: 5));
+  });
+
   test('Number Cross: division is exact, and only from level 14', () {
     // Division was the last untried knob -- blanks and decoys are both spent by
     // level 32. It arrives late because its operands cannot be chosen freely and
@@ -3943,6 +4078,13 @@ void main() {
     // density 0.68 that was every board. Density is now tuned per size to keep
     // some interior moves, and this is what stops a future "make it denser"
     // change from quietly undoing it.
+    //
+    // This samples both generators, which is deliberate: the requirement is
+    // about the board the player gets, not about how it was built. The dense
+    // levels are held to a stronger version of it over the whole solve rather
+    // than the opening position -- see "Arrow Escape: a full board is still
+    // played from the inside" -- because a completely full board can only open
+    // at its rim, so the opening position is the wrong thing to ask it about.
     var withInterior = 0, sampled = 0;
     for (var level = 25; level <= 80; level++) {
       final cfg = configForLevel(level);
@@ -3970,6 +4112,222 @@ void main() {
     expect(ArrowBoard.generate(21).pieces.length, 55);
   });
 
+  test('Arrow Escape levels 1-40 are exactly the boards players already have',
+      () {
+    // A second generator now runs the high levels, and players have progress --
+    // and possibly an autosaved half-finished board -- on the low ones. These
+    // fingerprints were captured from the sparse generator *before* it was
+    // touched; if one moves, someone has widened the gate by accident.
+    //
+    // Position and direction of every piece, in order, not just the count: the
+    // count alone would miss a reshuffle.
+    int fingerprint(ArrowBoard b) {
+      var h = 17;
+      for (final p in b.pieces) {
+        h = (h * 31 + p.row) & 0xFFFFFF;
+        h = (h * 31 + p.col) & 0xFFFFFF;
+        h = (h * 31 + p.dir.index) & 0xFFFFFF;
+      }
+      return h;
+    }
+
+    const pinned = <int, List<int>>{
+      1: [6, 7519917],
+      2: [6, 16486127],
+      3: [6, 4535406],
+      4: [7, 13911596],
+      5: [11, 9188507],
+      8: [12, 2249841],
+      9: [18, 1027619],
+      12: [21, 13620142],
+      13: [29, 12840413],
+      16: [32, 2725505],
+      17: [43, 9217873],
+      20: [44, 1804965],
+      21: [55, 1871017],
+      24: [55, 5406820],
+      25: [55, 264061],
+      28: [55, 15874348],
+      29: [57, 4406072],
+      32: [57, 8674972],
+      33: [65, 1632994],
+      36: [65, 13248225],
+      37: [76, 1790288],
+      39: [76, 4761996],
+      40: [76, 9292965],
+    };
+    pinned.forEach((level, expected) {
+      final board = ArrowBoard.generate(level);
+      expect([board.pieces.length, fingerprint(board)], expected,
+          reason: 'level $level is no longer the board players have');
+      expect(configForLevel(level).hearts, 5,
+          reason: 'level $level lost its five hearts');
+    });
+
+    // And the boundary itself: 41 is the first level allowed to change.
+    expect(arrowDenseFirstLevel, 41);
+    expect(ArrowBoard.generate(40).pieces.length, 76);
+  });
+
+  test('Arrow Escape: the dense generator fills the grid and stays solvable',
+      () {
+    // Construction runs the game forwards from a full board, so 100% coverage
+    // is where it always lands rather than somewhere it has to be lucky to
+    // reach. Firing whatever is clear is an exact solver here -- arrows are only
+    // removed, so removing one can never block another -- which is what makes
+    // this a proof and not a sample.
+    for (final level in [41, 60, 90, 100, 150, 250]) {
+      final cfg = configForLevel(level);
+      final board = ArrowBoard.generate(level);
+      expect(board.pieces.length, cfg.arrowCount,
+          reason: 'level $level placed ${board.pieces.length} of '
+              '${cfg.arrowCount} arrows');
+
+      final d = board.measureDifficulty();
+      expect(d.solvableGreedily, isTrue, reason: 'level $level is not solvable');
+
+      // The documented invariant for this game: reverse placement order is a
+      // solution. The screen and the save format both lean on it.
+      for (final piece in board.pieces.reversed) {
+        expect(board.isPathClear(piece), isTrue,
+            reason: 'level $level stalls at piece ${piece.id}');
+        piece.escaped = true;
+      }
+      expect(board.isSolved, isTrue);
+    }
+
+    // The point of the whole exercise: the grid actually fills up.
+    expect(configForLevel(90).arrowCount, 14 * 14);
+    expect(configForLevel(250).arrowCount, 14 * 14);
+  });
+
+  test('Arrow Escape: the difficulty curve keeps climbing past level 40', () {
+    // Every level from 41 up used to be configuration-identical, and level 100
+    // measured *easier* than level 20: 27 of its 88 arrows could fire on the
+    // first tap. Both knobs have to keep moving.
+    expect(configForLevel(60).arrowCount,
+        greaterThan(configForLevel(41).arrowCount));
+    expect(configForLevel(80).arrowCount,
+        greaterThan(configForLevel(60).arrowCount));
+    for (final pair in [
+      [41, 60],
+      [60, 90],
+      [90, 150],
+      [150, 250],
+    ]) {
+      expect(arrowTargetBranchingForLevel(pair[1]),
+          lessThan(arrowTargetBranchingForLevel(pair[0])),
+          reason: 'level ${pair[1]} asks no more of the player than ${pair[0]}');
+    }
+
+    // And the boards delivered actually follow it, which is the part a target
+    // outside the generator's reach would silently fail to do.
+    double branchingAt(int level) =>
+        ArrowBoard.generate(level).measureDifficulty().meanBranching;
+    expect(branchingAt(100), lessThan(branchingAt(41)));
+    expect(branchingAt(100), lessThan(6.0));
+    // The old plateau, stated as a number: level 20 is 8x8 and measured 8.3.
+    expect(branchingAt(100),
+        lessThan(ArrowBoard.generate(20).measureDifficulty().meanBranching));
+
+    // Every target has to sit inside what the pool can produce, or the level
+    // degrades to "closest board found" and the curve flattens without saying
+    // so. Checked against the spread the analyzer prints.
+    for (final level in [41, 60, 90, 150, 250]) {
+      final target = arrowTargetBranchingForLevel(level);
+      final d = ArrowBoard.generate(level).measureDifficulty();
+      expect((d.meanBranching - target).abs(),
+          lessThanOrEqualTo(ArrowBoard.onTargetTolerance + 0.05),
+          reason: 'level $level missed its target of $target by '
+              '${(d.meanBranching - target).abs().toStringAsFixed(2)} -- '
+              're-run tool/analyze_arrow_escape_difficulty.dart');
+    }
+  });
+
+  test('Arrow Escape: a full board is still played from the inside', () {
+    // The sparse generator's density ceiling rested on an argument that a dense
+    // board can only be peeled from the rim, so there is nothing to plan and
+    // zooming into the middle shows the player no move they can make. That is
+    // true of the *first* tap on a full board and false of the rest of it, which
+    // is why the check is over the whole solve rather than the opening position.
+    for (final level in [41, 60, 90, 150]) {
+      final d = ArrowBoard.generate(level).measureDifficulty();
+      expect(d.interiorSteps, greaterThan(0.4),
+          reason: 'level $level is a rim peel: only '
+              '${(d.interiorSteps * 100).toStringAsFixed(0)}% of its moves are '
+              'ever available away from the edge');
+      expect(d.clearAtStart, lessThan(0.2),
+          reason: 'level $level opens with too many free moves');
+    }
+  });
+
+  test('Arrow Escape: hearts grow with the tapping, not with the difficulty',
+      () {
+    // A slip costs a heart, so a fixed five would make a 196-arrow board demand
+    // more than twice the per-tap accuracy of an 88-arrow one -- difficulty
+    // delivered as "do not misjudge a ray", which is the wrong axis.
+    for (var level = 1; level < arrowDenseFirstLevel; level++) {
+      expect(configForLevel(level).hearts, 5, reason: 'level $level');
+    }
+    expect(configForLevel(41).hearts, 5);
+    expect(configForLevel(90).hearts, greaterThan(configForLevel(41).hearts));
+    // Capped, because the row of hearts has to fit a phone.
+    expect(configForLevel(250).hearts, lessThanOrEqualTo(8));
+
+    // Three stars still means a flawless run, so more hearts is not a softer
+    // score -- only a longer board you are allowed to finish.
+    expect(configForLevel(250).hearts, greaterThan(2));
+  });
+
+  test('Arrow Escape: a save from the old board is dropped, not misapplied', () {
+    // What makes changing levels 41+ safe for a player mid-board. Every changed
+    // level has a different arrow count from the board it replaces, and the
+    // count guard refuses the save rather than marking the wrong arrows escaped.
+    final board = ArrowBoard.generate(41);
+    expect(board.pieces.length, isNot(88),
+        reason: 'level 41 must not keep the sparse generator\'s arrow count, '
+            'or an old save passes the count guard and lands on a board where '
+            'those ids are different arrows');
+    expect(
+        board.applyEscapedJson({
+          'count': 88,
+          'escaped': [0, 1, 2],
+        }),
+        isFalse);
+    expect(board.hasProgress, isFalse,
+        reason: 'a refused save must change nothing');
+  });
+
+  test('Arrow Escape: the blocking chain is measured, and is only a diagnostic',
+      () {
+    // The forced sequential depth of a board. Kept honest in two directions.
+    //
+    // It has to be sane: a chain cannot be shorter than one or longer than the
+    // number of arrows, and it must not depend on the escaped flags, since the
+    // analyzer measures pristine boards.
+    for (final level in [20, 40, 41, 100]) {
+      final board = ArrowBoard.generate(level);
+      final chain = board.longestBlockingChain();
+      expect(chain, greaterThanOrEqualTo(1));
+      expect(chain, lessThanOrEqualTo(board.pieces.length));
+      expect(board.longestBlockingChain(), chain,
+          reason: 'measuring must not mutate the board');
+      expect(board.hasProgress, isFalse);
+    }
+
+    // The dense boards really are structurally deeper than the sparse ones --
+    // which is what makes the caveat worth writing down rather than assuming the
+    // metric was simply wrong.
+    expect(ArrowBoard.generate(100).longestBlockingChain(),
+        greaterThan(3 * ArrowBoard.generate(40).longestBlockingChain()),
+        reason: 'filling the board should lengthen the forced spine a lot');
+
+    // And it must stay *out* of candidate selection: a board picked on chain
+    // depth is a different board, and the generator is tuned on branching.
+    expect(ArrowBoard.generate(100).pieces.length, 196,
+        reason: 'adding the metric must not have changed which board is chosen');
+  });
+
   testWidgets('Arrow Escape: zoom controls appear only where they are needed',
       (tester) async {
     tester.view.physicalSize = const Size(1080, 2280);
@@ -3992,6 +4350,30 @@ void main() {
     expect(find.byKey(const ValueKey('arrow_escape_zoom_in')).hitTestable(),
         findsOneWidget);
     expect(find.byKey(const ValueKey('arrow_escape_viewer')), findsOneWidget);
+  });
+
+  testWidgets('Arrow Escape: a full board and its hearts fit a phone',
+      (tester) async {
+    // 196 arrows and eight hearts is the most this game ever asks a screen to
+    // hold. The hearts are fixed-size icons in a Row, so they do not scale with
+    // the text setting -- but they do have to fit next to everything else.
+    tester.view.physicalSize = const Size(1080, 2280);
+    tester.view.devicePixelRatio = 2.625;
+    addTearDown(tester.view.reset);
+
+    const level = 120;
+    expect(configForLevel(level).arrowCount, 14 * 14);
+    await tester
+        .pumpWidget(localizedApp(const ArrowEscapeScreen(startLevel: level)));
+    await tester.pumpAndSettle();
+
+    expect(find.byIcon(Icons.favorite_rounded),
+        findsNWidgets(configForLevel(level).hearts));
+    expect(tester.takeException(), isNull, reason: 'the header overflowed');
+    // Every arrow is on screen at rest; zoom is an aid, never a requirement.
+    final boardRect =
+        tester.getRect(find.byKey(const ValueKey('arrow_escape_board')));
+    expect(boardRect.width, lessThanOrEqualTo(tester.view.physicalSize.width));
   });
 
   testWidgets('Arrow Escape: a zoomed board is still playable', (tester) async {
@@ -4572,6 +4954,162 @@ void main() {
     // ...and the board on screen is playable, so what it took was usable.
     expect(find.byKey(const ValueKey('arrow_maze_board')), findsOneWidget);
     expect(find.text('Level $level'), findsOneWidget);
+  });
+
+  testWidgets('Arrow Maze: the next board warms during play, not only at a win',
+      (tester) async {
+    // The owner's report: at high levels, "Next level" sometimes gives nothing
+    // for a while and then an empty board saying it is being built -- and
+    // sometimes it is instant. The unpredictability was the complaint.
+    //
+    // The cause was the size of the budget, not the speed of the generator.
+    // Warming only started when the win dialog went up, which buys ~1.1s;
+    // generation across levels 40-70 measures a median of 359ms but a p90 of
+    // 1290ms and a max of 1947ms on desktop, and 2-3x that on a phone. Cost is
+    // deterministic per level and wildly uneven between levels, so the same
+    // player hit the wall on some levels and never on others: "sometimes".
+    //
+    // The fix is to start when the level does. No win is involved in this test.
+    tester.view.physicalSize = const Size(1080, 2280);
+    tester.view.devicePixelRatio = 2.625;
+    addTearDown(tester.view.reset);
+    addTearDown(BoardPrefetch.reset);
+
+    const level = 3;
+    BoardPrefetch.reset();
+    await tester
+        .pumpWidget(localizedApp(const SnakeArrowsScreen(startLevel: level)));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('arrow_maze_board')), findsOneWidget);
+    expect(find.byType(AlertDialog), findsNothing,
+        reason: 'the point is that no dialog is needed to trigger warming');
+
+    // The post-load tap guard is a Timer, so pumpAndSettle does not reach it;
+    // the warm rides on its tail so the isolate spawn cannot compete with the
+    // board's first paint.
+    await tester.pump(const Duration(milliseconds: 450));
+    expect(BoardPrefetch.warmingLevel, level + 1,
+        reason: 'the next board should already be building, mid-level');
+
+    // And the board being played is filed too, so being killed and reopened here
+    // does not regenerate the board that was on screen.
+    expect(
+        ProgressStore.instance.hasPrefetchedBoard(
+            'arrow_maze', level, SnakeBoard.generatorVersion),
+        isTrue,
+        reason: 'the current board should be stored for a restart');
+  });
+
+  testWidgets('Arrow Maze: a board stored on disk opens without the spinner',
+      (tester) async {
+    // Prefetching in memory only ever helped *sequential* play. First entry into
+    // the game, a jump from the level picker and a resume after the app was
+    // killed all started with nothing warmed -- which at level 30+ is exactly
+    // where the wait is felt.
+    tester.view.physicalSize = const Size(1080, 2280);
+    tester.view.devicePixelRatio = 2.625;
+    addTearDown(tester.view.reset);
+    addTearDown(BoardPrefetch.reset);
+
+    const level = 30;
+    BoardPrefetch.reset(); // nothing in memory: a cold start
+    ProgressStore.instance.savePrefetchedBoard('arrow_maze', level,
+        SnakeBoard.generatorVersion, SnakeBoard.generate(level).toJson());
+
+    await tester
+        .pumpWidget(localizedApp(const SnakeArrowsScreen(startLevel: level)));
+    await tester.pump();
+    expect(find.byKey(const ValueKey('arrow_maze_loading')), findsNothing,
+        reason: 'a board waiting on disk should not need building again');
+    expect(find.byKey(const ValueKey('arrow_maze_board')), findsOneWidget);
+    expect(find.text('Level $level'), findsOneWidget);
+
+    // A board built by an older generator is refused rather than served: it is
+    // not merely stale, it is a board this build would never make for this level.
+    BoardPrefetch.reset();
+    ProgressStore.instance.savePrefetchedBoard('arrow_maze', level,
+        SnakeBoard.generatorVersion + 1, SnakeBoard.generate(level).toJson());
+    // A different key, or Flutter reuses the State above and never reloads --
+    // which would make the assertion below pass for the wrong reason.
+    await tester.pumpWidget(localizedApp(const SnakeArrowsScreen(
+        key: ValueKey('cold'), startLevel: level)));
+    await tester.pump();
+    expect(find.byKey(const ValueKey('arrow_maze_loading')), findsOneWidget,
+        reason: 'a board from another generator version must not be used');
+
+    // ...and it still opens: refusing a cached board costs time, never a level.
+    // (Bounded pumps, not pumpAndSettle: the spinner never settles. The first
+    // one also flushes obtain's zero-duration delay, which would otherwise be
+    // left pending when the tree is torn down.)
+    await tester.pump(const Duration(milliseconds: 1));
+    await tester.pump();
+    expect(find.byKey(const ValueKey('arrow_maze_board')), findsOneWidget);
+  });
+
+  test('Board prefetch: a stored board is reused, an older generator is not',
+      () async {
+    const level = 9;
+    BoardPrefetch.reset();
+    final local = SnakeBoard.generate(level);
+    ProgressStore.instance.savePrefetchedBoard(
+        'arrow_maze', level, SnakeBoard.generatorVersion, local.toJson());
+
+    final hit = await BoardPrefetch.obtain(level);
+    expect(hit.wasWarm, isTrue, reason: 'the stored board should have been used');
+    expect(hit.board.rows, local.rows);
+    expect(hit.board.cols, local.cols);
+    expect(hit.board.arrows.length, local.arrows.length);
+
+    // Stored boards are keyed by level, so another level is a plain miss.
+    expect((await BoardPrefetch.obtain(level + 1)).wasWarm, isFalse);
+
+    BoardPrefetch.reset();
+    ProgressStore.instance.savePrefetchedBoard(
+        'arrow_maze', level, SnakeBoard.generatorVersion + 1, local.toJson());
+    expect((await BoardPrefetch.obtain(level)).wasWarm, isFalse,
+        reason: 'a board from an older generator must be ignored');
+    BoardPrefetch.reset();
+  });
+
+  test('Board prefetch: a warm asked for during another build is not dropped',
+      () async {
+    // A plain test, not testWidgets: real isolates never finish inside the
+    // fake-async zone.
+    //
+    // warm() used to return early whenever *any* build was in flight, with the
+    // note "obtain() copes". It does cope -- by generating on the spot, which is
+    // the wait this class exists to remove. A dropped request meant a level was
+    // never warmed at all.
+    BoardPrefetch.reset();
+    BoardPrefetch.warm(5);
+    expect(BoardPrefetch.warmingLevel, 5);
+    BoardPrefetch.warm(6); // arrives while 5 is still building
+
+    await BoardPrefetch.pending;
+    expect(BoardPrefetch.has(5), isTrue, reason: 'level 5 should have been built');
+
+    await BoardPrefetch.pending;
+    expect(BoardPrefetch.has(6), isTrue,
+        reason: 'the request for level 6 was dropped instead of queued');
+    BoardPrefetch.reset();
+  });
+
+  test('Board prefetch: nothing warmed still produces the right board',
+      () async {
+    // The invariant every other change here has to preserve: nothing in the
+    // prefetch may ever stop a level from opening.
+    BoardPrefetch.reset();
+    const level = 7;
+    final got = await BoardPrefetch.obtain(level);
+    expect(got.wasWarm, isFalse);
+    final local = SnakeBoard.generate(level);
+    expect(got.board.rows, local.rows);
+    expect(got.board.cols, local.cols);
+    expect(got.board.arrows.length, local.arrows.length);
+    for (var i = 0; i < local.arrows.length; i++) {
+      expect(got.board.arrows[i].exitDir, local.arrows[i].exitDir);
+      expect(got.board.arrows[i].cells.first, local.arrows[i].cells.first);
+    }
   });
 }
 
