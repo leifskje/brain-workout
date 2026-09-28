@@ -74,6 +74,11 @@ We deliberately spread games across domains for a rounded "workout," and want
   **The daily word is excluded on purpose.** It is the same puzzle for everyone and its
   emoji grid is shareable, so a hinted daily result would misreport how it went to another
   person. Practice words get the button; the daily does not.
+- 📝 **Picture boards** — arrows arranged into a silhouette, as milestone levels. See
+  [picture-boards.md](picture-boards.md); feasibility is measured, not assumed.
+- 📝 **Difficulty choice** — an assist at the easy end, fewer hearts at the hard end.
+  Reopens the "level-gated, not a setting" decision below, on new evidence from both
+  players. See [difficulty-choice.md](difficulty-choice.md).
 - 💡 Daily reminder notification (local notifications)
 - ✅ Personal records ("New personal best!") — local only, per game *and* per
   level. Wired for 2048 (score), Memory Match (moves), Mini Sudoku and Picture
