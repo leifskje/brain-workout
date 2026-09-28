@@ -13,10 +13,17 @@ git is no evidence it was uploaded.
 
 ## What to do first
 
-**Picture boards** ([picture-boards.md](picture-boards.md)). It is bounded, the
-feasibility is already measured rather than assumed, it needs no new algorithm for
-Arrow Escape, and it creates no retrofit debt — it is level content, not a system.
-It is also the one thing here the owner's mother will notice immediately.
+**Finish picture boards** ([picture-boards.md](picture-boards.md)). A first cut is
+built and playable on branch `les/picture-boards` (3 commits, not pushed, nothing
+near `main`). The owner played level 55 on the emulator and liked it.
+
+The open question is his, and he wants it answered before more is built:
+**should silhouettes be every tenth level, or should every late board be a
+picture?** Currently every tenth from 55. Arguments both ways — a shape is a
+landmark and landmarks stop being landmarks if constant; but the masks constrain
+the generator far less than expected (branching 2.96/4.55/5.33 across the three
+shapes, all in band), so "always" may cost nothing in difficulty and give the game
+an identity. Do not decide it on paper; he can see three of them in ten minutes.
 
 **Difficulty choice** ([difficulty-choice.md](difficulty-choice.md)) is the bigger
 and riskier piece: it touches every game, the star bar's meaning, and persistence,
@@ -53,7 +60,18 @@ and never *harder to work out*.
 
 ## Open work, ranked
 
-1. **Picture boards** — see above and [picture-boards.md](picture-boards.md).
+1. **Picture boards.** Built so far: `ArrowShape` (ASCII masks, three geometric
+   shapes), `ArrowBoard.generateShaped`, levels 55/65/75… wired via
+   `arrowShapeForLevel`, and `tool/dump_arrow_shape.dart` to see one as text.
+   `configForLevel` follows the shape so arrow count and hearts stay consistent.
+
+   Still to do, in order: **generalise `BoardPrefetch` beyond Arrow Maze** — the
+   grids that make a genuinely good picture are the expensive ones (28x28 solid
+   extrapolates to ~2s) and Arrow Escape generates on the UI isolate, which is why
+   the shipped shapes are only 14x14. Then bigger grids and outline shapes (a 20x20
+   outline is 132 arrows and a better picture than a 126-arrow 14x14 solid). Then
+   colour, which needs the bonus-arrow channel resolved first. Then Arrow Maze,
+   which is the bigger job — see the `inShape` trap in the plan.
 2. **Difficulty choice**, starting with the Word Search assist —
    [difficulty-choice.md](difficulty-choice.md).
 3. **Odd One Out** ([odd-one-out.md](odd-one-out.md)) — the new game with a plan
@@ -153,6 +171,11 @@ attached debug build, because the level picker only shows up to
 `highest_level_<game>` and the emulator's progress is near zero exactly when a late
 board is what needs looking at. `-Show` lists what is unlocked. It only ever touches
 `highest_level_*`.
+
+It **refuses to lower** a level without `-Force`, and that guard exists because an
+earlier version knocked a real playthrough from 101 back to 75. Lowering is never
+what you want anyway: the picker shows *every* level up to the highest, so an
+earlier level is already reachable without touching anything.
 
 ## Releasing
 

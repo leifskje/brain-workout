@@ -176,5 +176,18 @@ have the owner confirm "viewable" on a device — it is his call, not a measurab
 
 ## Status
 
-📝 Planned. Prototyped and measured for Arrow Escape (the table above is real);
-nothing built, nothing tried for Arrow Maze.
+🔨 **In progress**, branch `les/picture-boards` (not pushed). Built: `ArrowShape`
+with three geometric masks, `ArrowBoard.generateShaped`, levels 55/65/75… via
+`arrowShapeForLevel`, `configForLevel` following the shape, and
+`tool/dump_arrow_shape.dart`. Seen on the emulator and liked.
+
+Delivered shapes: heart (126 arrows, branching 2.96, chain 26), diamond (112,
+4.55, 27), star (96, 5.33, 17).
+
+**Open, and the owner's call: every tenth level, or every late board?** The
+"milestone" argument above was written before three shapes existed to look at, and
+the measured branching spread suggests "always" may cost nothing in difficulty.
+He can judge it from the emulator faster than anyone can argue it.
+
+Not started: prefetch generalisation (the gate on bigger grids), outline shapes,
+colour, and anything at all for Arrow Maze.
