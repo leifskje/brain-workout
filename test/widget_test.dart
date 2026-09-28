@@ -4298,6 +4298,75 @@ void main() {
         reason: 'a refused save must change nothing');
   });
 
+  test('Arrow Escape: shapes are well formed', () {
+    // A typo in an ASCII mask is invisible by eye and produces a board with a
+    // ragged edge, so assert the grid is square before trusting any of it.
+    for (final shape in arrowShapes) {
+      expect(shape.rows, isNotEmpty, reason: shape.name);
+      for (final row in shape.rows) {
+        expect(row.length, shape.size,
+            reason: '${shape.name}: every row must be ${shape.size} wide');
+      }
+      expect(shape.cellCount, greaterThan(20), reason: shape.name);
+      expect(shape.cellCount, lessThan(shape.size * shape.size),
+          reason: '${shape.name} must leave some air, or it is not a shape');
+    }
+  });
+
+  test('Arrow Escape: a shaped board is solvable and matches its silhouette',
+      () {
+    // The point of the whole feature: _buildDense never cared which cells were
+    // live, so a mask needs no new generator. If this passes, that holds.
+    for (final shape in arrowShapes) {
+      final board = ArrowBoard.generateShaped(shape);
+
+      expect(board.pieces.length, shape.cellCount,
+          reason: '${shape.name}: every filled cell gets exactly one arrow');
+
+      // Arrows sit on the shape and nowhere else.
+      final occupied = {for (final p in board.pieces) (p.row, p.col)};
+      expect(occupied.length, board.pieces.length,
+          reason: '${shape.name}: no two arrows may share a cell');
+      for (var r = 0; r < shape.size; r++) {
+        for (var c = 0; c < shape.size; c++) {
+          expect(occupied.contains((r, c)), shape.filled(r, c),
+              reason: '${shape.name}: cell ($r,$c) does not match the mask');
+        }
+      }
+
+      // Solvable by firing whatever is clear -- exact here, since the game is
+      // monotone.
+      expect(board.measureDifficulty().solvableGreedily, isTrue,
+          reason: '${shape.name} is not solvable');
+
+      // And not trivial: a silhouette must still be in the band the levelled
+      // boards use, or it is decoration with the game taken out.
+      expect(board.measureDifficulty().meanBranching, lessThan(8.0),
+          reason: '${shape.name} plays itself');
+    }
+  });
+
+  test('Arrow Escape: shaped generation is deterministic and seed-varied', () {
+    final shape = arrowShapes.first;
+    String fingerprint(ArrowBoard b) =>
+        b.pieces.map((p) => '${p.row},${p.col},${p.dir.index}').join(';');
+
+    expect(fingerprint(ArrowBoard.generateShaped(shape, seed: 3)),
+        fingerprint(ArrowBoard.generateShaped(shape, seed: 3)),
+        reason: 'a retry must give the same board, as everywhere else');
+    expect(fingerprint(ArrowBoard.generateShaped(shape, seed: 3)),
+        isNot(fingerprint(ArrowBoard.generateShaped(shape, seed: 4))),
+        reason: 'a different seed must give a different board');
+  });
+
+  test('Arrow Escape: adding shapes did not disturb the levelled boards', () {
+    // _buildDense grew a parameter. Levels 1-40 are frozen and 41+ are tuned, so
+    // the default path has to be byte-identical to before the change.
+    expect(ArrowBoard.generate(100).pieces.length, 196);
+    expect(ArrowBoard.generate(41).pieces.length, 90);
+    expect(ArrowBoard.generate(20).pieces.length, 44);
+  });
+
   test('Arrow Escape: the blocking chain is measured, and is only a diagnostic',
       () {
     // The forced sequential depth of a board. Kept honest in two directions.
