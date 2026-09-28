@@ -77,8 +77,42 @@ const arrowDenseFirstLevel = 41;
 double arrowFillForLevel(int level) =>
     (0.46 + (level - arrowDenseFirstLevel) * 0.011).clamp(0.46, 1.0);
 
+/// First picture level, and how often they recur.
+///
+/// Milestones, not the default: a silhouette is a landmark and a reward, and a
+/// run of them would be a gimmick — the shape constrains the generator enough
+/// that difficulty would drift if every board were one. Starting at 55 rather
+/// than 50 keeps them off the round numbers the analyzer and the tests sample,
+/// so a picture level never silently stands in for a levelled one being measured.
+const arrowFirstPictureLevel = 55;
+const arrowPictureInterval = 10;
+
+/// The silhouette for [level], or null on an ordinary level.
+ArrowShape? arrowShapeForLevel(int level) {
+  if (level < arrowFirstPictureLevel) return null;
+  if ((level - arrowFirstPictureLevel) % arrowPictureInterval != 0) return null;
+  final n = (level - arrowFirstPictureLevel) ~/ arrowPictureInterval;
+  return arrowShapes[n % arrowShapes.length];
+}
+
 /// Grows the board size and arrow density as the level increases.
 ArrowLevelConfig configForLevel(int level) {
+  // A picture level's size and arrow count come from its shape, not the curve —
+  // and the hearts have to follow, or the screen shows a heart count the board
+  // cannot justify.
+  final shape = arrowShapeForLevel(level);
+  if (shape != null) {
+    return ArrowLevelConfig(
+      rows: shape.size,
+      cols: shape.size,
+      arrowCount: shape.cellCount,
+      hearts: _heartsForArrowCount(shape.cellCount),
+    );
+  }
+  return _levelledConfig(level);
+}
+
+ArrowLevelConfig _levelledConfig(int level) {
   // Grid and density both used to stop at level 13, then at level 21 with a 9x9
   // board — after which every level was config-identical, the same plateau Arrow
   // Maze was rescued from. Single-cell arrows stay legible far longer than Arrow
@@ -511,6 +545,12 @@ class ArrowBoard {
   /// gives the same board.
   static ArrowBoard generate(int level) {
     if (level < arrowDenseFirstLevel) return _buildSparse(level);
+
+    final shape = arrowShapeForLevel(level);
+    if (shape != null) {
+      // Seeded by level like everything else, so a retry gives the same board.
+      return generateShaped(shape, seed: level);
+    }
 
     final cfg = configForLevel(level);
     final target = arrowTargetBranchingForLevel(level);

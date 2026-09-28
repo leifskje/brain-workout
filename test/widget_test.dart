@@ -4298,6 +4298,40 @@ void main() {
         reason: 'a refused save must change nothing');
   });
 
+  test('Arrow Escape: picture levels are milestones, and stay consistent', () {
+    // Rare, and never inside the frozen range.
+    expect(arrowShapeForLevel(40), isNull);
+    expect(arrowShapeForLevel(54), isNull);
+    expect(arrowShapeForLevel(arrowFirstPictureLevel), isNotNull);
+    expect(arrowShapeForLevel(arrowFirstPictureLevel + 1), isNull);
+    expect(arrowShapeForLevel(arrowFirstPictureLevel + arrowPictureInterval),
+        isNotNull);
+    for (var level = 1; level < arrowFirstPictureLevel; level++) {
+      expect(arrowShapeForLevel(level), isNull,
+          reason: 'level $level must stay an ordinary board');
+    }
+
+    // They cycle rather than repeating one shape forever.
+    expect(arrowShapeForLevel(arrowFirstPictureLevel)!.name,
+        isNot(arrowShapeForLevel(arrowFirstPictureLevel + arrowPictureInterval)!.name));
+
+    // The config must agree with the board, or the screen shows a heart count
+    // the board cannot justify and the win/lose maths is wrong.
+    for (final level in [55, 65, 75, 85]) {
+      final shape = arrowShapeForLevel(level)!;
+      final cfg = configForLevel(level);
+      final board = ArrowBoard.generate(level);
+      expect(cfg.arrowCount, shape.cellCount, reason: 'level $level');
+      expect(board.pieces.length, cfg.arrowCount, reason: 'level $level');
+      expect(cfg.rows, shape.size, reason: 'level $level');
+      expect(board.measureDifficulty().solvableGreedily, isTrue,
+          reason: 'level $level');
+      // Seeded by level, like every other board in the game.
+      expect(ArrowBoard.generate(level).pieces.first.dir, board.pieces.first.dir,
+          reason: 'level $level must be retry-stable');
+    }
+  });
+
   test('Arrow Escape: shapes are well formed', () {
     // A typo in an ASCII mask is invisible by eye and produces a board with a
     // ragged edge, so assert the grid is square before trusting any of it.
