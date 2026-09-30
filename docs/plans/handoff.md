@@ -12,30 +12,29 @@ Check what testers actually have with `python tool/play_track_status.py` rather 
 reading `pubspec.yaml` — that file describes the *next* build, and a versionCode in
 git is no evidence it was uploaded.
 
-## What to do first (written 29 Sep, for 30 Sep)
+## What to do first (written 30 Sep)
 
-**Arrow Pictures** — a new game, built in one day on branch
-`les/picture-boards`. Everything since the 28 Sep handoff commit is
-**uncommitted**: the owner reviews and commits. Gates were green at hand-over
-(`flutter analyze` clean, `flutter test` 181 passing). Nothing is pushed, nothing
-near `main`, nothing released.
+**Arrow Pictures**, branch `les/picture-boards` (29 Sep's work committed and
+pushed; 30 Sep's work uncommitted for the owner to review). Nothing near `main`,
+nothing released.
 
-1. **Grow the picture list from 102 to at least 200** before any release — the
-   owner's ask for tomorrow. The how, including tier sizes, the silhouette rule,
-   coverage checks and the agent process that worked, is the *Adding pictures —
-   the recipe* section of [picture-boards.md](picture-boards.md); its *Next*
-   list has the rest (pin the list, mirrored replays, heart/diamond/star,
-   Norwegian names check).
-2. **Fix F5 wiping the emulator's app data** (see *Dev environment* below) —
-   it cost several rounds today and will cost more during picture testing.
-3. Then back to the ranked list: difficulty choice is next.
+Done 30 Sep: **215 pictures** (every new one passed a blind silhouette audit),
+the list **pinned** by a test, **mirrored replays**, and the cause of F5 wiping
+app data found (below).
+
+1. **Owner spot-check** of the new pictures on the emulator — first free the
+   emulator's disk (see *Dev environment*), or F5 wipes progress again. The
+   *Next* list of [picture-boards.md](picture-boards.md) has the weakest
+   pictures, the short-arrow boundary question (now level 101) and the
+   Norwegian names check.
+2. Then back to the ranked list: difficulty choice is next.
 
 ## Arrow Pictures — what exists (29 Sep)
 
 - Every board a picture; its own card on the home screen ("Arrow Pictures" /
   "Pilbilder"), progress id `arrow_pictures`.
-- **Levels 1–39 use short arrows** (Arrow Escape's screen), **40+ use long
-  arrows** (Arrow Maze's screen); both screens now take a spec
+- **Levels 1–101 use short arrows** (Arrow Escape's screen), **102+ use long
+  arrows** (Arrow Maze's screen) — the boundary was 39/40 until 30 Sep; both screens now take a spec
   (`ArrowGameSpec`, `SnakeGameSpec`) and `ArrowPicturesScreen` picks one per
   level, swapping screens when "Next level" crosses the boundary.
 - **Colour only on the finished picture**: during play long-arrow levels show a
@@ -44,8 +43,8 @@ near `main`, nothing released.
   "Det var en sjøhest!").
 - Boards prefetched in a background isolate, one cache per arrow kind;
   `BoardPrefetch<B>` is generic now (Arrow Maze uses `arrowMazePrefetch`).
-- Past level 102 the game cycles the long-arrow pictures with new boards — it
-  used to restart at the 42-arrow key.
+- Past level 215 the game cycles the long-arrow pictures with new boards,
+  mirrored on alternate laps — it used to restart at the 42-arrow key.
 - Arrow Escape is back to full boards only; the 55/65/75 picture levels never
   shipped.
 - Tools: `dart run tool/analyze_arrow_pictures.dart` (per-level coverage,
@@ -56,20 +55,20 @@ near `main`, nothing released.
 
 ## Dev environment — open problems
 
-- **F5 reinstalls the app from scratch**, wiping the emulator's app data (every
-  game back to level 1). `dumpsys package` showed `firstInstallTime` = the F5
-  time each time. `flutter run` only uninstalls when `adb install -r` fails, so
-  something makes the in-place update fail. Next step: have the owner paste the
-  Debug Console's first lines from an F5 ("Uninstalling old version…" /
-  `INSTALL_FAILED_…`). Workaround today: after F5, `pwsh -File
-  tool/set_level.ps1 -Level 103 -Game arrow_pictures`, then open the app from its
-  icon.
-- **A cold F5 starts the emulator twice**: the `Boot Android emulator`
-  preLaunchTask boots `pixel_api35`, then the extension's `emulatorId` tries
-  too, and the second exits with code 1 ("device 'emulator-5554' not found").
-  Harmless once the first is up. Fix: drop one of the two starters in
-  `.vscode/launch.json` / `tool/boot_emulator.ps1` (owner agreed in principle,
-  not done).
+- **F5 reinstalls the app from scratch — cause found (30 Sep), fix is the
+  owner's.** The emulator's 6 GB `/data` is full (433 MB free): Play has
+  auto-updated 23 system apps into it. `adb install -r` of the ~200 MB debug APK
+  fails with "Requested internal only, but not enough space", so `flutter run`
+  uninstalls and reinstalls. An agent's attempt to revert those updates was
+  blocked by the permission classifier (it deletes AVD data), so either:
+  `adb shell pm uninstall-system-updates <pkg>` for the big unneeded apps
+  (Chrome, YouTube, Maps, Photos…), or **Wipe Data** in Device Manager —
+  `disk.dataPartition.size` is already raised to 16 GB in the AVD's
+  `config.ini` (backup `config.ini.bak-20260930`), which only takes effect on a
+  wipe. Afterwards `tool/set_level.ps1 -Level 103 -Game arrow_pictures`.
+- **A cold F5 started the emulator twice — fixed (30 Sep).** `launch.json` now
+  pins `deviceId: emulator-5554` and the preLaunchTask is the only starter.
+  Not yet tried from a cold F5 by the owner.
 - **Force-killing the emulator corrupts the quick-boot snapshot** → black app
   screen. `pwsh -File tool/boot_emulator.ps1 -Cold` fixes it. The emulator also
   crashed once on its own today; stale `multiinstance.lock` files and a second
@@ -106,8 +105,8 @@ and never *harder to work out*.
 
 ## Open work, ranked
 
-1. **Arrow Pictures to ≥ 200 pictures**, then pin the list — see *What to do
-   first* and [picture-boards.md](picture-boards.md). Before shipping it also
+1. **Arrow Pictures: owner spot-check**, then ship — see *What to do first* and
+   [picture-boards.md](picture-boards.md). Before shipping it also
    needs a `version:` bump and probably the store listing/screenshots updated
    for a new game (ask; `publishListing` writes to the live account).
 2. **Difficulty choice**, starting with the Word Search assist —
@@ -194,8 +193,9 @@ shaped boards — nothing to take.
 Passes tests but has never run on real hardware. Widget tests and board dumps are the
 agent's only channels (see `CLAUDE.md`), so these need the owner:
 
-- **Arrow Pictures, 39 → 40**: the swap from short to long arrows mid-game has
+- **Arrow Pictures, 101 → 102**: the swap from short to long arrows mid-game has
   not been played through deliberately; worth one pass for how it feels.
+- **Arrow Pictures' 113 new pictures** (30 Sep) — audited blind by agents only.
 - **Arrow Pictures on a real phone**: huge boards (44 wide, ~8dp cells at fit)
   and ~2s board generation after a level-picker jump have only been seen on the
   emulator.

@@ -10,24 +10,20 @@
   "version": "0.2.0",
   "configurations": [
     {
-      // `emulatorId` (not `deviceId`) is what makes this reliable: it starts
-      // pixel_api35 if it isn't running, and per the extension's own docs it
-      // "overrides anything in deviceId or selected in the status bar" — so the
-      // status-bar device can't hijack the launch.
+      // The preLaunchTask boots pixel_api35 and waits for sys.boot_completed
+      // (the extension would only wait for it to *connect*), so by launch time
+      // the device exists and `deviceId` pins it exactly. Don't add
+      // `emulatorId` back alongside it: that starts the emulator a second time
+      // on a cold F5, and the second one exits with "device not found".
       //
-      // `deviceId: "android"` does NOT work here, despite reading sensibly:
-      // deviceId is matched against device ids and names, and a booted AVD is
+      // `deviceId: "android"` does NOT work, despite reading sensibly: deviceId
+      // is matched against device ids and names, and a booted AVD is
       // "emulator-5554" / "sdk gphone64...", neither of which contains "android".
-      //
-      // The preLaunchTask is still worth keeping: the extension waits only for
-      // the emulator to *connect*, whereas tool/boot_emulator.ps1 waits for
-      // sys.boot_completed, so `flutter run` can't race a half-booted device.
-      // It no-ops in ~0.5s when a device is already attached.
       "name": "Brain Workout (Android)",
       "request": "launch",
       "type": "dart",
       "program": "lib/main.dart",
-      "emulatorId": "pixel_api35",
+      "deviceId": "emulator-5554",
       "preLaunchTask": "Boot Android emulator",
       // Impeller renders a blank screen on this x86_64 emulator: the app starts,
       // the VM service connects, logcat reports "Fully drawn" and no Dart error,
@@ -44,6 +40,7 @@
       "program": "lib/main.dart",
       "emulatorId": "pixel_api35",
       "flutterMode": "profile",
+      "deviceId": "emulator-5554",
       "preLaunchTask": "Boot Android emulator",
       "toolArgs": ["--no-enable-impeller"]
     },

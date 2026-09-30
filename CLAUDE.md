@@ -70,18 +70,23 @@ sync with the command list above. Agents still use `flutter test` /
 
 Two things about the launch configs that are easy to get wrong, and were:
 
-- The AVD is pinned with **`emulatorId: pixel_api35`**, not `deviceId`.
-  `"deviceId": "android"` reads sensibly but can never match — `deviceId` is
-  compared against device ids and names, and a booted AVD is `emulator-5554` /
-  `sdk gphone64 x86 64`. `emulatorId` also documents itself as overriding the
-  status-bar device, which `deviceId` does not.
+- The device is pinned with **`deviceId: emulator-5554`**, and the
+  `Boot Android emulator` preLaunchTask is the only thing that starts it.
+  `emulatorId` alongside it started the emulator a second time on a cold F5
+  (exit 1, "device not found"). `"deviceId": "android"` reads sensibly but can
+  never match — `deviceId` is compared against device ids and names, and a
+  booted AVD is `emulator-5554` / `sdk gphone64 x86 64`.
+- **F5 wiping the app's data is the emulator's disk filling up**, not Flutter.
+  `adb install -r` fails with "not enough space" once Play has auto-updated its
+  system apps into the 6 GB `/data`, and `flutter run` then uninstalls and
+  reinstalls. Check with `adb shell df -h /data`.
 - **F5 runs the last-used config, not the first one in the file**, and VS Code
   persists that per workspace. Reordering `launch.json` does not change it; that
   is why F5 kept building a Windows app after Windows was demoted.
 
-`tool/boot_emulator.ps1` still runs as a `preLaunchTask` because the extension
-waits only for the emulator to connect, while the script waits for
-`sys.boot_completed`. It no-ops in ~0.5s when a device is already attached.
+`tool/boot_emulator.ps1` runs as the `preLaunchTask` and waits for
+`sys.boot_completed` (the extension would only wait for the emulator to
+connect). It no-ops in ~0.5s when a device is already attached.
 
 A pre-commit hook (`.githooks/pre-commit`, enabled via `core.hooksPath`) runs
 `flutter analyze` before each commit. Bypass with `git commit --no-verify`.

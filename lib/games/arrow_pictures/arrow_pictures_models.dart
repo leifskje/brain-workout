@@ -12,15 +12,15 @@ import 'arrow_pictures_shapes.dart';
 /// **Levels are [pictureShapes] in order, and that list is append-only.** New
 /// pictures only ever go on the end, so a level someone has played never
 /// changes. Past the end the game cycles through the long-arrow pictures only,
-/// each with a new seed (a different board of the same picture) — cycling the
-/// whole list sent level 83 back to a 42-arrow key. Those cycled levels shift
+/// each with a new seed (a different board of the same picture), mirrored on
+/// alternate laps — cycling the whole list sent level 83 back to a 42-arrow key. Those cycled levels shift
 /// when pictures are added, which
 /// is survivable because a save whose arrow count no longer matches is dropped
 /// by `ArrowBoard.applyEscapedJson`, and [pictureGeneratorVersion] retires any
 /// cached board.
 
 /// Bump when generation changes what a level produces.
-const _generatorRevision = 1;
+const _generatorRevision = 2;
 
 /// Stamped on prefetched boards. Folds in the list length because appending a
 /// picture changes every cycled level.
@@ -36,9 +36,30 @@ int picturePositionForLevel(int level) {
   return pictureFirstLongPosition + (level - n - 1) % lap;
 }
 
+/// Whether [level] shows its picture mirrored left-to-right: every other lap
+/// past the end, starting with the first, so a replay looks new at no drawing
+/// cost. The first pass is never mirrored.
+bool pictureMirroredForLevel(int level) {
+  final n = pictureShapes.length;
+  if (level <= n) return false;
+  final lap = n - pictureFirstLongPosition + 1;
+  return ((level - n - 1) ~/ lap).isEven;
+}
+
 /// The picture for [level] (1-based).
-ArrowShape pictureShapeForLevel(int level) =>
-    pictureShapes[picturePositionForLevel(level) - 1];
+ArrowShape pictureShapeForLevel(int level) {
+  final shape = pictureShapes[picturePositionForLevel(level) - 1];
+  if (!pictureMirroredForLevel(level)) return shape;
+  return _mirrored[shape.name] ??= ArrowShape(shape.name, [
+    for (final r in shape.rows) r.split('').reversed.join(),
+  ]);
+}
+
+final _mirrored = <String, ArrowShape>{};
+
+/// Cache key for a level's picture: which picture, and which way round.
+(int, bool) _pictureKey(int level) =>
+    (picturePositionForLevel(level), pictureMirroredForLevel(level));
 
 /// How hard [level] plays *relative to its own picture*: 0 is the picture's
 /// median board, 1 its hardest. See [ArrowBoard.generateShapedAtHardness] for
@@ -64,7 +85,7 @@ enum PictureArrows { short, long }
 /// windmill 20 — while long arrows bend along the strokes and hold the same
 /// pictures at 2-4. At the small end it is the other way round: a picture under
 /// ~100 cells holds only 6-15 snakes, too short a puzzle.
-const pictureFirstLongPosition = 40;
+const pictureFirstLongPosition = 102;
 
 /// Long snakes only. Filled 92-98% of every picture measured; shorter snakes
 /// fill no better and only add easy moves.
@@ -108,24 +129,24 @@ const pictureHugeCells = 900;
 /// board every animation frame.
 List<List<bool>> pictureMaskForLevel(int level) {
   final shape = pictureShapeForLevel(level);
-  return _masks[shape.name] ??= [
+  return _masks[_pictureKey(level)] ??= [
     for (final r in shape.rows) [for (final ch in r.split('')) ch != '.']
   ];
 }
 
-final _masks = <String, List<List<bool>>>{};
+final _masks = <(int, bool), List<List<bool>>>{};
 
 /// [level]'s picture in colour: one ARGB per cell from [picturePalette], null
 /// outside. Cached, like [pictureMaskForLevel].
 List<List<int?>> pictureColoursForLevel(int level) {
   final shape = pictureShapeForLevel(level);
-  return _colours[shape.name] ??= [
+  return _colours[_pictureKey(level)] ??= [
     for (final r in shape.rows)
       [for (final ch in r.split('')) ch == '.' ? null : picturePalette[ch]]
   ];
 }
 
-final _colours = <String, List<List<int?>>>{};
+final _colours = <(int, bool), List<List<int?>>>{};
 
 /// Size, arrow count and hearts for [level], all taken from its picture.
 ArrowLevelConfig pictureConfigForLevel(int level) {

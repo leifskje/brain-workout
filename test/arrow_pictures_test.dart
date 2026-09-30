@@ -125,6 +125,58 @@ void main() {
     }
   });
 
+  test('Arrow Pictures: the shipped list is pinned, append-only', () {
+    // Level N is picture N, and players keep progress: once shipped, a picture
+    // may never move or disappear. New ones go on the end — extend this list
+    // rather than edit it.
+    const pinned = [
+      'key', 'lightning_bolt', 'musical_note', 'fish', 'banana', 'mushroom',
+      'carrot', 'mug', 'christmas_tree', 'house', 'crescent_moon', 'cherries',
+      'bell', 'heart', 'hammer', 'tulip', 'fish_skeleton', 'bird', 'anchor',
+      'candle', 'sailboat', 'scissors', 'whale', 'balloon', 'clothes_iron',
+      'palm_tree', 'spectacles', 'umbrella', 'crown', 'sun', 'snail',
+      'magnifying_glass', 'teapot', 'easter_egg', 'pear', 'rocket', 'pumpkin',
+      'bottle', 'dog_bone', 'saturn', 'horse', 'bow_tie', 'kite',
+      'hot_air_balloon', 'lighthouse', 'diamond', 'bathtub', 'frying_pan',
+      'fishing_boat', 'diamond_ring', 'watermelon_slice', 'lemon', 'horseshoe',
+      'boot', 'viking_ship', 'rain_cloud', 'table_lamp', 'cat', 'acorn',
+      'mitten', 'star', 'tractor', 'pretzel', 'igloo', 'cactus', 'jellyfish',
+      'moose', 'ice_cream_cone', 'owl', 'duck', 'snowflake', 'die', 'trophy',
+      'bucket', 'rabbit', 'butterfly', 'light_bulb', 'spade_suit', 'strawberry',
+      'flag', 'paw_print', 'padlock', 'club_suit', 'pineapple',
+      'christmas_stocking', 'kransekake', 'stave_church', 'troll',
+      'cooking_pot', 'tooth', 'four_leaf_clover', 'alarm_clock', 'chess_knight',
+      'pine_cone', 'teddy_bear', 'elephant', 'gift_box', 'apple', 'toaster',
+      'mountain_cabin', 'cheese_wedge', 'steam_locomotive', 'ladybird',
+      'bicycle', 'roe_deer', 'grand_piano', 'pram', 'sheep', 'watering_can',
+      'mailbox', 'goat', 'crab', 'anvil', 'hourglass', 'hedgehog',
+      'fire_hydrant', 'wheelbarrow', 'saxophone', 'guitar', 'tortoise', 'fox',
+      'rocking_chair', 'banjo', 'bird_house', 'seal', 'sewing_machine',
+      'rooster', 'oil_lantern', 'puffin', 'scorpion', 'frog', 'gramophone',
+      'barn', 'typewriter', 'penguin', 'chess_rook', 'tall_ship',
+      'grandfather_clock', 'birdcage', 'snowman', 'squirrel', 'excavator',
+      'swan', 'fire_engine', 'wolf', 'cello', 'steam_tug',
+      'leaning_tower_of_pisa', 'helicopter', 'eiffel_tower', 'bryggen',
+      'rocking_horse', 'peacock', 'giraffe', 'big_ben', 'lobster', 'eagle',
+      'statue_of_liberty', 'tower_bridge', 'octopus', 'oak_tree',
+      'pyramids_and_sphinx', 'colosseum', 'seahorse', 'pagoda', 'lion',
+      'windmill', 'dragon', 'sunflower_in_pot', 'lusekofte',
+      'onion_dome_church', 'armchair', 'empire_state_building', 'red_deer_stag',
+      'sydney_opera_house', 'biplane', 'camel', 'vintage_car', 'motorcycle',
+      'kangaroo', 'humpback_whale', 'ferris_wheel', 'submarine',
+      'double_decker_bus', 'spinning_wheel', 'kremlin_spasskaya_tower',
+      'walrus', 'tram', 'paddle_steamer', 'golden_gate_bridge', 'tiger',
+      'stabbur', 'harp', 'arc_de_triomphe', 'movie_camera', 'stagecoach',
+      'fjord_with_rowboat', 'hen_and_chicks', 'mont_saint_michel',
+      'coastal_express_ship', 'nidaros_cathedral', 'reindeer', 'stonehenge',
+      'angkor_wat', 'notre_dame', 'petronas_towers', 'hagia_sophia',
+      'polar_bear', 'brandenburg_gate', 'cuckoo_clock', 'fairytale_castle',
+      'parthenon', 'taj_mahal', 'carousel', 'st_pauls_cathedral',
+    ];
+    expect(pictureShapes.length, greaterThanOrEqualTo(pinned.length));
+    expect([for (final s in pictureShapes.take(pinned.length)) s.name], pinned);
+  });
+
   test('Arrow Pictures: the list is ordered by arrow count', () {
     // The tap count is the ramp; a big picture early would be a wall.
     for (var i = 1; i < pictureShapes.length; i++) {
@@ -156,6 +208,31 @@ void main() {
         isNot(snakeFingerprint(
             generateLongPictureBoard(pictureFirstLongPosition))),
         reason: 'a second lap should not replay the identical board');
+  });
+
+  test('Arrow Pictures: the first replay lap is mirrored, the next is not', () {
+    final n = pictureShapes.length;
+    final lap = n - pictureFirstLongPosition + 1;
+    expect(pictureMirroredForLevel(n), isFalse);
+    final original = pictureShapes[pictureFirstLongPosition - 1];
+    final mirrored = pictureShapeForLevel(n + 1);
+    // Same picture, so the win dialog still names it.
+    expect(mirrored.name, original.name);
+    for (var r = 0; r < original.rowCount; r++) {
+      expect(mirrored.rows[r], original.rows[r].split('').reversed.join());
+    }
+    // The board is built on the mirrored mask, and the reveal paints it.
+    final board = generateLongPictureBoard(n + 1);
+    for (final a in board.arrows) {
+      for (final c in a.cells) {
+        expect(mirrored.filled(c.row, c.col), isTrue);
+      }
+    }
+    expect(pictureMaskForLevel(n + 1)[0],
+        [for (final ch in mirrored.rows[0].split('')) ch != '.']);
+    expect(board.measureDifficulty().solvableGreedily, isTrue);
+    // Lap two is the right way round again.
+    expect(pictureShapeForLevel(n + lap + 1).rows, original.rows);
   });
 
   test('Arrow Pictures: appending a picture retires cached boards', () {

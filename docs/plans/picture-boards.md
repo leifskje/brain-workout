@@ -242,7 +242,11 @@ reuse all the art and is still open.
 
 ## Status
 
-🔨 **In progress**, branch `les/picture-boards` (not pushed).
+🔨 **In progress**, branch `les/picture-boards` (pushed; not merged).
+
+**30 Sep: 215 pictures, list pinned, mirrored replays built.** Every new picture
+passed a blind silhouette audit (see the recipe). Awaiting the owner's spot-check
+on the emulator.
 
 Built (29 Sep): **Arrow Pictures** as its own game — 102 pictures by end of day
 (`arrow_pictures_shapes.dart`, sorted by cell count, 42 → 1485; tiers in the
@@ -324,15 +328,19 @@ languages`).
 
 | tier | positions | size | cells | arrows |
 |---|---|---|---|---|
-| small | 1–39 | ≤ 16 wide | 40–170 | short |
-| mid | 40–61 | 20–26 wide, ≤ 36 tall | 400–550 | long, max 14 |
-| large | 62–82 | 28–32 wide, ≤ 42 tall | 600–850 | long, max 14 |
-| huge | 83+ | 40–44 wide, ≤ 60 tall | 1100–1500 | long, max 28 (> `pictureHugeCells`) |
+| tier | positions (30 Sep) | size | cells | arrows |
+|---|---|---|---|---|
+| small | 1–101 | ≤ 16 wide | 40–170 | short |
+| mid | 102–141 | 20–26 wide, ≤ 36 tall | 400–550 | long, max 14 |
+| large | 142–172 | 28–32 wide, ≤ 42 tall | 600–850 | long, max 14 |
+| huge | 173–215 | 40–44 wide, ≤ 60 tall | 1100–1500 | long, max 28 (> `pictureHugeCells`) |
 
 The list is sorted by cell count, and **the kind of arrow is by position**
-(`pictureFirstLongPosition` = 40), so the 39 smallest must stay the short-arrow
-ones. Adding small pictures moves that boundary: keep the count of pictures
-under ~170 cells equal to `pictureFirstLongPosition - 1`, or move the constant.
+(`pictureFirstLongPosition` = 102), so the smallest must stay the short-arrow
+ones. **Once shipped the list is append-only** (pinned by a test), so from then
+on new pictures can only go on the end — the huge tier. Before release, adding
+small pictures moves the boundary: keep the count of pictures ≤ 16 wide equal to
+`pictureFirstLongPosition - 1`, or move the constant.
 
 Every drawing:
 - **Reads from its silhouette alone** (see above). Judge it rendered in one
@@ -349,27 +357,39 @@ Every drawing:
   sjøhest", "the Eiffel Tower" / "Eiffeltårnet").
 - No characters, logos, brands, real people or artworks.
 
-Process that worked: ~4 drawing agents in parallel (≈ 20 huge or 40 small per
-15–20 min), each writing its own `_draft_*.dart` so they never edit the same
-file; then a **separate silhouette-audit agent** before the owner sees anything
-(the first huge round failed 14 of 17 on silhouette); merge by name, re-sort,
-re-run the analyzer; then the owner plays a sample and names the misses.
+Process that worked (30 Sep, 102 → 210): drawing agents in parallel, each
+writing its own `tool/_draft_<batch>.dart` that runs `tool/picture_check.dart`
+on itself (palette, 1-wide strokes, coverage at seeds 1/120/200, short-arrow
+branching). Then a **blind audit**: an agent that sees only the draft's
+silhouettes, shuffled and numbered, with no names, and names each one. The
+drawer's own judgement is worthless here, and the audit is not: drawers
+reported "reads clearly" on pictures the audit called "blob". Keep what it
+names first; send the rest back once with its exact misreading, then drop.
+Merge by name, re-sort, move `pictureFirstLongPosition`, re-run the analyzer.
+
+Pass rates, first audit → after one redraw: small ~60% → ~80%, mid ~50% →
+~65%, large and huge ~20% → ~45%. **Four-legged mammals fail at every size**
+("four-legged animal, species unknown"; a bison read as an elephant, a llama
+as a giraffe). What passes is anything with one unique outline — symbols,
+tools, vehicles with separate wheels and window holes, landmarks with one
+signature feature. Also watch for readings as a subject already in the list
+(grapes → strawberry, Hagia Sophia → Taj Mahal): that is a fail, not a pass.
 
 ## Next
 
-1. **Grow to ≥ 200 pictures before the first release** (owner, 29 Sep). Now is
-   the cheap moment: before release pictures can go anywhere, afterwards only on
-   the end — i.e. only at the hardest end. Spread across the curve, roughly +30
-   small, +40 mid/large, +30 huge, in two rounds of ~50 with an owner spot-check
-   between. Give variety a shape with themes: Norway, the farm, the sea, music,
-   trades and tools, world landmarks, the seasons. Avoid repeating subjects.
-2. **Pin the list before the release** — a test on the names in order, so
-   append-only is enforced rather than remembered.
-3. **Mirrored replays**: levels past the end could show the picture mirrored,
-   doubling the repeat-lap variety for free (a transform on the mask; the board
-   regenerates from it). Not built.
-4. Heart / diamond / star (the owner liked them on day one) still live only in
-   `arrowShapes`; worth adding as small pictures in round one.
-5. Norwegian picture names were chosen by an agent; a native eye on
-   `app_nb.arb`'s `pictureName` is worth five minutes (e.g. "en bjelle" vs "ei",
-   "et gulvur", "en kirke med løkkupler").
+Done 30 Sep: grown to 215 (heart, diamond and star among them), list pinned
+(`the shipped list is pinned, append-only`), mirrored replays (every other lap
+past the end shows the pictures flipped left-to-right; `pictureMirroredForLevel`).
+
+1. **Owner spot-check of the new pictures** on the emulator. Weakest by the audit:
+   club suit, Mont-Saint-Michel, St Paul's, scorpion, Stonehenge.
+2. **Short arrows now run to level 101** (was 39), because the list is sorted by
+   size and half the new pictures were small ones — the small tier passes the
+   audit best. Check the long-arrow switch still comes at a good point, or move
+   `pictureFirstLongPosition` down (a small picture on long arrows is ~10 snakes,
+   too short a puzzle — measured 29 Sep).
+3. Norwegian picture names were chosen by agents; a native eye on `app_nb.arb`'s
+   `pictureName` is worth ten minutes now that there are 215 (e.g. "ei/en",
+   "et hundebein", "en spar"/"en kløver" for card suits, "St. Paul's Cathedral").
+4. Coverage at the real level seed: all ≥ 92% except `steam_tug` at 89% (the
+   test floor is 85%). Only matters if it reads patchy.
