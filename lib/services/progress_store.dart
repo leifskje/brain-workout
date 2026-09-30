@@ -258,6 +258,13 @@ class ProgressStore {
   Future<void> setShowTimerDuringPlay(bool value) =>
       _prefs.setBool('show_timer', value);
 
+  /// Whether text is enlarged beyond the phone's setting. On by default, so an
+  /// update never shrinks text for anyone who was used to it.
+  bool get largerText => _prefs.getBool('larger_text') ?? true;
+
+  Future<void> setLargerText(bool value) =>
+      _prefs.setBool('larger_text', value);
+
   // ------------------------------------------------------------- statistics ---
 
   /// How many levels of [gameId] the player has actually cleared.

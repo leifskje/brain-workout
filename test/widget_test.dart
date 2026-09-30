@@ -53,6 +53,7 @@ import 'package:brain_workout/services/board_prefetch.dart';
 import 'package:brain_workout/services/app_locale.dart';
 import 'package:brain_workout/widgets/how_to_play.dart';
 import 'package:brain_workout/widgets/win_dialog.dart';
+import 'package:brain_workout/services/app_text_scale.dart';
 import 'package:brain_workout/services/progress_store.dart';
 import 'package:brain_workout/theme/motion.dart';
 
@@ -129,12 +130,42 @@ void main() {
 
     expect(find.text('Brain Workout'), findsOneWidget);
     expect(find.text('Arrow Escape'), findsOneWidget);
-    // Category chips and the Play next suggestion are visible; the Continue
-    // row is not (nothing has been played yet).
-    expect(find.text('Logic'), findsWidgets);
-    expect(find.text('Words'), findsOneWidget);
+    // The first section heading and the Play next suggestion are visible; the
+    // Continue section is not (nothing has been played yet).
+    expect(find.text('Logic'), findsOneWidget);
     expect(find.textContaining('Play next:'), findsOneWidget);
     expect(find.text('Continue'), findsNothing);
+
+    // Every game sits under its own heading, reachable by scrolling alone.
+    for (final heading in ['Words', 'Numbers', 'Memory']) {
+      await tester.scrollUntilVisible(find.text(heading), 300,
+          scrollable: find.byType(Scrollable).first);
+      expect(find.text(heading), findsOneWidget);
+    }
+  });
+
+  testWidgets('Each game is listed under its category heading',
+      (tester) async {
+    tester.view.physicalSize = const Size(1080, 2280);
+    tester.view.devicePixelRatio = 2.625;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(const BrainWorkoutApp());
+
+    // Word Search is a words game: it must come after the Words heading and
+    // before the next one, not wherever the catalog happened to put it.
+    final scrollable = find.byType(Scrollable).first;
+    await tester.scrollUntilVisible(find.text('Words'), 100,
+        scrollable: scrollable);
+    // Heading to the top of the viewport, so its cards are on screen below it.
+    await tester.ensureVisible(find.text('Words'));
+    await tester.pumpAndSettle();
+    final words = tester.getTopLeft(find.text('Words')).dy;
+    final game = tester.getTopLeft(find.text('Word Search')).dy;
+    expect(game, greaterThan(words));
+    final numbers = find.text('Numbers');
+    if (numbers.evaluate().isNotEmpty) {
+      expect(game, lessThan(tester.getTopLeft(numbers).dy));
+    }
   });
 
   testWidgets('Home screen game cards survive the largest text scale',
@@ -164,9 +195,9 @@ void main() {
     expect(find.text('Arrow Escape'), findsOneWidget);
 
     // Taller cards mean the lower ones are off-screen and never built, so scroll
-    // through the whole grid — the overflow could be on any card.
-    final grid = find.byType(GridView);
-    for (var i = 0; i < 6; i++) {
+    // through the whole list — the overflow could be on any card.
+    final grid = find.byType(CustomScrollView);
+    for (var i = 0; i < 10; i++) {
       await tester.drag(grid, const Offset(0, -400));
       await tester.pumpAndSettle();
       expect(tester.takeException(), isNull,
@@ -318,6 +349,10 @@ void main() {
     final button = find.byKey(const ValueKey('home_send_feedback'));
     await tester.scrollUntilVisible(button, 100,
         scrollable: find.byType(Scrollable).last);
+    // The list builds a little past the fold, so "found" can still be
+    // off-screen; bring it fully in before asking whether it can be tapped.
+    await tester.ensureVisible(button);
+    await tester.pumpAndSettle();
     expect(button.hitTestable(), findsOneWidget);
 
     // A report is useless if it cannot be tied to a build, so the version has
@@ -336,6 +371,36 @@ void main() {
 
     expect(find.text('Continue'), findsOneWidget);
     expect(find.text('Number Cross — Level 1'), findsOneWidget);
+  });
+
+  testWidgets('Continue lists the three most recent games, newest first',
+      (tester) async {
+    tester.view.physicalSize = const Size(1080, 2280);
+    tester.view.devicePixelRatio = 2.625;
+    addTearDown(tester.view.reset);
+    SharedPreferences.setMockInitialValues({
+      'last_opened_arrow_escape': 1, // oldest: past the cap
+      'last_opened_simon': 2,
+      'last_opened_number_cross': 4,
+      'last_opened_mini_sudoku': 3,
+    });
+    await ProgressStore.init();
+    await tester.pumpWidget(const BrainWorkoutApp());
+
+    // One heading however many rows.
+    expect(find.text('Continue'), findsOneWidget);
+    final rows = [
+      'Number Cross — Level 1',
+      'Mini Sudoku — Level 1',
+      'Simon — Level 1',
+    ];
+    for (final r in rows) {
+      expect(find.text(r), findsOneWidget, reason: r);
+    }
+    expect(find.text('Arrow Escape — Level 1'), findsNothing);
+    final ys = [for (final r in rows) tester.getTopLeft(find.text(r)).dy];
+    expect(ys, orderedEquals([...ys]..sort()),
+        reason: 'the most recent game must be on top');
   });
 
   test('Progress lost to the old Home bug is repaired from the star records',
@@ -708,6 +773,40 @@ void main() {
     await tester.pumpAndSettle();
     expect(ProgressStore.instance.showTimerDuringPlay, isTrue);
     expect(tester.widget<SwitchListTile>(toggle).value, isTrue);
+  });
+
+  testWidgets('Larger text is on by default and can follow the phone instead',
+      (tester) async {
+    tester.view.physicalSize = const Size(1080, 2280);
+    tester.view.devicePixelRatio = 2.625;
+    addTearDown(tester.view.reset);
+    addTearDown(() => appLargerText.value = true);
+    SharedPreferences.setMockInitialValues({});
+    await ProgressStore.init();
+    appLargerText.value = ProgressStore.instance.largerText;
+
+    // The phone is at 1.0 in tests. On by default, so an update never shrinks
+    // anyone's text: the app lifts it to its 1.1 floor.
+    await tester.pumpWidget(const BrainWorkoutApp());
+    await tester.pumpAndSettle();
+    double scale() => MediaQuery.textScalerOf(
+            tester.element(find.byType(HomeScreen)))
+        .scale(1);
+    expect(ProgressStore.instance.largerText, isTrue);
+    expect(scale(), closeTo(1.1, 0.001));
+
+    await tester.tap(find.byKey(const ValueKey('home_settings')));
+    await tester.pumpAndSettle();
+    final toggle = find.byKey(const ValueKey('settings_larger_text'));
+    expect(tester.widget<SwitchListTile>(toggle).value, isTrue);
+    await tester.tap(toggle);
+    await tester.pumpAndSettle();
+    expect(ProgressStore.instance.largerText, isFalse);
+
+    // Off: the phone's own 1.0 is followed, for players who want denser screens.
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    expect(scale(), closeTo(1.0, 0.001));
   });
 
   testWidgets('The clock appears in a game only once switched on',

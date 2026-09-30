@@ -732,6 +732,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settings => 'Settings';
 
   @override
+  String get largerText => 'Larger text';
+
+  @override
+  String get largerTextNote =>
+      'Makes all text a little bigger than your phone\'s setting. Turn it off to follow the phone.';
+
+  @override
   String get statistics => 'Your progress';
 
   @override

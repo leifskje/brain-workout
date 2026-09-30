@@ -240,6 +240,8 @@
   "showTimer": "Show the clock while playing",
   "showTimerNote": "Your time is always saved so you can beat it. This only decides whether you see it while you play.",
   "settings": "Settings",
+  "largerText": "Larger text",
+  "largerTextNote": "Makes all text a little bigger than your phone's setting. Turn it off to follow the phone.",
   "statistics": "Your progress",
   "statsHeader": "What you have done so far",
   "statsDaysPlayed": "{count, plural, =1{1 day played} other{{count} days played}}",

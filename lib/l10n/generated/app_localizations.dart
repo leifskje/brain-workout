@@ -1238,6 +1238,18 @@ abstract class AppLocalizations {
   /// **'Settings'**
   String get settings;
 
+  /// No description provided for @largerText.
+  ///
+  /// In en, this message translates to:
+  /// **'Larger text'**
+  String get largerText;
+
+  /// No description provided for @largerTextNote.
+  ///
+  /// In en, this message translates to:
+  /// **'Makes all text a little bigger than your phone\'s setting. Turn it off to follow the phone.'**
+  String get largerTextNote;
+
   /// No description provided for @statistics.
   ///
   /// In en, this message translates to:

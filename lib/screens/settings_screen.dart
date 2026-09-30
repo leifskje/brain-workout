@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 
 import '../l10n/generated/app_localizations.dart';
+import '../services/app_text_scale.dart';
 import '../services/progress_store.dart';
 import 'credits_screen.dart';
 
-/// The app's settings. Currently one switch, and that is fine — a settings
-/// screen exists so the clock has somewhere to live, not to be filled.
+/// The app's settings: the clock and the text size. Kept short on purpose — a
+/// settings screen exists so these have somewhere to live, not to be filled.
 ///
 /// Language is deliberately *not* moved here: it lives in the home screen's
 /// header menu, where someone who has opened the app in the wrong language can
@@ -42,6 +43,26 @@ class _SettingsScreenState extends State<SettingsScreen> {
             subtitle: Padding(
               padding: const EdgeInsets.only(top: 4),
               child: Text(t.showTimerNote,
+                  style: const TextStyle(fontSize: 15, height: 1.35)),
+            ),
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
+          ),
+          const Divider(height: 8),
+          SwitchListTile(
+            key: const ValueKey('settings_larger_text'),
+            value: store.largerText,
+            onChanged: (value) async {
+              await store.setLargerText(value);
+              appLargerText.value = value;
+              if (mounted) setState(() {});
+            },
+            title: Text(t.largerText,
+                style: const TextStyle(
+                    fontSize: 18, fontWeight: FontWeight.w600)),
+            subtitle: Padding(
+              padding: const EdgeInsets.only(top: 4),
+              child: Text(t.largerTextNote,
                   style: const TextStyle(fontSize: 15, height: 1.35)),
             ),
             contentPadding:
