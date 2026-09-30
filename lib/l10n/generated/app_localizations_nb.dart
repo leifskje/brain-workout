@@ -786,4 +786,129 @@ class AppLocalizationsNb extends AppLocalizations {
 
   @override
   String get buildingBoard => 'Gjør klart neste brett…';
+
+  @override
+  String get gameArrowPicturesTitle => 'Pilbilder';
+
+  @override
+  String get gameArrowPicturesSubtitle => 'Hvert brett er et bilde';
+
+  @override
+  String get helpArrowPictures =>
+      'Hvert brett er et bilde laget av piler. Trykk på en pil for å sende den ut av brettet i retningen den peker — men banen må være fri. Send ut alle pilene for å vinne.';
+
+  @override
+  String pictureName(String name) {
+    String _temp0 = intl.Intl.selectLogic(name, {
+      'key': 'en nøkkel',
+      'fish': 'en fisk',
+      'mushroom': 'en sopp',
+      'mug': 'et krus',
+      'christmas_tree': 'et juletre',
+      'house': 'et hus',
+      'bell': 'en bjelle',
+      'bird': 'en fugl',
+      'anchor': 'et anker',
+      'candle': 'et lys',
+      'sailboat': 'en seilbåt',
+      'scissors': 'en saks',
+      'whale': 'en hval',
+      'umbrella': 'en paraply',
+      'sun': 'solen',
+      'snail': 'en snegle',
+      'teapot': 'en tekanne',
+      'easter_egg': 'et påskeegg',
+      'rocket': 'en rakett',
+      'pumpkin': 'et gresskar',
+      'horse': 'en hest',
+      'hot_air_balloon': 'en luftballong',
+      'lighthouse': 'et fyrtårn',
+      'fishing_boat': 'en fiskebåt',
+      'boot': 'en støvel',
+      'viking_ship': 'et vikingskip',
+      'cat': 'en katt',
+      'tractor': 'en traktor',
+      'moose': 'en elg',
+      'owl': 'en ugle',
+      'snowflake': 'et snøfnugg',
+      'rabbit': 'en kanin',
+      'butterfly': 'en sommerfugl',
+      'flag': 'et flagg',
+      'kransekake': 'en kransekake',
+      'stave_church': 'en stavkirke',
+      'troll': 'et troll',
+      'elephant': 'en elefant',
+      'mountain_cabin': 'en fjellhytte',
+      'steam_locomotive': 'et damplokomotiv',
+      'bicycle': 'en sykkel',
+      'roe_deer': 'et rådyr',
+      'grand_piano': 'et flygel',
+      'watering_can': 'en vannkanne',
+      'hedgehog': 'et pinnsvin',
+      'wheelbarrow': 'en trillebår',
+      'tortoise': 'en skilpadde',
+      'fox': 'en rev',
+      'rocking_chair': 'en gyngestol',
+      'seal': 'en sel',
+      'sewing_machine': 'en symaskin',
+      'rooster': 'en hane',
+      'oil_lantern': 'en parafinlampe',
+      'puffin': 'en lundefugl',
+      'frog': 'en frosk',
+      'gramophone': 'en grammofon',
+      'typewriter': 'en skrivemaskin',
+      'penguin': 'en pingvin',
+      'tall_ship': 'en seilskute',
+      'grandfather_clock': 'et gulvur',
+      'squirrel': 'et ekorn',
+      'swan': 'en svane',
+      'leaning_tower_of_pisa': 'det skjeve tårnet i Pisa',
+      'eiffel_tower': 'Eiffeltårnet',
+      'bryggen': 'Bryggen i Bergen',
+      'peacock': 'en påfugl',
+      'giraffe': 'en sjiraff',
+      'big_ben': 'Big Ben',
+      'eagle': 'en ørn',
+      'statue_of_liberty': 'Frihetsgudinnen',
+      'tower_bridge': 'Tower Bridge',
+      'octopus': 'en blekksprut',
+      'oak_tree': 'en eik',
+      'pyramids_and_sphinx': 'pyramidene og sfinksen',
+      'colosseum': 'Colosseum',
+      'seahorse': 'en sjøhest',
+      'pagoda': 'en pagode',
+      'lion': 'en løve',
+      'windmill': 'en vindmølle',
+      'dragon': 'en drage',
+      'sunflower_in_pot': 'en solsikke',
+      'onion_dome_church': 'en kirke med løkkupler',
+      'nidaros_cathedral': 'Nidarosdomen',
+      'coastal_express_ship': 'et hurtigruteskip',
+      'reindeer': 'et reinsdyr',
+      'fjord_with_rowboat': 'en fjord med robåt',
+      'stabbur': 'et stabbur',
+      'polar_bear': 'en isbjørn',
+      'humpback_whale': 'en knølhval',
+      'red_deer_stag': 'en kronhjort',
+      'tiger': 'en tiger',
+      'hen_and_chicks': 'en høne med kyllinger',
+      'vintage_car': 'en veteranbil',
+      'harp': 'en harpe',
+      'spinning_wheel': 'en rokk',
+      'cuckoo_clock': 'et gjøkur',
+      'carousel': 'en karusell',
+      'taj_mahal': 'Taj Mahal',
+      'notre_dame': 'Notre-Dame',
+      'fairytale_castle': 'et eventyrslott',
+      'golden_gate_bridge': 'Golden Gate-broen',
+      'parthenon': 'Parthenon',
+      'other': 'et bilde',
+    });
+    return '$_temp0';
+  }
+
+  @override
+  String pictureCleared(int level, String picture) {
+    return 'Du klarte nivå $level. Det var $picture!';
+  }
 }

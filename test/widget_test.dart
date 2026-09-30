@@ -287,7 +287,9 @@ void main() {
     ));
 
     expect(find.text('Hjernetrim'), findsOneWidget);
-    expect(find.text('Tallkryss'), findsOneWidget);
+    // Titles from the top of the grid: lower cards are off-screen and unbuilt.
+    expect(find.text('Pilflukt'), findsOneWidget);
+    expect(find.text('Pilbilder'), findsOneWidget);
     expect(find.text('Logikk'), findsWidgets);
     expect(find.textContaining('Spill neste:'), findsOneWidget);
   });
@@ -4298,51 +4300,17 @@ void main() {
         reason: 'a refused save must change nothing');
   });
 
-  test('Arrow Escape: picture levels are milestones, and stay consistent', () {
-    // Rare, and never inside the frozen range.
-    expect(arrowShapeForLevel(40), isNull);
-    expect(arrowShapeForLevel(54), isNull);
-    expect(arrowShapeForLevel(arrowFirstPictureLevel), isNotNull);
-    expect(arrowShapeForLevel(arrowFirstPictureLevel + 1), isNull);
-    expect(arrowShapeForLevel(arrowFirstPictureLevel + arrowPictureInterval),
-        isNotNull);
-    for (var level = 1; level < arrowFirstPictureLevel; level++) {
-      expect(arrowShapeForLevel(level), isNull,
-          reason: 'level $level must stay an ordinary board');
-    }
-
-    // They cycle rather than repeating one shape forever.
-    expect(arrowShapeForLevel(arrowFirstPictureLevel)!.name,
-        isNot(arrowShapeForLevel(arrowFirstPictureLevel + arrowPictureInterval)!.name));
-
-    // The config must agree with the board, or the screen shows a heart count
-    // the board cannot justify and the win/lose maths is wrong.
-    for (final level in [55, 65, 75, 85]) {
-      final shape = arrowShapeForLevel(level)!;
-      final cfg = configForLevel(level);
-      final board = ArrowBoard.generate(level);
-      expect(cfg.arrowCount, shape.cellCount, reason: 'level $level');
-      expect(board.pieces.length, cfg.arrowCount, reason: 'level $level');
-      expect(cfg.rows, shape.size, reason: 'level $level');
-      expect(board.measureDifficulty().solvableGreedily, isTrue,
-          reason: 'level $level');
-      // Seeded by level, like every other board in the game.
-      expect(ArrowBoard.generate(level).pieces.first.dir, board.pieces.first.dir,
-          reason: 'level $level must be retry-stable');
-    }
-  });
-
   test('Arrow Escape: shapes are well formed', () {
     // A typo in an ASCII mask is invisible by eye and produces a board with a
-    // ragged edge, so assert the grid is square before trusting any of it.
+    // ragged edge, so assert every row is the same width before trusting it.
     for (final shape in arrowShapes) {
       expect(shape.rows, isNotEmpty, reason: shape.name);
       for (final row in shape.rows) {
-        expect(row.length, shape.size,
-            reason: '${shape.name}: every row must be ${shape.size} wide');
+        expect(row.length, shape.colCount,
+            reason: '${shape.name}: every row must be ${shape.colCount} wide');
       }
       expect(shape.cellCount, greaterThan(20), reason: shape.name);
-      expect(shape.cellCount, lessThan(shape.size * shape.size),
+      expect(shape.cellCount, lessThan(shape.rowCount * shape.colCount),
           reason: '${shape.name} must leave some air, or it is not a shape');
     }
   });
@@ -4361,8 +4329,8 @@ void main() {
       final occupied = {for (final p in board.pieces) (p.row, p.col)};
       expect(occupied.length, board.pieces.length,
           reason: '${shape.name}: no two arrows may share a cell');
-      for (var r = 0; r < shape.size; r++) {
-        for (var c = 0; c < shape.size; c++) {
+      for (var r = 0; r < shape.rowCount; r++) {
+        for (var c = 0; c < shape.colCount; c++) {
           expect(occupied.contains((r, c)), shape.filled(r, c),
               reason: '${shape.name}: cell ($r,$c) does not match the mask');
         }
@@ -4663,7 +4631,7 @@ void main() {
     // Reported from a live build: "I feel I often get a hang, so I press again,
     // then am suddenly in game and have clicked an arrow that cannot escape."
     //
-    // Both halves were real. BoardPrefetch.take() returns null whenever the
+    // Both halves were real. arrowMazePrefetch.take() returns null whenever the
     // prefetch has not finished, and the screen then generated synchronously on
     // the UI thread -- 144-271ms at the upper levels with nothing on screen to
     // explain it. Then the retry tap landed on the board that had meanwhile
@@ -4673,7 +4641,7 @@ void main() {
     addTearDown(tester.view.reset);
 
     const level = 30;
-    BoardPrefetch.reset(); // nothing warmed: the case the player hit
+    arrowMazePrefetch.reset(); // nothing warmed: the case the player hit
     await tester
         .pumpWidget(localizedApp(const SnakeArrowsScreen(startLevel: level)));
 
@@ -4944,14 +4912,14 @@ void main() {
       () async {
     // A plain test, not testWidgets: the isolate needs the real event loop, and
     // testWidgets runs its body in a fake-async zone where it would never finish.
-    BoardPrefetch.reset();
+    arrowMazePrefetch.reset();
     const level = 31;
-    BoardPrefetch.warm(level);
-    await BoardPrefetch.pending;
+    arrowMazePrefetch.warm(level);
+    await arrowMazePrefetch.pending;
 
-    expect(BoardPrefetch.has(level), isTrue,
+    expect(arrowMazePrefetch.has(level), isTrue,
         reason: 'the background build should have produced a board');
-    final prefetched = BoardPrefetch.take(level)!;
+    final prefetched = arrowMazePrefetch.take(level)!;
     final local = SnakeBoard.generate(level);
 
     // The safety property this whole feature rests on: generation is deterministic
@@ -4968,12 +4936,12 @@ void main() {
 
     // Taking it consumes it: the screen mutates the board as arrows are cleared,
     // so a second caller must not be handed that same instance.
-    expect(BoardPrefetch.has(level), isFalse);
-    expect(BoardPrefetch.take(level), isNull);
+    expect(arrowMazePrefetch.has(level), isFalse);
+    expect(arrowMazePrefetch.take(level), isNull);
     // And the wrong level never matches.
-    BoardPrefetch.seed(level, local);
-    expect(BoardPrefetch.take(level + 1), isNull);
-    BoardPrefetch.reset();
+    arrowMazePrefetch.seed(level, local);
+    expect(arrowMazePrefetch.take(level + 1), isNull);
+    arrowMazePrefetch.reset();
   });
 
   testWidgets('Arrow Maze: a warm board still swallows the retry tap',
@@ -4992,11 +4960,11 @@ void main() {
     tester.view.physicalSize = const Size(1080, 2280);
     tester.view.devicePixelRatio = 2.625;
     addTearDown(tester.view.reset);
-    addTearDown(BoardPrefetch.reset);
+    addTearDown(arrowMazePrefetch.reset);
 
     const level = 3;
-    BoardPrefetch.reset();
-    BoardPrefetch.seed(level, SnakeBoard.generate(level));
+    arrowMazePrefetch.reset();
+    arrowMazePrefetch.seed(level, SnakeBoard.generate(level));
 
     await tester
         .pumpWidget(localizedApp(const SnakeArrowsScreen(startLevel: level)));
@@ -5039,20 +5007,20 @@ void main() {
     tester.view.physicalSize = const Size(1080, 2280);
     tester.view.devicePixelRatio = 2.625;
     addTearDown(tester.view.reset);
-    addTearDown(BoardPrefetch.reset);
+    addTearDown(arrowMazePrefetch.reset);
 
     // Seeded directly rather than via `warm`, because an isolate cannot complete
     // inside testWidgets' fake-async zone.
     const level = 3;
-    BoardPrefetch.reset();
-    BoardPrefetch.seed(level, SnakeBoard.generate(level));
-    expect(BoardPrefetch.has(level), isTrue);
+    arrowMazePrefetch.reset();
+    arrowMazePrefetch.seed(level, SnakeBoard.generate(level));
+    expect(arrowMazePrefetch.has(level), isTrue);
 
     await tester.pumpWidget(localizedApp(const SnakeArrowsScreen(startLevel: level)));
     await tester.pumpAndSettle();
 
     // Entering the level consumed the prefetched board rather than generating one.
-    expect(BoardPrefetch.has(level), isFalse,
+    expect(arrowMazePrefetch.has(level), isFalse,
         reason: 'the screen should have taken the prefetched board');
     // ...and the board on screen is playable, so what it took was usable.
     expect(find.byKey(const ValueKey('arrow_maze_board')), findsOneWidget);
@@ -5076,10 +5044,10 @@ void main() {
     tester.view.physicalSize = const Size(1080, 2280);
     tester.view.devicePixelRatio = 2.625;
     addTearDown(tester.view.reset);
-    addTearDown(BoardPrefetch.reset);
+    addTearDown(arrowMazePrefetch.reset);
 
     const level = 3;
-    BoardPrefetch.reset();
+    arrowMazePrefetch.reset();
     await tester
         .pumpWidget(localizedApp(const SnakeArrowsScreen(startLevel: level)));
     await tester.pumpAndSettle();
@@ -5091,7 +5059,7 @@ void main() {
     // the warm rides on its tail so the isolate spawn cannot compete with the
     // board's first paint.
     await tester.pump(const Duration(milliseconds: 450));
-    expect(BoardPrefetch.warmingLevel, level + 1,
+    expect(arrowMazePrefetch.warmingLevel, level + 1,
         reason: 'the next board should already be building, mid-level');
 
     // And the board being played is filed too, so being killed and reopened here
@@ -5112,10 +5080,10 @@ void main() {
     tester.view.physicalSize = const Size(1080, 2280);
     tester.view.devicePixelRatio = 2.625;
     addTearDown(tester.view.reset);
-    addTearDown(BoardPrefetch.reset);
+    addTearDown(arrowMazePrefetch.reset);
 
     const level = 30;
-    BoardPrefetch.reset(); // nothing in memory: a cold start
+    arrowMazePrefetch.reset(); // nothing in memory: a cold start
     ProgressStore.instance.savePrefetchedBoard('arrow_maze', level,
         SnakeBoard.generatorVersion, SnakeBoard.generate(level).toJson());
 
@@ -5129,7 +5097,7 @@ void main() {
 
     // A board built by an older generator is refused rather than served: it is
     // not merely stale, it is a board this build would never make for this level.
-    BoardPrefetch.reset();
+    arrowMazePrefetch.reset();
     ProgressStore.instance.savePrefetchedBoard('arrow_maze', level,
         SnakeBoard.generatorVersion + 1, SnakeBoard.generate(level).toJson());
     // A different key, or Flutter reuses the State above and never reloads --
@@ -5152,26 +5120,26 @@ void main() {
   test('Board prefetch: a stored board is reused, an older generator is not',
       () async {
     const level = 9;
-    BoardPrefetch.reset();
+    arrowMazePrefetch.reset();
     final local = SnakeBoard.generate(level);
     ProgressStore.instance.savePrefetchedBoard(
         'arrow_maze', level, SnakeBoard.generatorVersion, local.toJson());
 
-    final hit = await BoardPrefetch.obtain(level);
+    final hit = await arrowMazePrefetch.obtain(level);
     expect(hit.wasWarm, isTrue, reason: 'the stored board should have been used');
     expect(hit.board.rows, local.rows);
     expect(hit.board.cols, local.cols);
     expect(hit.board.arrows.length, local.arrows.length);
 
     // Stored boards are keyed by level, so another level is a plain miss.
-    expect((await BoardPrefetch.obtain(level + 1)).wasWarm, isFalse);
+    expect((await arrowMazePrefetch.obtain(level + 1)).wasWarm, isFalse);
 
-    BoardPrefetch.reset();
+    arrowMazePrefetch.reset();
     ProgressStore.instance.savePrefetchedBoard(
         'arrow_maze', level, SnakeBoard.generatorVersion + 1, local.toJson());
-    expect((await BoardPrefetch.obtain(level)).wasWarm, isFalse,
+    expect((await arrowMazePrefetch.obtain(level)).wasWarm, isFalse,
         reason: 'a board from an older generator must be ignored');
-    BoardPrefetch.reset();
+    arrowMazePrefetch.reset();
   });
 
   test('Board prefetch: a warm asked for during another build is not dropped',
@@ -5183,27 +5151,27 @@ void main() {
     // note "obtain() copes". It does cope -- by generating on the spot, which is
     // the wait this class exists to remove. A dropped request meant a level was
     // never warmed at all.
-    BoardPrefetch.reset();
-    BoardPrefetch.warm(5);
-    expect(BoardPrefetch.warmingLevel, 5);
-    BoardPrefetch.warm(6); // arrives while 5 is still building
+    arrowMazePrefetch.reset();
+    arrowMazePrefetch.warm(5);
+    expect(arrowMazePrefetch.warmingLevel, 5);
+    arrowMazePrefetch.warm(6); // arrives while 5 is still building
 
-    await BoardPrefetch.pending;
-    expect(BoardPrefetch.has(5), isTrue, reason: 'level 5 should have been built');
+    await arrowMazePrefetch.pending;
+    expect(arrowMazePrefetch.has(5), isTrue, reason: 'level 5 should have been built');
 
-    await BoardPrefetch.pending;
-    expect(BoardPrefetch.has(6), isTrue,
+    await arrowMazePrefetch.pending;
+    expect(arrowMazePrefetch.has(6), isTrue,
         reason: 'the request for level 6 was dropped instead of queued');
-    BoardPrefetch.reset();
+    arrowMazePrefetch.reset();
   });
 
   test('Board prefetch: nothing warmed still produces the right board',
       () async {
     // The invariant every other change here has to preserve: nothing in the
     // prefetch may ever stop a level from opening.
-    BoardPrefetch.reset();
+    arrowMazePrefetch.reset();
     const level = 7;
-    final got = await BoardPrefetch.obtain(level);
+    final got = await arrowMazePrefetch.obtain(level);
     expect(got.wasWarm, isFalse);
     final local = SnakeBoard.generate(level);
     expect(got.board.rows, local.rows);

@@ -10,6 +10,7 @@ import '../../services/board_prefetch.dart';
 import '../../services/progress_store.dart';
 import '../../theme/motion.dart';
 import '../../widgets/game_header.dart';
+import '../../widgets/picture_layer.dart';
 import '../../widgets/how_to_play.dart';
 import '../../widgets/win_dialog.dart';
 import 'snake_arrows_models.dart';
@@ -19,10 +20,68 @@ import 'snake_arrows_models.dart';
 /// Tap an arrow to send it off head-first. It only leaves if the straight path
 /// ahead of its head is clear of other arrows; otherwise it shakes and costs a
 /// heart. Clear the whole board to win.
+/// What differs between the games played on [SnakeArrowsScreen].
+///
+/// Arrow Pictures' long-arrow levels are Arrow Maze with picture boards, so they
+/// share the screen rather than copying it. See [ArrowGameSpec], its twin.
+class SnakeGameSpec {
+  const SnakeGameSpec({
+    required this.gameId,
+    required this.accent,
+    required this.help,
+    required this.hearts,
+    required this.prefetch,
+    this.warm,
+    this.redirect,
+    this.pictureColours,
+    this.pictureOutline = false,
+    this.winMessage,
+  });
+
+  final String gameId;
+  final Color accent;
+  final String Function(AppLocalizations t) help;
+
+  /// The picture a level's arrows form, one ARGB per cell (null outside).
+  /// Revealed in colour once the last arrow has left; see
+  /// lib/widgets/picture_layer.dart.
+  final List<List<int?>>? Function(int level)? pictureColours;
+
+  /// Whether the picture shows as a faint outline during play.
+  final bool pictureOutline;
+
+  /// Replaces the win dialog's "You cleared level N." — Arrow Pictures names
+  /// the picture there, since a finished board no longer shows it plainly.
+  final String Function(AppLocalizations t, int level)? winMessage;
+
+  /// Known without the board, so the header can show it behind the spinner.
+  final int Function(int level) hearts;
+  final BoardPrefetch<SnakeBoard> prefetch;
+
+  /// Warms the board for a level; defaults to [prefetch]. Overridden when the
+  /// next level may not be this screen's kind of board at all.
+  final void Function(int level)? warm;
+
+  /// Given the level "Next level" leads to, opens it somewhere else and returns
+  /// true — or returns false to load it here.
+  final bool Function(BuildContext context, int level)? redirect;
+
+  static final arrowMaze = SnakeGameSpec(
+    gameId: 'arrow_maze',
+    accent: const Color(0xFF2E8B8B),
+    help: (t) => t.helpArrowMaze,
+    hearts: (l) => snakeConfigForLevel(l).hearts,
+    prefetch: arrowMazePrefetch,
+  );
+}
+
 class SnakeArrowsScreen extends StatefulWidget {
-  const SnakeArrowsScreen({super.key, this.startLevel = 1});
+  const SnakeArrowsScreen({super.key, this.startLevel = 1, this.spec});
 
   final int startLevel;
+
+  /// Defaults to Arrow Maze itself.
+  final SnakeGameSpec? spec;
 
   @override
   State<SnakeArrowsScreen> createState() => _SnakeArrowsScreenState();
@@ -34,8 +93,11 @@ class _SnakeArrowsScreenState extends State<SnakeArrowsScreen>
         WidgetsBindingObserver,
         BoardAutosave<SnakeArrowsScreen> {
   static const _escapeDuration = Duration(milliseconds: 520);
-  static const _gameId = 'arrow_maze';
-  static const _accent = Color(0xFF2E8B8B);
+  late final SnakeGameSpec _spec = widget.spec ?? SnakeGameSpec.arrowMaze;
+  String get _gameId => _spec.gameId;
+  Color get _accent => _spec.accent;
+  void _warm(int level) => (_spec.warm ?? _spec.prefetch.warm)(level);
+  List<List<int?>>? get _picture => _spec.pictureColours?.call(_level);
 
   int _level = 1;
   late SnakeBoard _board;
@@ -51,6 +113,7 @@ class _SnakeArrowsScreenState extends State<SnakeArrowsScreen>
 
   late final AnimationController _escapeCtrl;
   late final AnimationController _shakeCtrl;
+  late final AnimationController _reveal;
 
   /// Zoom/pan for the board.
   ///
@@ -65,7 +128,11 @@ class _SnakeArrowsScreenState extends State<SnakeArrowsScreen>
   /// scale about its centre.
   Size _viewport = Size.zero;
 
-  static const _maxZoom = 4.0;
+  /// 4x takes a 24-column board's ~15dp cells to a comfortable ~60dp. Wider
+  /// boards (picture levels reach 44) start smaller, so they may zoom further:
+  /// the ceiling keeps the fully zoomed cell size roughly constant.
+  double get _maxZoom =>
+      _boardReady ? math.max(4.0, _board.cols / 6) : 4.0;
 
   /// True while the next board is being built. See [_loadLevel].
   bool _loading = false;
@@ -120,12 +187,20 @@ class _SnakeArrowsScreenState extends State<SnakeArrowsScreen>
       duration: const Duration(milliseconds: 400),
       animationBehavior: AnimationBehavior.preserve,
     )..addListener(_tick);
+    // Decorative, so it keeps the default behaviour: with reduced animations
+    // the picture simply appears, and its end state is what matters.
+    _reveal = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    )..addListener(() {
+        if (mounted) setState(() {});
+      });
     _loadLevel(widget.startLevel);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         maybeShowHowToPlay(context,
             gameId: _gameId,
-            body: AppLocalizations.of(context).helpArrowMaze,
+            body: _spec.help(AppLocalizations.of(context)),
             accent: _accent);
       }
     });
@@ -139,6 +214,7 @@ class _SnakeArrowsScreenState extends State<SnakeArrowsScreen>
     _zoom.dispose();
     _escapeCtrl.dispose();
     _shakeCtrl.dispose();
+    _reveal.dispose();
     super.dispose();
   }
 
@@ -155,7 +231,7 @@ class _SnakeArrowsScreenState extends State<SnakeArrowsScreen>
   /// board that has since appeared and fires whatever arrow is under it — losing
   /// a heart on a blocked arrow they never meant to touch. Reported from a live
   /// build, and both halves are fixed: the work moved off the UI isolate
-  /// (BoardPrefetch.obtain) and the press now has visible feedback.
+  /// (arrowMazePrefetch.obtain) and the press now has visible feedback.
   Future<void> _loadLevel(int level, {bool allowResume = true}) async {
     ProgressStore.instance.recordReached(_gameId, level);
 
@@ -168,7 +244,7 @@ class _SnakeArrowsScreenState extends State<SnakeArrowsScreen>
       _loading = true;
       _busy = true;
       _level = level;
-      _hearts = snakeConfigForLevel(level).hearts;
+      _hearts = _spec.hearts(level);
       _escapingId = null;
       _blockedId = null;
     });
@@ -176,9 +252,9 @@ class _SnakeArrowsScreenState extends State<SnakeArrowsScreen>
     // Built in the background while the win dialog was up, if we got that far.
     // Identical to generating here — generation is deterministic in the level — so
     // this only changes *when* the work happened, never what the player sees.
-    final (board: board, wasWarm: _) = await BoardPrefetch.obtain(level);
+    final (board: board, wasWarm: _) = await _spec.prefetch.obtain(level);
     if (!mounted) return;
-    var hearts = snakeConfigForLevel(level).hearts;
+    var hearts = _spec.hearts(level);
     final saved =
         allowResume ? ProgressStore.instance.loadBoard(_gameId, level) : null;
     if (saved != null && board.applyEscapedJson(saved)) {
@@ -197,6 +273,7 @@ class _SnakeArrowsScreenState extends State<SnakeArrowsScreen>
       _blockedId = null;
       _loading = false;
       _boardReady = true;
+      _reveal.value = 0;
       // Always hold taps briefly, warm board or not.
       //
       // The delay that makes a player press twice is *not* board generation —
@@ -240,8 +317,8 @@ class _SnakeArrowsScreenState extends State<SnakeArrowsScreen>
       //
       // `level`, not `_level`: a load that superseded this one cancelled this
       // timer, so the parameter cannot be stale.
-      BoardPrefetch.remember(level, board);
-      BoardPrefetch.warm(level + 1);
+      _spec.prefetch.remember(level, board);
+      _warm(level + 1);
     });
   }
 
@@ -308,7 +385,7 @@ class _SnakeArrowsScreenState extends State<SnakeArrowsScreen>
     if (_board.isSolved) {
       _busy = true;
       Future.delayed(const Duration(milliseconds: 150), () {
-        if (mounted) _showWin();
+        if (mounted) _revealThenWin();
       });
     }
   }
@@ -373,6 +450,22 @@ class _SnakeArrowsScreenState extends State<SnakeArrowsScreen>
     }
   }
 
+  /// On a picture level, fades the finished picture in and lets it sit for a
+  /// moment before the dialog covers it: the picture is the reward. Anywhere
+  /// else, straight to the dialog.
+  void _revealThenWin() {
+    if (!mounted) return;
+    if (_spec.pictureColours == null) {
+      _showWin();
+      return;
+    }
+    _reveal.forward(from: 0).whenComplete(() {
+      Future.delayed(const Duration(milliseconds: 900), () {
+        if (mounted) _showWin();
+      });
+    });
+  }
+
   void _showWin() {
     if (!mounted) return;
     ProgressStore.instance.clearBoard(_gameId);
@@ -381,17 +474,23 @@ class _SnakeArrowsScreenState extends State<SnakeArrowsScreen>
     // Kept as the backstop for the cases where that did not happen or did not
     // land — an isolate that failed to spawn, a warm superseded by a level-picker
     // jump — since asking for a board that is already there costs nothing.
-    BoardPrefetch.warm(_level + 1);
+    _warm(_level + 1);
     HapticFeedback.heavyImpact();
-    final lost = snakeConfigForLevel(_level).hearts - _hearts;
+    final lost = _spec.hearts(_level) - _hearts;
     final stars = lost == 0 ? 3 : (lost <= 2 ? 2 : 1);
     ProgressStore.instance
       ..registerPlay(_gameId)
       ..recordCleared(_gameId, _level, stars);
-    showWinDialog(context, level: _level, accent: _accent, stars: stars)
+    showWinDialog(context,
+            level: _level,
+            accent: _accent,
+            stars: stars,
+            message:
+                _spec.winMessage?.call(AppLocalizations.of(context), _level))
         .then((action) {
       if (!mounted || action == null) return;
       if (action == WinAction.next) {
+        if (_spec.redirect?.call(context, _level + 1) ?? false) return;
         _loadLevel(_level + 1);
       } else {
         Navigator.popUntil(context, (route) => route.isFirst);
@@ -431,7 +530,7 @@ class _SnakeArrowsScreenState extends State<SnakeArrowsScreen>
 
   @override
   Widget build(BuildContext context) {
-    final maxHearts = snakeConfigForLevel(_level).hearts;
+    final maxHearts = _spec.hearts(_level);
     return Scaffold(
       body: SafeArea(
         child: Column(
@@ -441,7 +540,7 @@ class _SnakeArrowsScreenState extends State<SnakeArrowsScreen>
                 accent: _accent,
                 onRestart: _restart,
                 onHelp: () => showHowToPlay(context,
-                    body: AppLocalizations.of(context).helpArrowMaze,
+                    body: _spec.help(AppLocalizations.of(context)),
                     accent: _accent)),
             _buildHearts(maxHearts),
             const SizedBox(height: 8),
@@ -453,7 +552,7 @@ class _SnakeArrowsScreenState extends State<SnakeArrowsScreen>
                 child: Center(
                   child: _loading
                       ? Column(
-                          key: const ValueKey('arrow_maze_loading'),
+                          key: ValueKey('${_gameId}_loading'),
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             CircularProgressIndicator(color: _accent),
@@ -553,7 +652,7 @@ class _SnakeArrowsScreenState extends State<SnakeArrowsScreen>
         // would hand it screen coordinates and silently mis-target every tap
         // once zoomed.
         return InteractiveViewer(
-          key: const ValueKey('arrow_maze_viewer'),
+          key: ValueKey('${_gameId}_viewer'),
           transformationController: _zoom,
           minScale: 1.0,
           maxScale: _maxZoom,
@@ -571,11 +670,14 @@ class _SnakeArrowsScreenState extends State<SnakeArrowsScreen>
             child: ClipRRect(
               borderRadius: BorderRadius.circular(18),
               child: CustomPaint(
-                key: const ValueKey('arrow_maze_board'),
+                key: ValueKey('${_gameId}_board'),
                 size: boardSize,
                 painter: _SnakePainter(
                   board: _board,
                   cell: cell,
+                  picture: _picture,
+                  pictureOutline: _spec.pictureOutline,
+                  reveal: _reveal.value,
                   escapingId: _escapingId,
                   escapeT: _escapeCtrl.value,
                   blockedId: _blockedId,
@@ -612,11 +714,11 @@ class _SnakeArrowsScreenState extends State<SnakeArrowsScreen>
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        button('arrow_maze_zoom_out', Icons.zoom_out_rounded, t.zoomOut,
+        button('${_gameId}_zoom_out', Icons.zoom_out_rounded, t.zoomOut,
             _scale > 1.0 ? () => _setZoom(_scale / 1.5) : null),
-        button('arrow_maze_zoom_fit', Icons.fit_screen_rounded, t.zoomFit,
+        button('${_gameId}_zoom_fit', Icons.fit_screen_rounded, t.zoomFit,
             _scale > 1.0 ? _resetZoom : null),
-        button('arrow_maze_zoom_in', Icons.zoom_in_rounded, t.zoomIn,
+        button('${_gameId}_zoom_in', Icons.zoom_in_rounded, t.zoomIn,
             _scale < _maxZoom ? () => _setZoom(_scale * 1.5) : null),
       ],
     );
@@ -627,6 +729,9 @@ class _SnakePainter extends CustomPainter {
   _SnakePainter({
     required this.board,
     required this.cell,
+    this.picture,
+    this.pictureOutline = false,
+    this.reveal = 0,
     required this.escapingId,
     required this.escapeT,
     required this.blockedId,
@@ -635,6 +740,9 @@ class _SnakePainter extends CustomPainter {
 
   final SnakeBoard board;
   final double cell;
+  final List<List<int?>>? picture;
+  final bool pictureOutline;
+  final double reveal;
   final int? escapingId;
   final double escapeT;
   final int? blockedId;
@@ -665,6 +773,12 @@ class _SnakePainter extends CustomPainter {
     for (var c = 0; c <= board.cols; c++) {
       canvas.drawLine(
           Offset(c * cell, 0), Offset(c * cell, board.rows * cell), grid);
+    }
+
+    final colours = picture;
+    if (colours != null) {
+      paintPicture(canvas,
+          colours: colours, cell: cell, outline: pictureOutline, reveal: reveal);
     }
 
     for (final arrow in board.arrows) {

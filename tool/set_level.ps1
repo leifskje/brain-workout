@@ -34,7 +34,7 @@ $package = 'net.skjelten.brain_workout'
 $prefs = 'shared_prefs/FlutterSharedPreferences.xml'
 
 $games = @(
-    'arrow_escape', 'arrow_maze', 'wordle', 'number_cross', 'word_search',
+    'arrow_escape', 'arrow_maze', 'arrow_pictures', 'wordle', 'number_cross', 'word_search',
     'mini_sudoku', 'merge', 'memory_match', 'word_scramble', 'crack_code',
     'trail', 'simon', 'nonogram', 'what_next'
 )

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../models/game_definition.dart';
 import 'arrow_escape/arrow_escape_screen.dart';
+import 'arrow_pictures/arrow_pictures_screen.dart';
 import 'crack_code/crack_code_screen.dart';
 import 'memory_match/memory_match_screen.dart';
 import 'merge/merge_screen.dart';
@@ -38,6 +39,15 @@ final List<GameDefinition> gamesCatalog = [
     color: const Color(0xFF2E8B8B),
     category: GameCategory.logic,
     levelBuilder: (level) => SnakeArrowsScreen(startLevel: level),
+  ),
+  GameDefinition(
+    id: 'arrow_pictures',
+    title: (t) => t.gameArrowPicturesTitle,
+    subtitle: (t) => t.gameArrowPicturesSubtitle,
+    icon: Icons.image_rounded,
+    color: const Color(0xFF8D6E63),
+    category: GameCategory.logic,
+    levelBuilder: (level) => ArrowPicturesScreen(startLevel: level),
   ),
   GameDefinition(
     id: 'wordle',

@@ -130,6 +130,17 @@ work; do it first or keep the grids small.
 
 ## Colour
 
+**Built (29 Sep): colour on the finished picture only.** The owner found a brown
+tint during play "strange" and asked for the intended colours instead. Colour
+never appears while arrows remain — the catch below still holds — but when the
+last arrow leaves, the picture fades in (900ms) in its real colours and sits for
+a moment before the dialog names it. During play long-arrow levels show only a
+6% neutral outline; short-arrow levels show nothing. Masks use palette letters
+(`arrow_pictures_palette.dart`, 15 colours) in place of `#`; any non-`.` cell is
+inside, so colouring cannot move a board — fingerprinted over all 82 levels
+before and after. A test fails on a stray `#` or a non-palette letter.
+
+
 Colour is an unused channel in Arrow Escape — direction carries every bit of game
 information, so decorative colour costs nothing mechanically and colour-blind
 players lose nothing. Two catches:
@@ -157,7 +168,32 @@ to be *viewable*. That justifies going under the ~23dp floor here in a way a nor
 board cannot. It is still an exception to a written rule, so record it as one and
 have the owner confirm "viewable" on a device — it is his call, not a measurable.
 
-## Design
+## Decided (29 Sep 2026, owner)
+
+Superseded the "milestone levels" design below after the owner played 55/65/75.
+
+- **A separate game, "Arrow Pictures" / "Pilbilder"** — every board a picture.
+  The owner liked them enough to want all of them, but players already in Arrow
+  Escape may prefer full boards, and a setting is invisible to this audience and
+  would change a board a player is midway through. Arrow Escape goes back to full
+  boards only; the 55/65/75 wiring never shipped, so nobody loses anything.
+- **Both arrow kinds in the one game**, the shape choosing: short arrows are pixel
+  art (detail, thin lines), long arrows are brush strokes (thick, rounded — a
+  snake is ≥5 cells and bends). Ships with short arrows only; long-arrow pictures
+  come later. Whether switching kinds level to level confuses is a device question.
+- **Levels are an authored, append-only list.** New pictures only ever go on the
+  end, so adding long-arrow levels later never changes a level someone has played.
+  Past the end of the list the game cycles through the long-arrow pictures only
+  (cycling the whole list sent level 83 back to the 42-arrow key); those cycled
+  levels *may* change when
+  pictures are added, which is acceptable because the autosave's arrow-count guard
+  drops a mismatched save and the prefetch version covers the list length.
+- **30+ pictures, not only generic.** Nordic, seasonal, animals, objects,
+  landmarks are all fine. Not fine: characters, logos, brands, real people.
+- Order of work: generalise `BoardPrefetch` → the game with short-arrow pictures
+  → long-arrow pictures → colour.
+
+## Design (original — see *Decided* above)
 
 - **Milestone levels, not the default** — every tenth, say. A silhouette is a
   landmark and a reward; a run of them is a gimmick, and the shape constrains the
@@ -172,22 +208,168 @@ have the owner confirm "viewable" on a device — it is his call, not a measurab
 
 - Does a picture board want a *lower* difficulty target? The shape is the reward;
   fighting a 2.6-branching smiley may bury it.
-- Does the win dialog acknowledge it, or is that spoiling the joke?
+- ~~Does the win dialog acknowledge it?~~ **Yes (owner, 29 Sep)** — "You
+  cleared level 76. It was a seahorse!" One ARB `select` per language
+  (`pictureName`) holds all names with their articles; a test fails if a picture
+  lacks one. Both arrow kinds also tint the picture behind the arrows, so every
+  level ends on the revealed picture rather than an empty grid.
+
+## Long arrows on pictures — measured (29 Sep)
+
+`SnakeBoard.generateShaped` exists (not wired to levels). The `inShape` mask is kept
+separate from `occupied`, as the trap above requires; with no mask the levelled
+boards are byte-identical (fingerprinted over levels 1–60 before and after).
+
+It overturns the "short = pixel art, long = brush strokes" split above. Long
+snakes bend along thin strokes, so they cover *any* picture well, and they fix
+the thing short arrows are worst at:
+
+| picture | short arrows, hardest | long arrows, min 4 | long fill |
+|---|---|---|---|
+| windmill 32x42 | 19.95 branching | 3.79 | 92% |
+| tall ship 24x29 | 4.43 | 2.85 | 94% |
+| grandfather clock 20x28 | 6.60 | 2.36 | 96% |
+| cat 13x13 | 5.41 | 2.92 | 98% |
+| fish 11x7 | 3.47 | 1.83 (6 snakes) | 96% |
+
+Generation ≤ 0.6s at 32x42. The limit is at the *small* end: a picture under
+~100 cells holds only 6–15 snakes, a very short puzzle. Uncovered cells (4–8%)
+are scattered singles, not pooled holes; whether they read as texture or as
+damage is a device question. `dart run tool/dump_snake_shape.dart <name> [min]`.
+
+Decided: the big ones (see *Status*). A second lap in the other kind would
+reuse all the art and is still open.
 
 ## Status
 
-🔨 **In progress**, branch `les/picture-boards` (not pushed). Built: `ArrowShape`
-with three geometric masks, `ArrowBoard.generateShaped`, levels 55/65/75… via
-`arrowShapeForLevel`, `configForLevel` following the shape, and
-`tool/dump_arrow_shape.dart`. Seen on the emulator and liked.
+🔨 **In progress**, branch `les/picture-boards` (not pushed).
 
-Delivered shapes: heart (126 arrows, branching 2.96, chain 26), diamond (112,
-4.55, 27), star (96, 5.33, 17).
+Built (29 Sep): **Arrow Pictures** as its own game — 102 pictures by end of day
+(`arrow_pictures_shapes.dart`, sorted by cell count, 42 → 1485; tiers in the
+recipe below), Arrow Escape's
+screen reused through `ArrowGameSpec`, boards prefetched via the now-generic
+`BoardPrefetch<B>`, strings in en + nb. Arrow Escape is back to full boards.
 
-**Open, and the owner's call: every tenth level, or every late board?** The
-"milestone" argument above was written before three shapes existed to look at, and
-the measured branching spread suggests "always" may cost nothing in difficulty.
-He can judge it from the emulator faster than anyone can argue it.
+Measured, and it changed the design: **an absolute branching curve does not fit
+pictures.** The shape sets the achievable range — troll cannot go below 7.9,
+fish reaches 2.2 — so a single curve put 15 of 39 levels outside their own
+spread. Levels now pick a percentile *within their picture's pool*
+(`generateShapedAtHardness`): median at level 1, hardest by the end of the list.
+Generation is ≤66ms at these sizes, so prefetch is headroom for bigger grids, not
+yet a necessity. Tune with `dart run tool/analyze_arrow_pictures.dart`.
 
-Not started: prefetch generalisation (the gate on bigger grids), outline shapes,
-colour, and anything at all for Arrow Maze.
+**High resolution makes short-arrow boards looser, not harder.** Levels 1–39
+play at 3–6 arrows free per step, 62–82 at 7–10 (the windmill at 20). The
+drawing agents traced it: an arrow facing open canvas out to the board edge is
+free from the start, so tall or airy pictures play themselves, while enclosed
+holes cost nothing. Keeping hardest-board branching ≤ 9 forced compromises —
+front views instead of profiles, Big Ben without its palace, lamp posts added
+beside the Eiffel Tower purely to block rays. Long arrows do not have this
+problem (see above), and CLAUDE.md says branching is not what players feel in a
+monotone game anyway. **Decided (owner): the big pictures use long arrows.**
+
+**Wired (29 Sep).** Positions 40+ in the list (`pictureFirstLongPosition`) play
+on Arrow Maze's screen, which now takes a `SnakeGameSpec` as Arrow Escape's takes
+an `ArrowGameSpec`; `ArrowPicturesScreen` picks the screen by level, and "Next
+level" across the boundary replaces it (`redirect`). Each kind has its own
+prefetch cache, and `warmPictureLevel` warms the *next* level's kind — level 39
+must warm a long board for 40. Long levels measure 2–6.5 branching, 85–97% of
+the picture covered, ≤0.42s on desktop with a 48-candidate pool (96 covered no
+more). Hearts fixed at 4. No bonus arrows on pictures.
+
+**Redrawn dense (29 Sep), after the owner played level 82** — the seahorse —
+and could not tell what it was: "the long arrow images can be much denser, they
+felt empty". Two causes: the picture filled only 38% of its board, and long
+arrows are thin lines, so a sparse picture reads as scattered strokes. Fixes:
+the picture's cells are now tinted behind the snakes (`SnakeGameSpec.picture`),
+which also turns clearing into a reveal; and all 43 long pictures were redrawn
+as solid silhouettes, no 1-cell strokes, no filler scenery, natural poses back
+(400–760 cells, 38–80 snakes, 90–96% covered, 2–7 branching, ≤0.32s). Tall
+subjects (giraffe, towers, deer) stay near 50% of their box — filling more would
+make them blobs.
+
+
+**Huge tier (29 Sep), levels 83–102** — the owner asked for bigger, denser
+pictures now that zoom exists. 20 pictures at 40–44 x 48–57, 1384–1500 cells,
+78–114 snakes, coloured as drawn. Two knobs apply only above
+`pictureHugeCells` (900), so every earlier board is unchanged: snakes up to 28
+long (capped at 14, a 40x56 picture measured 81% covered; 30 reached 94%), and
+Arrow Maze's screen zooms to `cols / 6` rather than 4x (≈7x at 44 wide). A 24-
+candidate pool dropped three pictures to 88–89% at their level's seed; 48 holds
+91–96% (polar bear 89%) at 0.4–0.8s on desktop, prefetched.
+
+
+**A picture must read from its silhouette alone** — the rule every future
+picture is drawn under. During play there is no colour: the player sees one flat
+shape filled with snake lines. The first huge tier was drawn leaning on colour,
+and the owner could name neither Holmenkollen ("a big triangle" — the hill
+swallowed the jump) nor the polar bear on its ice floe ("a blob"); the carousel
+and the redrawn seahorse, whose outlines alone say what they are, both landed.
+An audit by silhouette failed or weakened 14 of the other 17. So: no large
+grounds or backgrounds merging with the subject (≤ 3 rows of ground), iconic
+features stick out of the outline or are cut in as holes, profiles over front
+views, and judge a drawing from a one-colour rendering, never the coloured one.
+Holmenkollen was replaced by a reindeer.
+
+The owner checked the reworked huge tier on the emulator on 29 Sep: "they look
+ok now".
+
+## Adding pictures — the recipe
+
+What today's rounds converged on. Drawing is agent work in parallel batches;
+the code needs nothing — a picture is a mask in `arrow_pictures_shapes.dart`
+plus one entry per language in the `pictureName` select in both ARB files, and
+the tests pick it up (a missing name fails `every picture is named in both
+languages`).
+
+| tier | positions | size | cells | arrows |
+|---|---|---|---|---|
+| small | 1–39 | ≤ 16 wide | 40–170 | short |
+| mid | 40–61 | 20–26 wide, ≤ 36 tall | 400–550 | long, max 14 |
+| large | 62–82 | 28–32 wide, ≤ 42 tall | 600–850 | long, max 14 |
+| huge | 83+ | 40–44 wide, ≤ 60 tall | 1100–1500 | long, max 28 (> `pictureHugeCells`) |
+
+The list is sorted by cell count, and **the kind of arrow is by position**
+(`pictureFirstLongPosition` = 40), so the 39 smallest must stay the short-arrow
+ones. Adding small pictures moves that boundary: keep the count of pictures
+under ~170 cells equal to `pictureFirstLongPosition - 1`, or move the constant.
+
+Every drawing:
+- **Reads from its silhouette alone** (see above). Judge it rendered in one
+  colour. Profiles, iconic parts sticking out or cut in as holes, ground ≤ 3 rows.
+- **Long-arrow tiers: solid.** No 1-cell strokes — every inside cell in some
+  inside 2×2 block — and ≥ 55–60% of its bounding box, or it reads as scattered
+  lines. Short-arrow pictures may have 1-cell detail; they are tiles.
+- **Coloured from `arrow_pictures_palette.dart` only**, never `#` (a test fails
+  on it). Picture-book colours, coherent regions, no stray single cells.
+- **Covered** by the long-arrow generator ≥ 92% at seed 1 *and* at its final
+  level's seed (seed = level number, and coverage swings a few points by seed).
+  Check with `dart run tool/analyze_arrow_pictures.dart` after merging.
+- **Named** in English and Bokmål *with its article* ("a seahorse" / "en
+  sjøhest", "the Eiffel Tower" / "Eiffeltårnet").
+- No characters, logos, brands, real people or artworks.
+
+Process that worked: ~4 drawing agents in parallel (≈ 20 huge or 40 small per
+15–20 min), each writing its own `_draft_*.dart` so they never edit the same
+file; then a **separate silhouette-audit agent** before the owner sees anything
+(the first huge round failed 14 of 17 on silhouette); merge by name, re-sort,
+re-run the analyzer; then the owner plays a sample and names the misses.
+
+## Next
+
+1. **Grow to ≥ 200 pictures before the first release** (owner, 29 Sep). Now is
+   the cheap moment: before release pictures can go anywhere, afterwards only on
+   the end — i.e. only at the hardest end. Spread across the curve, roughly +30
+   small, +40 mid/large, +30 huge, in two rounds of ~50 with an owner spot-check
+   between. Give variety a shape with themes: Norway, the farm, the sea, music,
+   trades and tools, world landmarks, the seasons. Avoid repeating subjects.
+2. **Pin the list before the release** — a test on the names in order, so
+   append-only is enforced rather than remembered.
+3. **Mirrored replays**: levels past the end could show the picture mirrored,
+   doubling the repeat-lap variety for free (a transform on the mask; the board
+   regenerates from it). Not built.
+4. Heart / diamond / star (the owner liked them on day one) still live only in
+   `arrowShapes`; worth adding as small pictures in round one.
+5. Norwegian picture names were chosen by an agent; a native eye on
+   `app_nb.arb`'s `pictureName` is worth five minutes (e.g. "en bjelle" vs "ei",
+   "et gulvur", "en kirke med løkkupler").

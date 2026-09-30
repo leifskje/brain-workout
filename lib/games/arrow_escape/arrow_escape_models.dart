@@ -77,42 +77,8 @@ const arrowDenseFirstLevel = 41;
 double arrowFillForLevel(int level) =>
     (0.46 + (level - arrowDenseFirstLevel) * 0.011).clamp(0.46, 1.0);
 
-/// First picture level, and how often they recur.
-///
-/// Milestones, not the default: a silhouette is a landmark and a reward, and a
-/// run of them would be a gimmick — the shape constrains the generator enough
-/// that difficulty would drift if every board were one. Starting at 55 rather
-/// than 50 keeps them off the round numbers the analyzer and the tests sample,
-/// so a picture level never silently stands in for a levelled one being measured.
-const arrowFirstPictureLevel = 55;
-const arrowPictureInterval = 10;
-
-/// The silhouette for [level], or null on an ordinary level.
-ArrowShape? arrowShapeForLevel(int level) {
-  if (level < arrowFirstPictureLevel) return null;
-  if ((level - arrowFirstPictureLevel) % arrowPictureInterval != 0) return null;
-  final n = (level - arrowFirstPictureLevel) ~/ arrowPictureInterval;
-  return arrowShapes[n % arrowShapes.length];
-}
-
 /// Grows the board size and arrow density as the level increases.
 ArrowLevelConfig configForLevel(int level) {
-  // A picture level's size and arrow count come from its shape, not the curve —
-  // and the hearts have to follow, or the screen shows a heart count the board
-  // cannot justify.
-  final shape = arrowShapeForLevel(level);
-  if (shape != null) {
-    return ArrowLevelConfig(
-      rows: shape.size,
-      cols: shape.size,
-      arrowCount: shape.cellCount,
-      hearts: _heartsForArrowCount(shape.cellCount),
-    );
-  }
-  return _levelledConfig(level);
-}
-
-ArrowLevelConfig _levelledConfig(int level) {
   // Grid and density both used to stop at level 13, then at level 21 with a 9x9
   // board — after which every level was config-identical, the same plateau Arrow
   // Maze was rescued from. Single-cell arrows stay legible far longer than Arrow
@@ -162,7 +128,7 @@ ArrowLevelConfig _levelledConfig(int level) {
     rows: size,
     cols: size,
     arrowCount: count,
-    hearts: _heartsForArrowCount(count),
+    hearts: arrowHeartsForCount(count),
   );
 }
 
@@ -178,7 +144,7 @@ ArrowLevelConfig _levelledConfig(int level) {
 /// mistakes, so a more forgiving board is not an easier one to score well on.
 ///
 /// Every level up to 40 tops out at 88 arrows, so all of them keep their five.
-int _heartsForArrowCount(int count) =>
+int arrowHeartsForCount(int count) =>
     count <= 100 ? 5 : (5 + (count - 100) ~/ 32).clamp(5, 8);
 
 /// A silhouette for a picture board: which cells hold an arrow.
@@ -197,15 +163,21 @@ class ArrowShape {
   final String name;
   final List<String> rows;
 
-  int get size => rows.length;
+  /// Grid height and width. Rectangular is allowed — a phone is held upright, so
+  /// a portrait picture uses the screen better than a square one.
+  int get rowCount => rows.length;
+  int get colCount => rows.first.length;
 
-  bool filled(int r, int c) => rows[r][c] == '#';
+  /// Any character but `.` is inside: `#` in a plain mask, a palette letter
+  /// in a coloured one (see arrow_pictures_palette.dart), so colouring a
+  /// picture can never change its board.
+  bool filled(int r, int c) => rows[r][c] != '.';
 
-  /// Flat `row * size + col` indices of the filled cells.
+  /// Flat `row * colCount + col` indices of the filled cells.
   List<int> liveCells() => [
-        for (var r = 0; r < size; r++)
-          for (var c = 0; c < rows[r].length; c++)
-            if (filled(r, c)) r * size + c,
+        for (var r = 0; r < rowCount; r++)
+          for (var c = 0; c < colCount; c++)
+            if (filled(r, c)) r * colCount + c,
       ];
 
   int get cellCount => liveCells().length;
@@ -404,6 +376,42 @@ class ArrowBoard {
     return true;
   }
 
+  /// The whole board, for handing it across an isolate boundary or caching it.
+  ///
+  /// Deliberately leaves out `escaped`, as `SnakeBoard.toJson` does: that is
+  /// what makes it safe to cache the board being played, since a half-cleared
+  /// board can then never come back as a fresh one. Play state has its own
+  /// channel in [escapedJson].
+  Map<String, dynamic> toJson() => {
+        'rows': rows,
+        'cols': cols,
+        // row, col, direction per piece, in id order.
+        'pieces': [
+          for (final p in pieces) ...[p.row, p.col, p.dir.index]
+        ],
+      };
+
+  /// Rebuilds a board written by [toJson], or null if the payload is unusable —
+  /// a cache must degrade to regenerating, never throw.
+  static ArrowBoard? fromJson(Map<String, dynamic> json) {
+    final rows = json['rows'], cols = json['cols'], flat = json['pieces'];
+    if (rows is! int || cols is! int || rows <= 0 || cols <= 0) return null;
+    if (flat is! List || flat.length % 3 != 0) return null;
+    final pieces = <ArrowPiece>[];
+    final seen = <int>{};
+    for (var i = 0; i < flat.length; i += 3) {
+      final r = flat[i], c = flat[i + 1], d = flat[i + 2];
+      if (r is! int || c is! int || d is! int) return null;
+      if (r < 0 || r >= rows || c < 0 || c >= cols) return null;
+      if (d < 0 || d >= Direction.values.length) return null;
+      if (!seen.add(r * cols + c)) return null;
+      pieces.add(ArrowPiece(
+          id: pieces.length, row: r, col: c, dir: Direction.values[d]));
+    }
+    if (pieces.isEmpty) return null;
+    return ArrowBoard(rows: rows, cols: cols, pieces: pieces);
+  }
+
   /// Whether the player has cleared anything yet.
   bool get hasProgress => pieces.any((p) => p.escaped);
 
@@ -546,12 +554,6 @@ class ArrowBoard {
   static ArrowBoard generate(int level) {
     if (level < arrowDenseFirstLevel) return _buildSparse(level);
 
-    final shape = arrowShapeForLevel(level);
-    if (shape != null) {
-      // Seeded by level like everything else, so a retry gives the same board.
-      return generateShaped(shape, seed: level);
-    }
-
     final cfg = configForLevel(level);
     final target = arrowTargetBranchingForLevel(level);
     ArrowBoard? best;
@@ -585,8 +587,7 @@ class ArrowBoard {
   /// ray passes straight through it. So a silhouette is generated by the same
   /// single forward pass as a full board.
   ///
-  /// Not wired to any level yet, and deliberately so: picture levels want the
-  /// prefetch Arrow Maze has before the grid grows past what fits inline. See
+  /// Used by Arrow Pictures, not by this game's levels. See
   /// docs/plans/picture-boards.md.
   ///
   /// [target] is the branching to aim for, as with [generate]; null keeps the
@@ -595,16 +596,16 @@ class ArrowBoard {
   static ArrowBoard generateShaped(ArrowShape shape, {int seed = 0, double? target}) {
     final live = shape.liveCells();
     final cfg = ArrowLevelConfig(
-      rows: shape.size,
-      cols: shape.size,
+      rows: shape.rowCount,
+      cols: shape.colCount,
       arrowCount: live.length,
-      hearts: _heartsForArrowCount(live.length),
+      hearts: arrowHeartsForCount(live.length),
     );
 
     ArrowBoard? best;
     var bestMiss = double.infinity;
     for (var attempt = 0; attempt < generationPoolSize; attempt++) {
-      final board = _buildDense(cfg, seed * 7919 + attempt, liveCells: live);
+      final board = _buildDense(cfg, _shapedSeed(seed, attempt), liveCells: live);
       final d = board.measureDifficulty();
       if (!d.solvableGreedily) continue;
       // With no target, "hardest" means lowest branching — the same direction
@@ -616,7 +617,54 @@ class ArrowBoard {
       }
       if (target != null && miss <= onTargetTolerance) return board;
     }
-    return best ?? _buildDense(cfg, seed * 7919, liveCells: live);
+    return best ?? _buildDense(cfg, _shapedSeed(seed, 0), liveCells: live);
+  }
+
+  /// A board of [shape] ranked within what *that shape* can produce: hardness
+  /// 0 is the pool's median board, 1 its hardest (lowest branching).
+  ///
+  /// Relative rather than an absolute branching target because the shape sets
+  /// the range far more than anything else: measured over the Arrow Pictures
+  /// list, one picture's easiest board can be harder than another's hardest, so
+  /// any single curve lands outside most pictures' spread and silently becomes
+  /// "closest found". The median floor keeps the easy end a puzzle rather than
+  /// the loosest board the pool happened to contain.
+  ///
+  /// Scores the whole pool, with no early exit — cheap at picture sizes (tens
+  /// of milliseconds), and it is what makes a percentile meaningful.
+  static ArrowBoard generateShapedAtHardness(ArrowShape shape,
+      {required int seed, required double hardness}) {
+    final scored = <(ArrowBoard, double, int)>[];
+    for (var attempt = 0; attempt < generationPoolSize; attempt++) {
+      final board = buildShapedAttempt(shape, seed, attempt);
+      final d = board.measureDifficulty();
+      if (d.solvableGreedily) scored.add((board, d.meanBranching, attempt));
+    }
+    // Attempt index breaks ties, so the pick is deterministic whatever the sort.
+    scored.sort((a, b) {
+      final byBranching = a.$2.compareTo(b.$2);
+      return byBranching != 0 ? byBranching : a.$3.compareTo(b.$3);
+    });
+    final q = 0.5 * (1 - hardness.clamp(0.0, 1.0));
+    return scored[(q * (scored.length - 1)).round()].$1;
+  }
+
+  static int _shapedSeed(int seed, int attempt) => seed * 7919 + attempt;
+
+  /// One ungated shaped candidate, for tuning tools and tests — the shaped
+  /// counterpart of [buildAttempt].
+  static ArrowBoard buildShapedAttempt(ArrowShape shape, int seed, int attempt) {
+    final live = shape.liveCells();
+    return _buildDense(
+      ArrowLevelConfig(
+        rows: shape.rowCount,
+        cols: shape.colCount,
+        arrowCount: live.length,
+        hearts: arrowHeartsForCount(live.length),
+      ),
+      _shapedSeed(seed, attempt),
+      liveCells: live,
+    );
   }
 
   /// Candidate boards measured per level before settling for the closest found.

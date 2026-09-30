@@ -784,4 +784,129 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get buildingBoard => 'Setting up the next board…';
+
+  @override
+  String get gameArrowPicturesTitle => 'Arrow Pictures';
+
+  @override
+  String get gameArrowPicturesSubtitle => 'Every board is a picture';
+
+  @override
+  String get helpArrowPictures =>
+      'Every board is a picture made of arrows. Tap an arrow to send it off the board in the direction it points — but its path must be clear. Send off all the arrows to win.';
+
+  @override
+  String pictureName(String name) {
+    String _temp0 = intl.Intl.selectLogic(name, {
+      'key': 'a key',
+      'fish': 'a fish',
+      'mushroom': 'a mushroom',
+      'mug': 'a mug',
+      'christmas_tree': 'a Christmas tree',
+      'house': 'a house',
+      'bell': 'a bell',
+      'bird': 'a bird',
+      'anchor': 'an anchor',
+      'candle': 'a candle',
+      'sailboat': 'a sailboat',
+      'scissors': 'a pair of scissors',
+      'whale': 'a whale',
+      'umbrella': 'an umbrella',
+      'sun': 'the sun',
+      'snail': 'a snail',
+      'teapot': 'a teapot',
+      'easter_egg': 'an Easter egg',
+      'rocket': 'a rocket',
+      'pumpkin': 'a pumpkin',
+      'horse': 'a horse',
+      'hot_air_balloon': 'a hot-air balloon',
+      'lighthouse': 'a lighthouse',
+      'fishing_boat': 'a fishing boat',
+      'boot': 'a boot',
+      'viking_ship': 'a Viking ship',
+      'cat': 'a cat',
+      'tractor': 'a tractor',
+      'moose': 'a moose',
+      'owl': 'an owl',
+      'snowflake': 'a snowflake',
+      'rabbit': 'a rabbit',
+      'butterfly': 'a butterfly',
+      'flag': 'a flag',
+      'kransekake': 'a kransekake',
+      'stave_church': 'a stave church',
+      'troll': 'a troll',
+      'elephant': 'an elephant',
+      'mountain_cabin': 'a mountain cabin',
+      'steam_locomotive': 'a steam locomotive',
+      'bicycle': 'a bicycle',
+      'roe_deer': 'a roe deer',
+      'grand_piano': 'a grand piano',
+      'watering_can': 'a watering can',
+      'hedgehog': 'a hedgehog',
+      'wheelbarrow': 'a wheelbarrow',
+      'tortoise': 'a tortoise',
+      'fox': 'a fox',
+      'rocking_chair': 'a rocking chair',
+      'seal': 'a seal',
+      'sewing_machine': 'a sewing machine',
+      'rooster': 'a rooster',
+      'oil_lantern': 'an oil lantern',
+      'puffin': 'a puffin',
+      'frog': 'a frog',
+      'gramophone': 'a gramophone',
+      'typewriter': 'a typewriter',
+      'penguin': 'a penguin',
+      'tall_ship': 'a tall ship',
+      'grandfather_clock': 'a grandfather clock',
+      'squirrel': 'a squirrel',
+      'swan': 'a swan',
+      'leaning_tower_of_pisa': 'the Leaning Tower of Pisa',
+      'eiffel_tower': 'the Eiffel Tower',
+      'bryggen': 'Bryggen in Bergen',
+      'peacock': 'a peacock',
+      'giraffe': 'a giraffe',
+      'big_ben': 'Big Ben',
+      'eagle': 'an eagle',
+      'statue_of_liberty': 'the Statue of Liberty',
+      'tower_bridge': 'Tower Bridge',
+      'octopus': 'an octopus',
+      'oak_tree': 'an oak tree',
+      'pyramids_and_sphinx': 'the pyramids and the Sphinx',
+      'colosseum': 'the Colosseum',
+      'seahorse': 'a seahorse',
+      'pagoda': 'a pagoda',
+      'lion': 'a lion',
+      'windmill': 'a windmill',
+      'dragon': 'a dragon',
+      'sunflower_in_pot': 'a sunflower',
+      'onion_dome_church': 'an onion-domed church',
+      'nidaros_cathedral': 'Nidaros Cathedral',
+      'coastal_express_ship': 'a coastal express ship',
+      'reindeer': 'a reindeer',
+      'fjord_with_rowboat': 'a fjord with a rowing boat',
+      'stabbur': 'a stabbur',
+      'polar_bear': 'a polar bear',
+      'humpback_whale': 'a humpback whale',
+      'red_deer_stag': 'a red deer stag',
+      'tiger': 'a tiger',
+      'hen_and_chicks': 'a hen and her chicks',
+      'vintage_car': 'a vintage car',
+      'harp': 'a harp',
+      'spinning_wheel': 'a spinning wheel',
+      'cuckoo_clock': 'a cuckoo clock',
+      'carousel': 'a carousel',
+      'taj_mahal': 'the Taj Mahal',
+      'notre_dame': 'Notre-Dame',
+      'fairytale_castle': 'a fairytale castle',
+      'golden_gate_bridge': 'the Golden Gate Bridge',
+      'parthenon': 'the Parthenon',
+      'other': 'a picture',
+    });
+    return '$_temp0';
+  }
+
+  @override
+  String pictureCleared(int level, String picture) {
+    return 'You cleared level $level. It was $picture!';
+  }
 }

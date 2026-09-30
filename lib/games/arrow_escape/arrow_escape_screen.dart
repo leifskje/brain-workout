@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -5,12 +6,73 @@ import 'package:flutter/services.dart';
 
 import '../../l10n/generated/app_localizations.dart';
 import '../../services/board_autosave.dart';
+import '../../services/board_prefetch.dart';
 import '../../services/progress_store.dart';
 import '../../theme/motion.dart';
 import '../../widgets/game_header.dart';
+import '../../widgets/picture_layer.dart';
 import '../../widgets/how_to_play.dart';
 import '../../widgets/win_dialog.dart';
 import 'arrow_escape_models.dart';
+
+/// What differs between the games played on [ArrowEscapeScreen].
+///
+/// Arrow Pictures is Arrow Escape with different boards, so it shares the
+/// screen rather than copying it.
+class ArrowGameSpec {
+  const ArrowGameSpec({
+    required this.gameId,
+    required this.accent,
+    required this.help,
+    required this.config,
+    required this.generate,
+    this.prefetch,
+    this.warm,
+    this.redirect,
+    this.pictureColours,
+    this.pictureOutline = false,
+    this.winMessage,
+  });
+
+  final String gameId;
+  final Color accent;
+  final String Function(AppLocalizations t) help;
+  final ArrowLevelConfig Function(int level) config;
+  final ArrowBoard Function(int level) generate;
+
+  /// When set, boards are built ahead of time off the UI isolate and a level
+  /// loads behind a spinner. When null, [generate] runs inline — fine for
+  /// Arrow Escape, whose boards are cheap.
+  final BoardPrefetch<ArrowBoard>? prefetch;
+
+  /// Warms the board for a level; defaults to [prefetch]. Overridden when the
+  /// next level may not be this screen's kind of board at all.
+  final void Function(int level)? warm;
+
+  /// Given the level "Next level" leads to, opens it somewhere else and returns
+  /// true — or returns false to load it here.
+  final bool Function(BuildContext context, int level)? redirect;
+
+  /// The picture a level's arrows form, one ARGB per cell (null outside).
+  /// Revealed in colour once the last arrow has left; see
+  /// lib/widgets/picture_layer.dart.
+  final List<List<int?>>? Function(int level)? pictureColours;
+
+  /// Whether the picture shows as a faint outline during play.
+  final bool pictureOutline;
+
+  /// Replaces the win dialog's "You cleared level N." — Arrow Pictures names
+  /// the picture there, since a finished board no longer shows it plainly.
+  final String Function(AppLocalizations t, int level)? winMessage;
+
+  static final arrowEscape = ArrowGameSpec(
+    gameId: 'arrow_escape',
+    accent: const Color(0xFF3F7DAA),
+    help: (t) => t.helpArrowEscape,
+    config: configForLevel,
+    generate: ArrowBoard.generate,
+  );
+}
 
 /// Playable Arrow Escape board.
 ///
@@ -18,9 +80,12 @@ import 'arrow_escape_models.dart';
 /// arrow only leaves if its straight path to the edge is clear; otherwise it
 /// shakes and costs a heart. Clear the whole board to win.
 class ArrowEscapeScreen extends StatefulWidget {
-  const ArrowEscapeScreen({super.key, this.startLevel = 1});
+  const ArrowEscapeScreen({super.key, this.startLevel = 1, this.spec});
 
   final int startLevel;
+
+  /// Defaults to Arrow Escape itself.
+  final ArrowGameSpec? spec;
 
   @override
   State<ArrowEscapeScreen> createState() => _ArrowEscapeScreenState();
@@ -28,7 +93,7 @@ class ArrowEscapeScreen extends StatefulWidget {
 
 class _ArrowEscapeScreenState extends State<ArrowEscapeScreen>
     with
-        SingleTickerProviderStateMixin,
+        TickerProviderStateMixin,
         WidgetsBindingObserver,
         BoardAutosave<ArrowEscapeScreen> {
   /// Fallback only: replaced from the layout once the cell size is known. A
@@ -36,8 +101,9 @@ class _ArrowEscapeScreenState extends State<ArrowEscapeScreen>
   /// slides the full width of the board and that distance scales with the screen.
   static const _fallbackMoveDuration = Duration(milliseconds: 380);
   Duration _moveDuration = _fallbackMoveDuration;
-  static const _gameId = 'arrow_escape';
-  static const _accent = Color(0xFF3F7DAA);
+  late final ArrowGameSpec _spec = widget.spec ?? ArrowGameSpec.arrowEscape;
+  String get _gameId => _spec.gameId;
+  Color get _accent => _spec.accent;
 
   int _level = 1;
   late ArrowBoard _board;
@@ -45,7 +111,13 @@ class _ArrowEscapeScreenState extends State<ArrowEscapeScreen>
   int? _blockedId;
   bool _busy = false; // locks taps while a win/lose transition is pending
 
+  /// Only ever true for a prefetched game: its board may still be building.
+  bool _loading = false;
+  bool _boardReady = false;
+  Timer? _settleTimer;
+
   late final AnimationController _shake;
+  late final AnimationController _reveal;
 
   /// Board zoom, for the boards past the old 9x9 ceiling.
   ///
@@ -58,7 +130,7 @@ class _ArrowEscapeScreenState extends State<ArrowEscapeScreen>
 
   /// Boards wide enough that ~24dp cells are worth zooming into. Below this the
   /// controls would only cost the board vertical space.
-  bool get _zoomable => _board.cols > 9;
+  bool get _zoomable => _boardReady && _board.cols > 9;
 
   void _onShakeTick() {
     // The controller can tick during/after a route pop; only rebuild while
@@ -81,13 +153,21 @@ class _ArrowEscapeScreenState extends State<ArrowEscapeScreen>
       vsync: this,
       duration: const Duration(milliseconds: 400),
     )..addListener(_onShakeTick);
+    // Decorative, so it keeps the default behaviour: with reduced animations
+    // the picture simply appears, and its end state is what matters.
+    _reveal = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 900),
+    )..addListener(() {
+        if (mounted) setState(() {});
+      });
     _zoom = TransformationController();
     _loadLevel(widget.startLevel);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         maybeShowHowToPlay(context,
             gameId: _gameId,
-            body: AppLocalizations.of(context).helpArrowEscape,
+            body: _spec.help(AppLocalizations.of(context)),
             accent: _accent);
       }
     });
@@ -97,7 +177,9 @@ class _ArrowEscapeScreenState extends State<ArrowEscapeScreen>
   void dispose() {
     saveBoardNow();
     stopAutosave();
+    _settleTimer?.cancel();
     _shake.dispose();
+    _reveal.dispose();
     _zoom.dispose();
     super.dispose();
   }
@@ -108,8 +190,50 @@ class _ArrowEscapeScreenState extends State<ArrowEscapeScreen>
   /// left, or a cleared board with lives restored, would both feel like a bug.
   void _loadLevel(int level, {bool allowResume = true}) {
     ProgressStore.instance.recordReached(_gameId, level);
-    final board = ArrowBoard.generate(level);
-    var hearts = configForLevel(level).hearts;
+    final prefetch = _spec.prefetch;
+    if (prefetch == null) {
+      _showBoard(level, _spec.generate(level), allowResume: allowResume);
+    } else {
+      _loadPrefetched(prefetch, level, allowResume: allowResume);
+    }
+  }
+
+  /// The prefetched path, modelled on Arrow Maze's: spinner while the board is
+  /// not ready, then a short tap guard, then warm the next level.
+  Future<void> _loadPrefetched(BoardPrefetch<ArrowBoard> prefetch, int level,
+      {required bool allowResume}) async {
+    _settleTimer?.cancel();
+    final load = ++_loadSerial;
+    setState(() {
+      _loading = true;
+      _busy = true;
+      _level = level;
+      _hearts = _spec.config(level).hearts;
+      _blockedId = null;
+    });
+    final (board: board, wasWarm: _) = await prefetch.obtain(level);
+    // A newer load (restart, next level) may have started while this awaited.
+    if (!mounted || load != _loadSerial) return;
+    _showBoard(level, board, allowResume: allowResume);
+    // Held briefly even on a warm board: the win dialog's exit transition keeps
+    // the old board visible for ~340ms, so a second press on "Next level" would
+    // otherwise land on this board. See the note in Arrow Maze's _loadLevel.
+    _busy = true;
+    _settleTimer = Timer(const Duration(milliseconds: 400), () {
+      if (!mounted) return;
+      setState(() => _busy = false);
+      // On the tail of the guard so the isolate spawn never competes with the
+      // board's first frame.
+      prefetch.remember(level, board);
+      (_spec.warm ?? prefetch.warm)(level + 1);
+    });
+  }
+
+  /// Bumped per prefetched load, so a superseded one can tell it is stale.
+  int _loadSerial = 0;
+
+  void _showBoard(int level, ArrowBoard board, {required bool allowResume}) {
+    var hearts = _spec.config(level).hearts;
     final saved =
         allowResume ? ProgressStore.instance.loadBoard(_gameId, level) : null;
     if (saved != null && board.applyEscapedJson(saved)) {
@@ -122,6 +246,9 @@ class _ArrowEscapeScreenState extends State<ArrowEscapeScreen>
       _hearts = hearts;
       _blockedId = null;
       _busy = false;
+      _loading = false;
+      _boardReady = true;
+      _reveal.value = 0;
       _zoom.value = Matrix4.identity(); // a new board always starts fitted
     });
   }
@@ -141,6 +268,7 @@ class _ArrowEscapeScreenState extends State<ArrowEscapeScreen>
 
   @override
   Map<String, dynamic>? captureBoard() {
+    if (!_boardReady || _loading) return null; // still being built
     if (_board.isSolved) return null; // finished
     if (_hearts <= 0) return null; // lost; the level restarts anyway
     if (!_board.hasProgress) return null; // untouched
@@ -148,7 +276,7 @@ class _ArrowEscapeScreenState extends State<ArrowEscapeScreen>
   }
 
   void _onTapPiece(ArrowPiece p) {
-    if (_busy || p.escaped) return;
+    if (_busy || _loading || p.escaped) return;
 
     if (_board.isPathClear(p)) {
       HapticFeedback.lightImpact();
@@ -156,7 +284,7 @@ class _ArrowEscapeScreenState extends State<ArrowEscapeScreen>
       if (_board.isSolved) {
         _busy = true;
         Future.delayed(_moveDuration + const Duration(milliseconds: 80), () {
-          if (mounted) _showWin();
+          if (mounted) _revealThenWin();
         });
       }
     } else {
@@ -175,19 +303,41 @@ class _ArrowEscapeScreenState extends State<ArrowEscapeScreen>
     }
   }
 
+  /// On a picture level, fades the finished picture in and lets it sit for a
+  /// moment before the dialog covers it: the picture is the reward. Anywhere
+  /// else, straight to the dialog.
+  void _revealThenWin() {
+    if (!mounted) return;
+    if (_spec.pictureColours == null) {
+      _showWin();
+      return;
+    }
+    _reveal.forward(from: 0).whenComplete(() {
+      Future.delayed(const Duration(milliseconds: 900), () {
+        if (mounted) _showWin();
+      });
+    });
+  }
+
   void _showWin() {
     if (!mounted) return;
     ProgressStore.instance.clearBoard(_gameId);
     HapticFeedback.heavyImpact();
-    final lost = configForLevel(_level).hearts - _hearts;
+    final lost = _spec.config(_level).hearts - _hearts;
     final stars = lost == 0 ? 3 : (lost <= 2 ? 2 : 1);
     ProgressStore.instance
       ..registerPlay(_gameId)
       ..recordCleared(_gameId, _level, stars);
-    showWinDialog(context, level: _level, accent: _accent, stars: stars)
+    showWinDialog(context,
+            level: _level,
+            accent: _accent,
+            stars: stars,
+            message:
+                _spec.winMessage?.call(AppLocalizations.of(context), _level))
         .then((action) {
       if (!mounted || action == null) return;
       if (action == WinAction.next) {
+        if (_spec.redirect?.call(context, _level + 1) ?? false) return;
         _loadLevel(_level + 1);
       } else {
         Navigator.popUntil(context, (route) => route.isFirst);
@@ -227,7 +377,7 @@ class _ArrowEscapeScreenState extends State<ArrowEscapeScreen>
 
   @override
   Widget build(BuildContext context) {
-    final maxHearts = configForLevel(_level).hearts;
+    final maxHearts = _spec.config(_level).hearts;
     return Scaffold(
       body: SafeArea(
         child: Column(
@@ -237,14 +387,30 @@ class _ArrowEscapeScreenState extends State<ArrowEscapeScreen>
                 accent: _accent,
                 onRestart: _restart,
                 onHelp: () => showHowToPlay(context,
-                    body: AppLocalizations.of(context).helpArrowEscape,
+                    body: _spec.help(AppLocalizations.of(context)),
                     accent: _accent)),
             _buildHearts(maxHearts),
             const SizedBox(height: 8),
             Expanded(
               child: Padding(
                 padding: const EdgeInsets.all(16),
-                child: Center(child: _buildBoard()),
+                child: Center(
+                  child: _loading || !_boardReady
+                      ? Column(
+                          key: ValueKey('${_gameId}_loading'),
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            CircularProgressIndicator(color: _accent),
+                            const SizedBox(height: 16),
+                            Text(
+                              AppLocalizations.of(context).buildingBoard,
+                              style: const TextStyle(
+                                  fontSize: 17, color: Colors.black54),
+                            ),
+                          ],
+                        )
+                      : _buildBoard(),
+                ),
               ),
             ),
             if (_zoomable) _buildZoomBar(),
@@ -327,11 +493,11 @@ class _ArrowEscapeScreenState extends State<ArrowEscapeScreen>
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        button('arrow_escape_zoom_out', Icons.zoom_out_rounded, t.zoomOut,
+        button('${_gameId}_zoom_out', Icons.zoom_out_rounded, t.zoomOut,
             _scale > 1.0 ? () => _setZoom(_scale / 1.5) : null),
-        button('arrow_escape_zoom_fit', Icons.fit_screen_rounded, t.zoomFit,
+        button('${_gameId}_zoom_fit', Icons.fit_screen_rounded, t.zoomFit,
             _scale > 1.0 ? _resetZoom : null),
-        button('arrow_escape_zoom_in', Icons.zoom_in_rounded, t.zoomIn,
+        button('${_gameId}_zoom_in', Icons.zoom_in_rounded, t.zoomIn,
             _scale < _maxZoom ? () => _setZoom(_scale * 1.5) : null),
       ],
     );
@@ -340,8 +506,9 @@ class _ArrowEscapeScreenState extends State<ArrowEscapeScreen>
   Widget _buildBoard() {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final dim = math.min(constraints.maxWidth, constraints.maxHeight);
-        final cell = dim / _board.rows;
+        // Fits either dimension, since picture boards need not be square.
+        final cell = math.min(constraints.maxWidth / _board.cols,
+            constraints.maxHeight / _board.rows);
         // A piece leaves by sliding clear of the board, so time that distance at
         // the shared speed rather than fixing the duration. Same value feeds the
         // AnimatedPositioned and the post-move delay, so they cannot drift.
@@ -358,7 +525,7 @@ class _ArrowEscapeScreenState extends State<ArrowEscapeScreen>
         // arithmetic that could mis-target once zoomed.
         final board = ClipRRect(
           // Named so tests can aim taps at a cell centre, as in Arrow Maze.
-          key: const ValueKey('arrow_escape_board'),
+          key: ValueKey('${_gameId}_board'),
           borderRadius: BorderRadius.circular(18),
           child: Container(
             width: width,
@@ -381,6 +548,17 @@ class _ArrowEscapeScreenState extends State<ArrowEscapeScreen>
                         ),
                       ),
                     ),
+                if (_spec.pictureColours?.call(_level) case final colours?)
+                  Positioned.fill(
+                    child: CustomPaint(
+                      painter: PictureLayerPainter(
+                        colours: colours,
+                        cell: cell,
+                        outline: _spec.pictureOutline,
+                        reveal: _reveal.value,
+                      ),
+                    ),
+                  ),
                 for (final p in _board.pieces) _buildPiece(p, cell),
               ],
             ),
@@ -389,7 +567,7 @@ class _ArrowEscapeScreenState extends State<ArrowEscapeScreen>
 
         if (!_zoomable) return board;
         return InteractiveViewer(
-          key: const ValueKey('arrow_escape_viewer'),
+          key: ValueKey('${_gameId}_viewer'),
           transformationController: _zoom,
           minScale: 1.0,
           maxScale: _maxZoom,

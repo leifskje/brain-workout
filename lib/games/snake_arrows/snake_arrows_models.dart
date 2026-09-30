@@ -612,6 +612,56 @@ class SnakeBoard {
     return largest / (rows * cols);
   }
 
+  /// Fraction of [mask]'s cells covered by arrows — [fillFraction] for a picture,
+  /// where the cells outside the picture are meant to be empty.
+  double fillWithin(List<List<bool>> mask) {
+    var inside = 0;
+    for (final row in mask) {
+      inside += row.where((b) => b).length;
+    }
+    return arrows.fold<int>(0, (sum, a) => sum + a.cells.length) / inside;
+  }
+
+  /// [largestEmptyFraction] counted only inside [mask]. The plain version would
+  /// score the picture's own background as one huge hole and reject every
+  /// candidate.
+  double largestEmptyFractionWithin(List<List<bool>> mask) {
+    final taken = List.generate(rows, (r) => [for (final b in mask[r]) !b]);
+    var inside = 0;
+    for (final row in mask) {
+      inside += row.where((b) => b).length;
+    }
+    for (final a in arrows) {
+      for (final cell in a.cells) {
+        taken[cell.row][cell.col] = true;
+      }
+    }
+    var largest = 0;
+    for (var r0 = 0; r0 < rows; r0++) {
+      for (var c0 = 0; c0 < cols; c0++) {
+        if (taken[r0][c0]) continue;
+        var size = 0;
+        final stack = <Cell>[Cell(r0, c0)];
+        taken[r0][c0] = true;
+        while (stack.isNotEmpty) {
+          final cell = stack.removeLast();
+          size++;
+          for (final d in Dir.values) {
+            final n = cell.step(d);
+            if (n.row < 0 || n.row >= rows || n.col < 0 || n.col >= cols) {
+              continue;
+            }
+            if (taken[n.row][n.col]) continue;
+            taken[n.row][n.col] = true;
+            stack.add(n);
+          }
+        }
+        if (size > largest) largest = size;
+      }
+    }
+    return largest / inside;
+  }
+
   /// Measures how hard this board plays by repeatedly firing the first arrow
   /// with a clear shot and recording how many were available at each step.
   ///
@@ -802,22 +852,79 @@ class SnakeBoard {
   static int _seedFor(int level, int attempt) =>
       level * 100003 + 41 + attempt * 7919;
 
+  /// A board whose snakes stay inside a picture: in [maskRows] `.` is empty and
+  /// any other character (`#`, or a colour letter) may hold a snake. Arrow
+  /// Pictures' long-arrow levels.
+  ///
+  /// Solvable for the same reason every board is: snakes are placed in
+  /// reverse-solve order, each with a clear ray at placement. Restricting
+  /// *where* a snake may go cannot take that away.
+  ///
+  /// Candidates are ranked by how much of the picture they cover and how
+  /// evenly — an uncovered patch inside a picture reads as a broken picture —
+  /// and no bonus arrow is assigned: colour on picture boards is reserved.
+  static SnakeBoard generateShaped(
+    List<String> maskRows, {
+    int seed = 0,
+    int minLength = 3,
+    int maxLength = 14,
+    double fillTarget = 0.95,
+    int poolSize = 96,
+  }) {
+    final mask = [
+      for (final row in maskRows) [for (final ch in row.split('')) ch != '.']
+    ];
+    final cfg = SnakeLevelConfig(
+      rows: mask.length,
+      cols: mask.first.length,
+      minLength: minLength,
+      maxLength: maxLength,
+      hearts: 3,
+      fillTarget: fillTarget,
+    );
+    SnakeBoard? best;
+    var bestScore = double.infinity;
+    for (var attempt = 0; attempt < poolSize; attempt++) {
+      final board = _build(cfg, seed * 7919 + attempt, mask: mask);
+      if (board.arrows.isEmpty) continue;
+      final shortfall =
+          (fillTarget - board.fillWithin(mask)).clamp(0.0, 1.0);
+      final score = shortfall * fillShortfallWeight +
+          board.largestEmptyFractionWithin(mask) * holeExcessWeight;
+      if (score < bestScore) {
+        bestScore = score;
+        best = board;
+      }
+    }
+    return best ?? _build(cfg, seed * 7919, mask: mask);
+  }
+
   /// One ungated candidate, exposed so difficulty tuning
   /// (`tool/analyze_snake_difficulty.dart`) and tests can see the spread the
   /// gate picks from. Play code should always use [generate].
   static SnakeBoard buildAttempt(int level, int attempt) =>
       _build(snakeConfigForLevel(level), _seedFor(level, attempt));
 
-  static SnakeBoard _build(SnakeLevelConfig cfg, int seed) {
+  /// [mask], when given, restricts where snakes may go (a picture board). It is
+  /// deliberately *not* folded into `occupied`: that would make every ray treat
+  /// empty space outside the picture as a blocker, when a snake must fly
+  /// through it freely. `occupied` keeps meaning "a snake is here". With no
+  /// mask every check below is a no-op, so levelled boards are unchanged.
+  static SnakeBoard _build(SnakeLevelConfig cfg, int seed,
+      {List<List<bool>>? mask}) {
     final rng = Random(seed);
     final occupied = List.generate(
       cfg.rows,
       (_) => List<bool>.filled(cfg.cols, false),
     );
+    bool inShape(int r, int c) => mask == null || mask[r][c];
     final arrows = <SnakeArrow>[];
     var id = 0;
     var filled = 0;
-    final target = (cfg.rows * cfg.cols * cfg.fillTarget).round();
+    final shapeCells = mask == null
+        ? cfg.rows * cfg.cols
+        : mask.fold<int>(0, (n, row) => n + row.where((b) => b).length);
+    final target = (shapeCells * cfg.fillTarget).round();
     final maxAttempts = cfg.rows * cfg.cols * 20;
 
     bool inBounds(int r, int c) =>
@@ -865,7 +972,7 @@ class SnakeBoard {
           sat[r + 1][c + 1] = sat[r][c + 1] +
               sat[r + 1][c] -
               sat[r][c] +
-              (occupied[r][c] ? 0 : 1);
+              (occupied[r][c] || !inShape(r, c) ? 0 : 1);
         }
       }
     }
@@ -889,7 +996,7 @@ class SnakeBoard {
       final heads = <List<int>>[];
       for (var r = 0; r < cfg.rows; r++) {
         for (var c = 0; c < cfg.cols; c++) {
-          if (occupied[r][c]) continue;
+          if (occupied[r][c] || !inShape(r, c)) continue;
           for (var d = 0; d < Dir.values.length; d++) {
             final dir = Dir.values[d];
             if (!rayClear[d][r][c]) continue;
@@ -898,7 +1005,7 @@ class SnakeBoard {
               if (nd == dir) continue; // first step can't go up the exit lane
               final nr = r + nd.dRow;
               final nc = c + nd.dCol;
-              if (inBounds(nr, nc) && !occupied[nr][nc]) {
+              if (inBounds(nr, nc) && !occupied[nr][nc] && inShape(nr, nc)) {
                 growable = true;
                 break;
               }
@@ -998,6 +1105,7 @@ class SnakeBoard {
             final n = cur.step(nd);
             if (!inBounds(n.row, n.col)) continue;
             if (occupied[n.row][n.col]) continue;
+            if (!inShape(n.row, n.col)) continue;
             if (inPath.contains(n)) continue;
             if (forward.contains(n)) continue;
             options.add(n);
@@ -1015,6 +1123,7 @@ class SnakeBoard {
               final m = o.step(nd);
               if (!inBounds(m.row, m.col)) continue;
               if (occupied[m.row][m.col]) continue;
+              if (!inShape(m.row, m.col)) continue;
               if (inPath.contains(m)) continue;
               if (forward.contains(m)) continue;
               free++;

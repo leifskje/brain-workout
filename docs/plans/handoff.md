@@ -5,33 +5,79 @@ first; it holds the conventions and the hard-won lessons. This file is *where th
 stand*, not how to work here.
 
 Last published: **1.1.3 (versionCode 6)**, internal track, Sep 2026. `main` is that
-release; the next one needs another `version:` bump.
+release; the next one needs another `version:` bump. Arrow Pictures is not in
+any release yet.
 
 Check what testers actually have with `python tool/play_track_status.py` rather than
 reading `pubspec.yaml` — that file describes the *next* build, and a versionCode in
 git is no evidence it was uploaded.
 
-## What to do first
+## What to do first (written 29 Sep, for 30 Sep)
 
-**Finish picture boards** ([picture-boards.md](picture-boards.md)). A first cut is
-built and playable on branch `les/picture-boards` (3 commits, not pushed, nothing
-near `main`). The owner played level 55 on the emulator and liked it.
+**Arrow Pictures** — a new game, built in one day on branch
+`les/picture-boards`. Everything since the 28 Sep handoff commit is
+**uncommitted**: the owner reviews and commits. Gates were green at hand-over
+(`flutter analyze` clean, `flutter test` 181 passing). Nothing is pushed, nothing
+near `main`, nothing released.
 
-The open question is his, and he wants it answered before more is built:
-**should silhouettes be every tenth level, or should every late board be a
-picture?** Currently every tenth from 55. Arguments both ways — a shape is a
-landmark and landmarks stop being landmarks if constant; but the masks constrain
-the generator far less than expected (branching 2.96/4.55/5.33 across the three
-shapes, all in band), so "always" may cost nothing in difficulty and give the game
-an identity. Do not decide it on paper; he can see three of them in ten minutes.
+1. **Grow the picture list from 102 to at least 200** before any release — the
+   owner's ask for tomorrow. The how, including tier sizes, the silhouette rule,
+   coverage checks and the agent process that worked, is the *Adding pictures —
+   the recipe* section of [picture-boards.md](picture-boards.md); its *Next*
+   list has the rest (pin the list, mirrored replays, heart/diamond/star,
+   Norwegian names check).
+2. **Fix F5 wiping the emulator's app data** (see *Dev environment* below) —
+   it cost several rounds today and will cost more during picture testing.
+3. Then back to the ranked list: difficulty choice is next.
 
-**Difficulty choice** ([difficulty-choice.md](difficulty-choice.md)) is the bigger
-and riskier piece: it touches every game, the star bar's meaning, and persistence,
-and its one real unknown cannot be settled on paper. The design is written down now
-while the evidence from both players is fresh, so nothing is lost by doing it second.
+## Arrow Pictures — what exists (29 Sep)
 
-Do not do them together. Picture boards change board *generation*; difficulty changes
-what a level *means*. Interleaving them makes both harder to judge.
+- Every board a picture; its own card on the home screen ("Arrow Pictures" /
+  "Pilbilder"), progress id `arrow_pictures`.
+- **Levels 1–39 use short arrows** (Arrow Escape's screen), **40+ use long
+  arrows** (Arrow Maze's screen); both screens now take a spec
+  (`ArrowGameSpec`, `SnakeGameSpec`) and `ArrowPicturesScreen` picks one per
+  level, swapping screens when "Next level" crosses the boundary.
+- **Colour only on the finished picture**: during play long-arrow levels show a
+  faint grey outline, short ones nothing; the last arrow fades the picture in
+  (15-colour palette), then the win dialog names it ("It was a seahorse!" /
+  "Det var en sjøhest!").
+- Boards prefetched in a background isolate, one cache per arrow kind;
+  `BoardPrefetch<B>` is generic now (Arrow Maze uses `arrowMazePrefetch`).
+- Past level 102 the game cycles the long-arrow pictures with new boards — it
+  used to restart at the 42-arrow key.
+- Arrow Escape is back to full boards only; the 55/65/75 picture levels never
+  shipped.
+- Tools: `dart run tool/analyze_arrow_pictures.dart` (per-level coverage,
+  branching, ms), `tool/dump_arrow_shape.dart`, `tool/dump_snake_shape.dart`.
+- The owner checked on the emulator and signed off on how they look. The one
+  lesson to carry: **a picture must read from its silhouette alone** — colour is
+  hidden during play.
+
+## Dev environment — open problems
+
+- **F5 reinstalls the app from scratch**, wiping the emulator's app data (every
+  game back to level 1). `dumpsys package` showed `firstInstallTime` = the F5
+  time each time. `flutter run` only uninstalls when `adb install -r` fails, so
+  something makes the in-place update fail. Next step: have the owner paste the
+  Debug Console's first lines from an F5 ("Uninstalling old version…" /
+  `INSTALL_FAILED_…`). Workaround today: after F5, `pwsh -File
+  tool/set_level.ps1 -Level 103 -Game arrow_pictures`, then open the app from its
+  icon.
+- **A cold F5 starts the emulator twice**: the `Boot Android emulator`
+  preLaunchTask boots `pixel_api35`, then the extension's `emulatorId` tries
+  too, and the second exits with code 1 ("device 'emulator-5554' not found").
+  Harmless once the first is up. Fix: drop one of the two starters in
+  `.vscode/launch.json` / `tool/boot_emulator.ps1` (owner agreed in principle,
+  not done).
+- **Force-killing the emulator corrupts the quick-boot snapshot** → black app
+  screen. `pwsh -File tool/boot_emulator.ps1 -Cold` fixes it. The emulator also
+  crashed once on its own today; stale `multiinstance.lock` files and a second
+  adb server were found and cleared.
+- **Hot reload after adding an `AnimationController` in `initState`** throws on
+  the running screen (initState does not re-run). Full restart instead.
+- `set_level.ps1` must run while the app is *not* starting up — the app writes
+  prefs from memory and will overwrite the change (seen once today).
 
 ## Shipped in 1.1.3 (Sep 2026)
 
@@ -60,18 +106,10 @@ and never *harder to work out*.
 
 ## Open work, ranked
 
-1. **Picture boards.** Built so far: `ArrowShape` (ASCII masks, three geometric
-   shapes), `ArrowBoard.generateShaped`, levels 55/65/75… wired via
-   `arrowShapeForLevel`, and `tool/dump_arrow_shape.dart` to see one as text.
-   `configForLevel` follows the shape so arrow count and hearts stay consistent.
-
-   Still to do, in order: **generalise `BoardPrefetch` beyond Arrow Maze** — the
-   grids that make a genuinely good picture are the expensive ones (28x28 solid
-   extrapolates to ~2s) and Arrow Escape generates on the UI isolate, which is why
-   the shipped shapes are only 14x14. Then bigger grids and outline shapes (a 20x20
-   outline is 132 arrows and a better picture than a 126-arrow 14x14 solid). Then
-   colour, which needs the bonus-arrow channel resolved first. Then Arrow Maze,
-   which is the bigger job — see the `inShape` trap in the plan.
+1. **Arrow Pictures to ≥ 200 pictures**, then pin the list — see *What to do
+   first* and [picture-boards.md](picture-boards.md). Before shipping it also
+   needs a `version:` bump and probably the store listing/screenshots updated
+   for a new game (ask; `publishListing` writes to the live account).
 2. **Difficulty choice**, starting with the Word Search assist —
    [difficulty-choice.md](difficulty-choice.md).
 3. **Odd One Out** ([odd-one-out.md](odd-one-out.md)) — the new game with a plan
@@ -104,6 +142,9 @@ and never *harder to work out*.
 
 ## Closed since the last handoff
 
+- *Every tenth level a picture, or every board?* — neither: a separate game,
+  every board a picture (owner, 29 Sep). Both arrow kinds in one game, short on
+  the small pictures, long on the big ones.
 - *Warm the level picker* — done. `BoardPrefetch` now persists boards and warms
   during play. A picker jump to a never-warmed level still generates inline, but
   warms and stores itself on arrival, so a second visit is instant.
@@ -153,6 +194,11 @@ shaped boards — nothing to take.
 Passes tests but has never run on real hardware. Widget tests and board dumps are the
 agent's only channels (see `CLAUDE.md`), so these need the owner:
 
+- **Arrow Pictures, 39 → 40**: the swap from short to long arrows mid-game has
+  not been played through deliberately; worth one pass for how it feels.
+- **Arrow Pictures on a real phone**: huge boards (44 wide, ~8dp cells at fit)
+  and ~2s board generation after a level-picker jump have only been seen on the
+  emulator.
 - The **feedback button** — `mailto:` is an intent like any other, so a device with no
   mail app falls back to the clipboard. Both paths need trying once.
 - The **in-app update prompt**. It shipped in 1.1.2, so 1.1.3 is the first build that
