@@ -56,3 +56,6 @@ devtools_options.yaml
 
 # Claude Code — personal/machine-specific settings (keep shared settings.json tracked)
 .claude/settings.local.json
+
+# Raw renders for the store screenshots; regenerate with tool/store_screens/render_test.dart
+tool/store_screens/out/
