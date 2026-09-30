@@ -1,26 +1,41 @@
 # Brain Workout — project guide
 
-A Flutter app of small "brain training" mini-games aimed at elderly users (built
-with my mother in mind). A home screen lists selectable games; each game is
-self-contained. Cross-platform Flutter, primary target Android.
+A Flutter app of small "brain training" mini-games. A home screen lists selectable
+games; each game is self-contained. Cross-platform Flutter, primary target Android.
+
+**Who it is for.** It was built with the owner's mother in mind, and that set the
+interface rules below. The actual players have drifted wider: most are around 40,
+some younger, some older (owner, 30 Sep 2026). So it is a casual brain-training app
+for adults generally. The elderly-friendly interface stays as the floor, since
+it costs nobody anything, but don't assume every player is elderly when judging
+content, pace or what counts as fun.
 
 **"Elderly-friendly" means the interface, not the content.** Large text, big tap
-targets, high contrast, calm flows, **no time pressure** — yes. Easy puzzles — no.
+targets, high contrast, calm flows — yes. Easy puzzles — no.
 
-The rule used to read "no timers", which was too blunt: it forbade *measuring*
-time as well as *imposing* it. What the app must never do is make you lose
-because you were slow — no countdowns, no fail-on-time, nothing ticking at you
-while you think. A stopwatch you opted into, which cannot cost you anything, is a
-different thing, and it is how a player competes with themselves without any of
-this being shared anywhere. Recording is always allowed; *displaying* during play
-is opt-in; penalising is never.
+**Pressure is a choice, never the default, and never costs progress.** Default
+play is untimed and forgiving: nothing ticks at you while you think, and you
+never lose a level for being slow. A player may *choose* tension, such as a
+clock to beat, a one-heart run or a countdown. Failing a challenge costs only
+that challenge: the level stays cleared, and stars and unlocks are untouched.
+Comparisons are against your own history, never other people's.
+
+This is the third version of the rule. "No timers" was too blunt, because it
+forbade *measuring* time as well as imposing it. "No time pressure" was still
+too blunt. The player this was built for thrives on "beat my own time" and on
+one-heart, don't-slip-up runs (owner, 30 Sep 2026), and she plays a commercial
+arrow puzzle on its extreme setting. The harm was never tension. It was tension
+nobody chose, and losing progress to it. Recording time is always allowed.
+Challenge modes are **thoughts, not decisions**: see
+[challenge-modes.md](docs/plans/challenge-modes.md) before building one.
 
 Two consequences that are easy to get wrong: a clock has to count
 foreground-active time only (this audience puts the phone down mid-level, and
 wall-clock would record hours), and it has to persist with a resumed board or the
 time it reports is nonsense. The planning games — both arrow games — are
-deliberately left untimed, because a clock argues against sitting and thinking,
-which is the entire activity there.
+still untimed by default, because a clock on the default path argues against
+sitting and thinking, which is the entire activity there. A source test asserts
+that list; change it deliberately, not in passing.
 
 The player this was built for is a retired English teacher, widely read in
 Norwegian and English, so watering the content down makes the games boring rather

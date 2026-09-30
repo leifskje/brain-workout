@@ -21,37 +21,47 @@ Hjernetrim
 
 ### Short description
 ```
-Rolige hjernetrim-oppgaver med stor tekst og store knapper. Uten tidspress.
+15 hjernetrim-spill som faktisk blir vanskeligere. Ingen reklame, ingen konto.
 ```
 
 ### Full description
 ```
-Hjernetrim samler tolv små oppgaver som er laget for å være behagelige å bruke — og skikkelig morsomme å løse.
+Hjernetrim er femten små spill for hodet: piler, ord, tall, logikk og hukommelse. Enkle å komme i gang med, og de blir faktisk vanskeligere jo lenger du kommer.
 
-Alt er bygget rundt én idé: grensesnittet skal være enkelt, ikke oppgavene. Stor tekst, store trykkflater, tydelige farger og rolige overganger. Ingen klokke som teller ned, ingen mas, ingen reklame. Du bestemmer tempoet selv.
+Alt er bygget rundt én idé: grensesnittet skal være enkelt, ikke oppgavene. Stor, tydelig tekst, store knapper og rolige overganger. Ingen klokke med mindre du vil ha en, ingen mas og ingen reklame. Du bestemmer tempoet selv.
 
 SPILLENE
 
+Logikk
+• Pilbilder — hvert brett er et bilde, og den siste pilen avslører hva det var
 • Pillabyrint — nøst opp lange, buktende piler og send dem ut av brettet
 • Pilflukt — send hver pil ut i retningen den peker
-• Bokstavsalat — sett bokstavene i riktig rekkefølge
-• Ordleting — finn de skjulte ordene i bokstavrutenettet
+• Bildekryss — bruk talltipsene til å finne det skjulte bildet
+• Knekk koden — finn den hemmelige koden
+• Følg sporet — trykk på sirklene i rekkefølge
+• Hva kommer etterpå? — finn mønsteret
+
+Ord
 • Ord — gjett det skjulte ordet på fem bokstaver
+• Ordleting — finn de skjulte ordene i bokstavrutenettet
+• Bokstavsalat — sett bokstavene i riktig rekkefølge
+
+Tall
 • Tallkryss — fyll ut kryssordet med regnestykker
 • Mini-sudoku — fyll rutenettet uten gjentakelser
+• 2048 — slå sammen brikker til målet
+
+Hukommelse
 • Memory — finn parene
 • Simon — gjenta lysrekkefølgen
-• Hva kommer etterpå? — finn mønsteret
-• Knekk koden — finn den hemmelige koden
-• 2048 — slå sammen brikker til målet
 
 VANSKELIGHETSGRAD SOM FAKTISK ØKER
 
-Hvert spill har nivåer som blir vanskeligere etter hvert — ikke bare større brett, men oppgaver som krever mer planlegging. Ordspillene henter fra store ordlister og går fra vanlige ord til sjeldnere ord jo lenger du kommer.
+Hvert spill har nivåer som blir vanskeligere etter hvert — ikke bare større brett, men oppgaver som krever mer planlegging. Pilbilder alene har over 200 bilder. Ordspillene henter fra store ordlister og går fra vanlige ord til sjeldnere ord jo lenger du kommer.
 
 DAGENS ØKT
 
-En liten daglig utfordring holder oversikt over hvor mange dager på rad du har spilt. Ingen påminnelser du ikke har bedt om.
+Et lite daglig mål holder oversikt over hvor mange dager på rad du har spilt, og appen foreslår hva du kan spille neste. Spillene du spilte sist, ligger øverst. Ingen påminnelser du ikke har bedt om.
 
 PERSONVERN
 
@@ -73,37 +83,47 @@ Brain Workout
 
 ### Short description
 ```
-Calm brain-training puzzles with large text and big buttons. No timers.
+15 brain-training games that genuinely get harder. No ads, no account.
 ```
 
 ### Full description
 ```
-Brain Workout is twelve small puzzles built to be comfortable to use — and genuinely satisfying to solve.
+Brain Workout is fifteen small games for your brain: arrows, words, numbers, logic and memory. Easy to pick up, and they genuinely get harder the further you go.
 
-It is built around one idea: the interface should be simple, not the puzzles. Large text, big tap targets, clear colours and calm transitions. No countdown clock, no nagging, no adverts. You set the pace.
+It is built around one idea: the interface should be simple, not the puzzles. Large, clear text, big buttons and calm transitions. No clock unless you want one, no nagging, no adverts. You set the pace.
 
 THE GAMES
 
+Logic
+• Arrow Pictures — every board is a picture, and the last arrow reveals what it was
 • Arrow Maze — untangle long snaking arrows and slide them off the board
 • Arrow Escape — send every arrow off in the direction it points
-• Word Scramble — put the letters back in the right order
-• Word Search — find the hidden words in the letter grid
+• Picture Logic — use the number clues to reveal the hidden picture
+• Crack the Code — work out the secret code
+• Follow the Trail — tap the circles in order
+• What Comes Next? — spot the pattern
+
+Words
 • Word — guess the hidden five-letter word
+• Word Search — find the hidden words in the letter grid
+• Word Scramble — put the letters back in the right order
+
+Numbers
 • Number Cross — fill in the crossword made of sums
 • Mini Sudoku — fill the grid with no repeats
+• 2048 — merge tiles up to the target
+
+Memory
 • Memory Match — find the pairs
 • Simon — repeat the sequence of lights
-• What Comes Next? — spot the pattern
-• Crack the Code — work out the secret code
-• 2048 — merge tiles up to the target
 
 DIFFICULTY THAT ACTUALLY CLIMBS
 
-Every game has levels that keep getting harder — not just bigger boards, but puzzles that need more planning. The word games draw on large dictionaries and move from everyday words to rarer ones as you progress.
+Every game has levels that keep getting harder — not just bigger boards, but puzzles that need more planning. Arrow Pictures alone has more than 200 pictures. The word games draw on large dictionaries and move from everyday words to rarer ones as you progress.
 
 TODAY'S WORKOUT
 
-A small daily goal keeps track of how many days in a row you have played. No reminders you did not ask for.
+A small daily goal keeps track of how many days in a row you have played, and suggests what to play next. The games you played last sit at the top. No reminders you did not ask for.
 
 PRIVACY
 
@@ -116,19 +136,21 @@ Norwegian (Bokmål) and English. The app follows your phone's language, and you 
 
 ---
 
-## Graphics still needed (owner)
+## Graphics
 
-Play will not let you publish without these:
+All generated, none hand-made, so they stay in step with the app:
 
-- **App icon** 512×512 PNG, 32-bit, no transparency. Source:
-  `assets/icon/app_icon.png` — check it is at least 512×512 and re-export flat.
-- **Feature graphic** 1024×500 PNG or JPG, no transparency and no text near the
-  edges (Play crops it on some surfaces).
-- **Phone screenshots**, minimum 2, maximum 8. 16:9 or 9:16, at least 1080px on
-  the long edge. Take them on the emulator: Arrow Maze mid-game, Word Scramble
-  showing a category chip, the home screen with the daily card, and Mini Sudoku
-  are the four that show the app off best.
-
+- **Icon and feature graphic:** `python tool/build_store_graphics.py`. The
+  feature graphic is per language (`store/feature_1024x500_<lang>.png`), with the
+  app name and tagline.
+- **Screenshots:** `flutter test tool/store_screens/render_test.dart` renders
+  real app screens offscreen (no screen capture, see `CLAUDE.md`), then
+  `python tool/frame_screenshots.py` adds the background, caption and frame. The
+  captions are in that script. There are six per language: Arrow Pictures in
+  play, a revealed picture, home, Arrow Maze, Picture Logic, Word Search.
+- Then `python tool/sync_play_listing.py` copies everything into GPP's tree.
+  Publishing the listing (`publishListing`) writes to the live account, so it
+  only happens when the owner asks.
 ## Content form answers (must match the app)
 
 | Form | Answer |

@@ -16,6 +16,17 @@ We deliberately spread games across domains for a rounded "workout," and want
 | Numeracy | ✅ Number Cross — see [number-cross.md](number-cross.md) · ✅ Mini Sudoku — see [mini-sudoku.md](mini-sudoku.md) · ✅ 2048 — see [merge.md](merge.md) |
 | Attention / speed | ✅ Follow the Trail — see [trail.md](trail.md) · 📝 Odd One Out — see [odd-one-out.md](odd-one-out.md) |
 | Memory (other) | ✅ Simon — see [simon.md](simon.md) |
+| Challenge-only (ideas: [challenge-modes.md](challenge-modes.md)) | 💡 Speed flash · 💡 Schulte table · 💡 Colour–word · 💡 Numbers round · 💡 Letter grid |
+| More (quick plans + build order: [new-games.md](new-games.md)) | 📝 Letter hive · 📝 Chess puzzles · 📝 Bridges · 📝 Word ladder · 📝 Cryptogram · ⛔ Arrow-word crossword · 💡 Speed game (owner's call) |
+| Casual classics (planning) | 📝 FreeCell — see [freecell.md](freecell.md) · 📝 Sokoban — see [sokoban.md](sokoban.md) · 📝 Mahjong solitaire — see [mahjong-solitaire.md](mahjong-solitaire.md) · 📝 Minesweeper, no guessing — see [minesweeper.md](minesweeper.md) |
+
+**The test for a casual game (30 Sep):** is there a decision you can get wrong?
+All four above pass: each has legal moves that lose. A Candy Crush-style
+match-3 game doesn't pass. Its difficulty is random refills (luck), and its
+appeal is lives, timers and boosters, which this app refuses. Suggested order:
+FreeCell (the kabal this audience already plays), Sokoban (the planning depth
+the arrow games can't have), Mahjong solitaire, then Minesweeper (overlaps with
+Picture Logic).
 
 ## Engagement & polish
 

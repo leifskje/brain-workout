@@ -5,8 +5,11 @@ first; it holds the conventions and the hard-won lessons. This file is *where th
 stand*, not how to work here.
 
 Last published: **1.1.3 (versionCode 6)**, internal track, Sep 2026. `main` is that
-release; the next one needs another `version:` bump. Arrow Pictures is not in
-any release yet.
+release. **1.2.0+7 is prepared on `les/picture-boards` (30 Sep)**: version
+bumped, release notes written, and the store listing refreshed locally (new
+text, titled feature graphics, rendered and framed screenshots). The listing
+isn't published and neither is the bundle. It needs a PR to `main`, then the
+owner's go for `publishBundle` and `publishListing`.
 
 Check what testers actually have with `python tool/play_track_status.py` rather than
 reading `pubspec.yaml` — that file describes the *next* build, and a versionCode in
@@ -111,8 +114,10 @@ and never *harder to work out*.
    for a new game (ask; `publishListing` writes to the live account).
 2. **Difficulty choice**, starting with the Word Search assist —
    [difficulty-choice.md](difficulty-choice.md).
-3. **Odd One Out** ([odd-one-out.md](odd-one-out.md)) — the new game with a plan
-   written. The hard part is proving exactly one item is isolated; a set built to
+3. **New games**, in the build order in [new-games.md](new-games.md): letter
+   hive, chess puzzles, FreeCell, Bridges, Sokoban, word ladder, Odd One Out,
+   Mahjong solitaire, cryptogram, Minesweeper. For Odd One Out
+   ([odd-one-out.md](odd-one-out.md)), the plan was written earlier. The hard part is proving exactly one item is isolated; a set built to
    isolate one item on colour can accidentally isolate another on size, and two
    defensible answers is worse than too hard.
 4. **Sound + Simon's extra buttons**, as one piece. The stated blocker is "needs
