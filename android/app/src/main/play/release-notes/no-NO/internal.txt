@@ -1,5 +1,5 @@
-Rettet: i Ordleting kunne hintet si at det ikke var flere igjen selv om det var det, og et hint kunne være usynlig når det havnet på en bokstav du allerede hadde funnet. Begge deler er i orden nå.
+Nytt: Pilbilder, et spill der hvert brett er et bilde. Det er 215 av dem, og den siste pilen avslører hva det var.
 
-Rettet: Pillabyrint lager neste brett mens du spiller, så ventetiden før et nytt brett er borte nesten hver gang.
+Ny startside: spillene du spilte sist ligger øverst, og resten er samlet under Logikk, Ord, Tall og Hukommelse.
 
-Også: Pilflukt-brettene fortsetter å bli fullere og vanskeligere etter nivå 40 i stedet for å stå stille, og de største brettene gir flere hjerter.
+Ny innstilling: Større tekst kan slås av hvis du heller vil følge telefonens tekststørrelse.

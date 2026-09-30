@@ -128,7 +128,7 @@ ArrowLevelConfig configForLevel(int level) {
     rows: size,
     cols: size,
     arrowCount: count,
-    hearts: _heartsForArrowCount(count),
+    hearts: arrowHeartsForCount(count),
   );
 }
 
@@ -144,8 +144,97 @@ ArrowLevelConfig configForLevel(int level) {
 /// mistakes, so a more forgiving board is not an easier one to score well on.
 ///
 /// Every level up to 40 tops out at 88 arrows, so all of them keep their five.
-int _heartsForArrowCount(int count) =>
+int arrowHeartsForCount(int count) =>
     count <= 100 ? 5 : (5 + (count - 100) ~/ 32).clamp(5, 8);
+
+/// A silhouette for a picture board: which cells hold an arrow.
+///
+/// `#` is an arrow, anything else is empty. Authored as text so a shape is
+/// reviewable in a diff and needs no asset pipeline — at this size that beats
+/// decoding an image, though images scale better if shapes ever get detailed.
+///
+/// Deliberately a *character* grid rather than a bool grid: other letters can
+/// mean colour regions later without changing the format or the call sites.
+/// Shapes are plain geometric forms, authored here; don't add anything
+/// recognisable enough to belong to someone else.
+class ArrowShape {
+  const ArrowShape(this.name, this.rows);
+
+  final String name;
+  final List<String> rows;
+
+  /// Grid height and width. Rectangular is allowed — a phone is held upright, so
+  /// a portrait picture uses the screen better than a square one.
+  int get rowCount => rows.length;
+  int get colCount => rows.first.length;
+
+  /// Any character but `.` is inside: `#` in a plain mask, a palette letter
+  /// in a coloured one (see arrow_pictures_palette.dart), so colouring a
+  /// picture can never change its board.
+  bool filled(int r, int c) => rows[r][c] != '.';
+
+  /// Flat `row * colCount + col` indices of the filled cells.
+  List<int> liveCells() => [
+        for (var r = 0; r < rowCount; r++)
+          for (var c = 0; c < colCount; c++)
+            if (filled(r, c)) r * colCount + c,
+      ];
+
+  int get cellCount => liveCells().length;
+}
+
+/// The shapes picture levels can use. 14x14 so they fit the board size the game
+/// already reaches, needing no new zoom or prefetch work to try one.
+const arrowShapes = <ArrowShape>[
+  ArrowShape('heart', [
+    '..............',
+    '..............',
+    '..####..####..',
+    '.############.',
+    '##############',
+    '##############',
+    '##############',
+    '.############.',
+    '.############.',
+    '.############.',
+    '..##########..',
+    '...########...',
+    '....######....',
+    '.....####.....',
+  ]),
+  ArrowShape('diamond', [
+    '......##......',
+    '.....####.....',
+    '....######....',
+    '...########...',
+    '..##########..',
+    '.############.',
+    '##############',
+    '##############',
+    '.############.',
+    '..##########..',
+    '...########...',
+    '....######....',
+    '.....####.....',
+    '......##......',
+  ]),
+  ArrowShape('star', [
+    '......##......',
+    '......##......',
+    '.....####.....',
+    '.....####.....',
+    '..##########..',
+    '.############.',
+    '##############',
+    '##############',
+    '.############.',
+    '..##########..',
+    '.....####.....',
+    '.....####.....',
+    '......##......',
+    '......##......',
+  ]),
+];
 
 /// How hard a board plays, measured rather than assumed.
 ///
@@ -285,6 +374,42 @@ class ArrowBoard {
       p.escaped = ids.contains(p.id);
     }
     return true;
+  }
+
+  /// The whole board, for handing it across an isolate boundary or caching it.
+  ///
+  /// Deliberately leaves out `escaped`, as `SnakeBoard.toJson` does: that is
+  /// what makes it safe to cache the board being played, since a half-cleared
+  /// board can then never come back as a fresh one. Play state has its own
+  /// channel in [escapedJson].
+  Map<String, dynamic> toJson() => {
+        'rows': rows,
+        'cols': cols,
+        // row, col, direction per piece, in id order.
+        'pieces': [
+          for (final p in pieces) ...[p.row, p.col, p.dir.index]
+        ],
+      };
+
+  /// Rebuilds a board written by [toJson], or null if the payload is unusable —
+  /// a cache must degrade to regenerating, never throw.
+  static ArrowBoard? fromJson(Map<String, dynamic> json) {
+    final rows = json['rows'], cols = json['cols'], flat = json['pieces'];
+    if (rows is! int || cols is! int || rows <= 0 || cols <= 0) return null;
+    if (flat is! List || flat.length % 3 != 0) return null;
+    final pieces = <ArrowPiece>[];
+    final seen = <int>{};
+    for (var i = 0; i < flat.length; i += 3) {
+      final r = flat[i], c = flat[i + 1], d = flat[i + 2];
+      if (r is! int || c is! int || d is! int) return null;
+      if (r < 0 || r >= rows || c < 0 || c >= cols) return null;
+      if (d < 0 || d >= Direction.values.length) return null;
+      if (!seen.add(r * cols + c)) return null;
+      pieces.add(ArrowPiece(
+          id: pieces.length, row: r, col: c, dir: Direction.values[d]));
+    }
+    if (pieces.isEmpty) return null;
+    return ArrowBoard(rows: rows, cols: cols, pieces: pieces);
   }
 
   /// Whether the player has cleared anything yet.
@@ -453,6 +578,95 @@ class ArrowBoard {
     return best ?? _buildDense(cfg, _seedFor(level, 0));
   }
 
+  /// A board whose arrows form [shape], guaranteed solvable.
+  ///
+  /// No separate algorithm: [_buildDense] never cared *which* cells were live,
+  /// only that some were. Its termination argument — a non-empty board always
+  /// has a topmost live cell, which can always be pointed up — holds for any
+  /// subset of the grid, because a cell outside the shape holds no arrow and a
+  /// ray passes straight through it. So a silhouette is generated by the same
+  /// single forward pass as a full board.
+  ///
+  /// Used by Arrow Pictures, not by this game's levels. See
+  /// docs/plans/picture-boards.md.
+  ///
+  /// [target] is the branching to aim for, as with [generate]; null keeps the
+  /// hardest candidate found, since a shape constrains the board far more than a
+  /// level config does and the achievable range is narrower.
+  static ArrowBoard generateShaped(ArrowShape shape, {int seed = 0, double? target}) {
+    final live = shape.liveCells();
+    final cfg = ArrowLevelConfig(
+      rows: shape.rowCount,
+      cols: shape.colCount,
+      arrowCount: live.length,
+      hearts: arrowHeartsForCount(live.length),
+    );
+
+    ArrowBoard? best;
+    var bestMiss = double.infinity;
+    for (var attempt = 0; attempt < generationPoolSize; attempt++) {
+      final board = _buildDense(cfg, _shapedSeed(seed, attempt), liveCells: live);
+      final d = board.measureDifficulty();
+      if (!d.solvableGreedily) continue;
+      // With no target, "hardest" means lowest branching — the same direction
+      // the levelled curve travels in.
+      final miss = target == null ? d.meanBranching : (d.meanBranching - target).abs();
+      if (miss < bestMiss) {
+        bestMiss = miss;
+        best = board;
+      }
+      if (target != null && miss <= onTargetTolerance) return board;
+    }
+    return best ?? _buildDense(cfg, _shapedSeed(seed, 0), liveCells: live);
+  }
+
+  /// A board of [shape] ranked within what *that shape* can produce: hardness
+  /// 0 is the pool's median board, 1 its hardest (lowest branching).
+  ///
+  /// Relative rather than an absolute branching target because the shape sets
+  /// the range far more than anything else: measured over the Arrow Pictures
+  /// list, one picture's easiest board can be harder than another's hardest, so
+  /// any single curve lands outside most pictures' spread and silently becomes
+  /// "closest found". The median floor keeps the easy end a puzzle rather than
+  /// the loosest board the pool happened to contain.
+  ///
+  /// Scores the whole pool, with no early exit — cheap at picture sizes (tens
+  /// of milliseconds), and it is what makes a percentile meaningful.
+  static ArrowBoard generateShapedAtHardness(ArrowShape shape,
+      {required int seed, required double hardness}) {
+    final scored = <(ArrowBoard, double, int)>[];
+    for (var attempt = 0; attempt < generationPoolSize; attempt++) {
+      final board = buildShapedAttempt(shape, seed, attempt);
+      final d = board.measureDifficulty();
+      if (d.solvableGreedily) scored.add((board, d.meanBranching, attempt));
+    }
+    // Attempt index breaks ties, so the pick is deterministic whatever the sort.
+    scored.sort((a, b) {
+      final byBranching = a.$2.compareTo(b.$2);
+      return byBranching != 0 ? byBranching : a.$3.compareTo(b.$3);
+    });
+    final q = 0.5 * (1 - hardness.clamp(0.0, 1.0));
+    return scored[(q * (scored.length - 1)).round()].$1;
+  }
+
+  static int _shapedSeed(int seed, int attempt) => seed * 7919 + attempt;
+
+  /// One ungated shaped candidate, for tuning tools and tests — the shaped
+  /// counterpart of [buildAttempt].
+  static ArrowBoard buildShapedAttempt(ArrowShape shape, int seed, int attempt) {
+    final live = shape.liveCells();
+    return _buildDense(
+      ArrowLevelConfig(
+        rows: shape.rowCount,
+        cols: shape.colCount,
+        arrowCount: live.length,
+        hearts: arrowHeartsForCount(live.length),
+      ),
+      _shapedSeed(seed, attempt),
+      liveCells: live,
+    );
+  }
+
   /// Candidate boards measured per level before settling for the closest found.
   ///
   /// A candidate costs ~0.1ms even on a full 14x14 grid — the whole pool is
@@ -499,19 +713,31 @@ class ArrowBoard {
   /// Holes, where the level is not yet at full fill, are punched at random
   /// before the run. Any subset of a solvable board is solvable, and starting
   /// from fewer cells cannot break the argument above.
-  static ArrowBoard _buildDense(ArrowLevelConfig cfg, int seed) {
+  /// [liveCells] overrides which cells hold an arrow, as flat `row * cols + col`
+  /// indices. Used by [generateShaped]; null means "a random [cfg.arrowCount] of
+  /// them", which is the normal levelled game.
+  ///
+  /// Nothing about the argument below cares *which* cells are live, only that
+  /// some are — which is exactly why a shaped board needs no separate generator.
+  static ArrowBoard _buildDense(
+    ArrowLevelConfig cfg,
+    int seed, {
+    List<int>? liveCells,
+  }) {
     final rng = Random(seed);
     final frontier = _Frontier(cfg.rows, cfg.cols);
-    final cells = [for (var i = 0; i < cfg.rows * cfg.cols; i++) i]
-      ..shuffle(rng);
-    for (final i in cells.take(cfg.arrowCount)) {
+    final live = liveCells ??
+        ([for (var i = 0; i < cfg.rows * cfg.cols; i++) i]..shuffle(rng))
+            .take(cfg.arrowCount)
+            .toList();
+    for (final i in live) {
       frontier.setLive(i ~/ cfg.cols, i % cfg.cols);
     }
     frontier.rebuild();
 
     // [row, col, directionIndex], in the order the arrows leave the board.
     final fired = <List<int>>[];
-    for (var n = 0; n < cfg.arrowCount; n++) {
+    for (var n = 0; n < live.length; n++) {
       var bestRay = -1, bestRow = -1, bestCol = -1, bestDir = 0, ties = 0;
       frontier.forEachCandidate((r, c, dir, ray) {
         if (ray > bestRay) {

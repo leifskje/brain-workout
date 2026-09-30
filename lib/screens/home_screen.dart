@@ -51,7 +51,7 @@ class _HomeScreenState extends State<HomeScreen> {
     } else if (game.hasLevels) {
       builder = direct
           ? (_) =>
-              game.levelBuilder!(ProgressStore.instance.highestLevel(game.id))
+                game.levelBuilder!(ProgressStore.instance.highestLevel(game.id))
           : (_) => LevelSelectScreen(game: game);
     } else {
       final title = game.title(AppLocalizations.of(context));
@@ -62,25 +62,33 @@ class _HomeScreenState extends State<HomeScreen> {
     if (mounted) setState(() {});
   }
 
-  /// The most recently opened playable game, or null before the first play.
-  GameDefinition? get _lastPlayed {
-    GameDefinition? best;
-    var bestTime = 0;
-    for (final game in gamesCatalog) {
-      if (!game.available) continue;
-      final t = ProgressStore.instance.lastOpened(game.id);
-      if (t > bestTime) {
-        bestTime = t;
-        best = game;
-      }
-    }
-    return best;
+  /// How many recently played games get a Continue row. Most players have two
+  /// or three favourites; the rest are a scroll away under their heading.
+  static const _recentCount = 3;
+
+  /// Recently opened playable games, most recent first. Empty before the first
+  /// play.
+  List<GameDefinition> get _recent {
+    final store = ProgressStore.instance;
+    final played = [
+      for (final g in gamesCatalog)
+        if (g.available && store.lastOpened(g.id) > 0) g,
+    ]..sort((a, b) => store.lastOpened(b.id).compareTo(store.lastOpened(a.id)));
+    return played.take(_recentCount).toList();
   }
+
+  /// Categories in the order they first appear in the catalog, so the catalog
+  /// order still decides what comes first.
+  List<GameCategory> get _categories =>
+      {for (final g in gamesCatalog) g.category}.toList();
 
   /// The game "Play next" suggests: rotates daily and advances with each
   /// completed level, so a workout naturally varies.
   GameDefinition get _suggested {
-    final games = [for (final g in gamesCatalog) if (g.available) g];
+    final games = [
+      for (final g in gamesCatalog)
+        if (g.available) g,
+    ];
     final day = DateTime.now().difference(DateTime(2026)).inDays;
     return games[(day + ProgressStore.instance.dailyCount) % games.length];
   }
@@ -119,14 +127,17 @@ class _HomeScreenState extends State<HomeScreen> {
     }
     if (opened || !mounted) return;
 
-    await Clipboard.setData(ClipboardData(
-      text: '$feedbackEmail\n\n${t.feedbackIntro}\n\n'
-          '${AppInfo.instance.diagnostics(locale: locale)}',
-    ));
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(t.feedbackNoMailApp)),
+    await Clipboard.setData(
+      ClipboardData(
+        text:
+            '$feedbackEmail\n\n${t.feedbackIntro}\n\n'
+            '${AppInfo.instance.diagnostics(locale: locale)}',
+      ),
     );
+    if (!mounted) return;
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(t.feedbackNoMailApp)));
   }
 
   Widget _buildDailyCard() {
@@ -157,128 +168,138 @@ class _HomeScreenState extends State<HomeScreen> {
         child: InkWell(
           key: const ValueKey('home_stats'),
           borderRadius: radius,
-          onTap: () => Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const StatsScreen()),
-          ).then((_) {
-            if (mounted) setState(() {});
-          }),
+          onTap: () =>
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const StatsScreen()),
+              ).then((_) {
+                if (mounted) setState(() {});
+              }),
           child: Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        borderRadius: radius,
-        border: Border.all(
-          color: complete ? const Color(0xFF66BB6A) : Colors.black12,
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Text(streak > 0 ? '🔥' : '🧠',
-                  style: const TextStyle(fontSize: 22)),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  streak > 0
-                      ? t.streakDays(streak)
-                      : t.startStreakToday,
-                  style: const TextStyle(
-                      fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-              ),
-              if (store.bestStreak > 1)
-                Text(t.bestStreak(store.bestStreak),
-                    style:
-                        const TextStyle(fontSize: 13, color: Colors.black45)),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  complete
-                      ? t.workoutComplete
-                      : t.workoutProgress(count.clamp(0, goal), goal),
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                    color: complete
-                        ? const Color(0xFF2E7D32)
-                        : Colors.black87,
-                  ),
-                ),
-              ),
-              for (var i = 0; i < goal; i++)
-                Padding(
-                  padding: const EdgeInsets.only(left: 6),
-                  child: Icon(
-                    i < count
-                        ? Icons.check_circle_rounded
-                        : Icons.circle_outlined,
-                    size: 24,
-                    color: i < count
-                        ? const Color(0xFF66BB6A)
-                        : Colors.black26,
-                  ),
-                ),
-            ],
-          ),
-          if (!complete) ...[
-            const SizedBox(height: 12),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton.icon(
-                onPressed: () => _open(_suggested, direct: true),
-                icon: const Icon(Icons.play_arrow_rounded),
-                label: Text(t.playNext(_suggested.title(t))),
-                style: FilledButton.styleFrom(
-                  backgroundColor: _suggested.color,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  textStyle: const TextStyle(
-                      fontSize: 17, fontWeight: FontWeight.w700),
-                ),
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              borderRadius: radius,
+              border: Border.all(
+                color: complete ? const Color(0xFF66BB6A) : Colors.black12,
               ),
             ),
-          ],
-          // The visible affordance. A label, not just a chevron: this audience
-          // does not read a lone arrow as "there is a screen behind this".
-          const SizedBox(height: 10),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              Text(
-                t.statistics,
-                style: TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w700,
-                  color: complete
-                      ? const Color(0xFF2E7D32)
-                      : Theme.of(context).colorScheme.primary,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Text(
+                      streak > 0 ? '🔥' : '🧠',
+                      style: const TextStyle(fontSize: 22),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        streak > 0 ? t.streakDays(streak) : t.startStreakToday,
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    if (store.bestStreak > 1)
+                      Text(
+                        t.bestStreak(store.bestStreak),
+                        style: const TextStyle(
+                          fontSize: 13,
+                          color: Colors.black45,
+                        ),
+                      ),
+                  ],
                 ),
-              ),
-              Icon(Icons.chevron_right_rounded,
-                  size: 22,
-                  color: complete
-                      ? const Color(0xFF2E7D32)
-                      : Theme.of(context).colorScheme.primary),
-            ],
-          ),
-        ],
-      ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        complete
+                            ? t.workoutComplete
+                            : t.workoutProgress(count.clamp(0, goal), goal),
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                          color: complete
+                              ? const Color(0xFF2E7D32)
+                              : Colors.black87,
+                        ),
+                      ),
+                    ),
+                    for (var i = 0; i < goal; i++)
+                      Padding(
+                        padding: const EdgeInsets.only(left: 6),
+                        child: Icon(
+                          i < count
+                              ? Icons.check_circle_rounded
+                              : Icons.circle_outlined,
+                          size: 24,
+                          color: i < count
+                              ? const Color(0xFF66BB6A)
+                              : Colors.black26,
+                        ),
+                      ),
+                  ],
+                ),
+                if (!complete) ...[
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton.icon(
+                      onPressed: () => _open(_suggested, direct: true),
+                      icon: const Icon(Icons.play_arrow_rounded),
+                      label: Text(t.playNext(_suggested.title(t))),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: _suggested.color,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        // From the theme, not a bare TextStyle: a button's
+                        // textStyle replaces the theme's whole, font included.
+                        textStyle: Theme.of(context)
+                            .textTheme
+                            .labelLarge
+                            ?.copyWith(fontSize: 17, fontWeight: FontWeight.w700),
+                      ),
+                    ),
+                  ),
+                ],
+                // The visible affordance. A label, not just a chevron: this audience
+                // does not read a lone arrow as "there is a screen behind this".
+                const SizedBox(height: 10),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    Text(
+                      t.statistics,
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                        color: complete
+                            ? const Color(0xFF2E7D32)
+                            : Theme.of(context).colorScheme.primary,
+                      ),
+                    ),
+                    Icon(
+                      Icons.chevron_right_rounded,
+                      size: 22,
+                      color: complete
+                          ? const Color(0xFF2E7D32)
+                          : Theme.of(context).colorScheme.primary,
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
         ),
       ),
     );
   }
 
-  /// Wide "Continue" card: jumps straight back into the most recently played
-  /// game. Hidden until something has been played once.
-  Widget _buildContinueCard() {
-    final game = _lastPlayed;
-    if (game == null) return const SizedBox.shrink();
+  /// Wide Continue row: jumps straight back into [game] at its current level.
+  Widget _buildContinueCard(GameDefinition game) {
     final t = AppLocalizations.of(context);
     final store = ProgressStore.instance;
 
@@ -309,25 +330,27 @@ class _HomeScreenState extends State<HomeScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        t.continueLabel,
-                        style: const TextStyle(
-                            fontSize: 13, color: Colors.black45),
-                      ),
-                      Text(
                         game.hasLevels
                             ? t.gameAtLevel(
-                                game.title(t), store.highestLevel(game.id))
+                                game.title(t),
+                                store.highestLevel(game.id),
+                              )
                             : game.title(t),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
-                            fontSize: 17, fontWeight: FontWeight.bold),
+                          fontSize: 17,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ],
                   ),
                 ),
-                Icon(Icons.play_circle_fill_rounded,
-                    size: 34, color: game.color),
+                Icon(
+                  Icons.play_circle_fill_rounded,
+                  size: 34,
+                  color: game.color,
+                ),
               ],
             ),
           ),
@@ -343,8 +366,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return PopupMenuButton<String>(
       tooltip: t.language,
       initialValue: current,
-      icon: const Icon(Icons.language_rounded,
-          size: 28, color: Colors.black45),
+      icon: const Icon(Icons.language_rounded, size: 28, color: Colors.black45),
       onSelected: (id) {
         final language = id == 'system' ? null : id;
         ProgressStore.instance.setAppLanguageId(language);
@@ -370,8 +392,11 @@ class _HomeScreenState extends State<HomeScreen> {
     return IconButton(
       key: const ValueKey('home_settings'),
       tooltip: AppLocalizations.of(context).settings,
-      icon: const Icon(Icons.settings_outlined,
-          size: 28, color: Colors.black45),
+      icon: const Icon(
+        Icons.settings_outlined,
+        size: 28,
+        color: Colors.black45,
+      ),
       onPressed: () => Navigator.push(
         context,
         MaterialPageRoute(builder: (_) => const SettingsScreen()),
@@ -398,14 +423,16 @@ class _HomeScreenState extends State<HomeScreen> {
                       children: [
                         Text(
                           AppLocalizations.of(context).appTitle,
-                          style: theme.textTheme.headlineMedium
-                              ?.copyWith(fontWeight: FontWeight.bold),
+                          style: theme.textTheme.headlineMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                         const SizedBox(height: 4),
                         Text(
                           AppLocalizations.of(context).homeTagline,
-                          style: theme.textTheme.titleMedium
-                              ?.copyWith(color: Colors.black54),
+                          style: theme.textTheme.titleMedium?.copyWith(
+                            color: Colors.black54,
+                          ),
                         ),
                       ],
                     ),
@@ -415,68 +442,123 @@ class _HomeScreenState extends State<HomeScreen> {
                 ],
               ),
             ),
-            _buildDailyCard(),
-            _buildContinueCard(),
+            // One scrolling list rather than tabs or a filter: for this audience
+            // a hidden tab is a game that does not exist. What keeps a growing
+            // list usable is order — the games you play on top, the rest under
+            // a heading per skill.
             Expanded(
-              child: GridView.count(
-                padding: const EdgeInsets.all(16),
-                crossAxisCount: 2,
-                mainAxisSpacing: 16,
-                crossAxisSpacing: 16,
-                // Card height has to follow the text scale. With a fixed ratio
-                // the cards stayed the same height while the text grew, so at
-                // the app's 1.3x ceiling the two-line subtitle was clipped
-                // mid-word ("Guess the hidden wo…"). Taller cards mean fewer
-                // visible at once, which is the right trade here — legibility
-                // over density.
-                childAspectRatio: 0.78 /
-                    (MediaQuery.textScalerOf(context).scale(100) / 100)
-                        .clamp(1.0, 1.3),
-                children: [
-                  for (final game in gamesCatalog)
-                    _GameCard(game: game, onOpen: () => _open(game)),
-                ],
-              ),
-            ),
-            // Quiet footer: support, feedback, and the running version.
-            // The version is here so a tester can read it out — Play defers
-            // auto-updates for rarely-opened apps, so "which build are you on"
-            // is a real question and used to be unanswerable.
-            Padding(
-              padding: const EdgeInsets.only(top: 2, bottom: 8),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Wrap(
-                    alignment: WrapAlignment.center,
-                    children: [
-                      TextButton.icon(
-                        onPressed: _support,
-                        icon: const Icon(Icons.coffee_rounded, size: 18),
-                        label: Text(AppLocalizations.of(context).supportDeveloper),
-                        style: _footerButtonStyle,
+              child: CustomScrollView(
+                slivers: [
+                  SliverToBoxAdapter(child: _buildDailyCard()),
+                  if (_recent.isNotEmpty) ...[
+                    SliverToBoxAdapter(
+                      child: _SectionHeader(
+                        AppLocalizations.of(context).continueLabel,
                       ),
-                      TextButton.icon(
-                        key: const ValueKey('home_send_feedback'),
-                        onPressed: _sendFeedback,
-                        icon: const Icon(Icons.mail_outline_rounded, size: 18),
-                        label: Text(AppLocalizations.of(context).sendFeedback),
-                        style: _footerButtonStyle,
-                      ),
-
-                    ],
-                  ),
-                  if (AppInfo.instance.versionLabel.isNotEmpty)
-                    Text(
-                      AppLocalizations.of(context)
-                          .appVersion(AppInfo.instance.versionLabel),
-                      style: const TextStyle(
-                          fontSize: 12, color: Colors.black38),
                     ),
+                    for (final game in _recent)
+                      SliverToBoxAdapter(child: _buildContinueCard(game)),
+                  ],
+                  for (final category in _categories) ...[
+                    SliverToBoxAdapter(
+                      child: _SectionHeader(
+                        category.label(AppLocalizations.of(context)),
+                      ),
+                    ),
+                    SliverPadding(
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                      sliver: SliverGrid.count(
+                        crossAxisCount: 2,
+                        mainAxisSpacing: 16,
+                        crossAxisSpacing: 16,
+                        // Card height has to follow the text scale. With a fixed
+                        // ratio the cards stayed the same height while the text
+                        // grew, so at the app's 1.3x ceiling the two-line
+                        // subtitle was clipped mid-word ("Guess the hidden
+                        // wo…"). Taller cards mean fewer visible at once, which
+                        // is the right trade here — legibility over density.
+                        childAspectRatio:
+                            0.78 /
+                            (MediaQuery.textScalerOf(context).scale(100) / 100)
+                                .clamp(1.0, 1.3),
+                        children: [
+                          for (final game in gamesCatalog)
+                            if (game.category == category)
+                              _GameCard(game: game, onOpen: () => _open(game)),
+                        ],
+                      ),
+                    ),
+                  ],
+                  SliverToBoxAdapter(child: _buildFooter()),
                 ],
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  /// Quiet footer: support, feedback, and the running version. The version is
+  /// here so a tester can read it out — Play defers auto-updates for
+  /// rarely-opened apps, so "which build are you on" is a real question and used
+  /// to be unanswerable.
+  Widget _buildFooter() {
+    return Padding(
+      padding: const EdgeInsets.only(top: 2, bottom: 8),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Wrap(
+            alignment: WrapAlignment.center,
+            children: [
+              TextButton.icon(
+                onPressed: _support,
+                icon: const Icon(Icons.coffee_rounded, size: 18),
+                label: Text(AppLocalizations.of(context).supportDeveloper),
+                style: _footerButtonStyle,
+              ),
+              TextButton.icon(
+                key: const ValueKey('home_send_feedback'),
+                onPressed: _sendFeedback,
+                icon: const Icon(Icons.mail_outline_rounded, size: 18),
+                label: Text(AppLocalizations.of(context).sendFeedback),
+                style: _footerButtonStyle,
+              ),
+            ],
+          ),
+          if (AppInfo.instance.versionLabel.isNotEmpty)
+            Text(
+              AppLocalizations.of(
+                context,
+              ).appVersion(AppInfo.instance.versionLabel),
+              style: const TextStyle(fontSize: 12, color: Colors.black38),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// A heading between groups of cards on the home screen.
+class _SectionHeader extends StatelessWidget {
+  const _SectionHeader(this.label);
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
+      child: Semantics(
+        header: true,
+        child: Text(
+          label,
+          style: const TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            color: Colors.black87,
+          ),
         ),
       ),
     );
@@ -515,33 +597,7 @@ class _GameCard extends StatelessWidget {
                     ),
                     child: Icon(game.icon, size: 36, color: game.color),
                   ),
-                  const SizedBox(width: 6),
-                  // Scales down rather than overflowing on narrow cards /
-                  // large text scales.
-                  Expanded(
-                    child: Align(
-                      alignment: Alignment.topRight,
-                      child: FittedBox(
-                        fit: BoxFit.scaleDown,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 10, vertical: 5),
-                          decoration: BoxDecoration(
-                            color: game.color.withValues(alpha: 0.10),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Text(
-                            game.category.label(t),
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: game.color,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
+                  // No category chip: the section heading above says it.
                 ],
               ),
               const Spacer(),
@@ -549,7 +605,10 @@ class _GameCard extends StatelessWidget {
                 game.title(t),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
               const SizedBox(height: 4),
               Flexible(
@@ -582,11 +641,14 @@ class _GameCard extends StatelessWidget {
                         child: Text(
                           game.hasLevels
                               ? t.levelN(
-                                  ProgressStore.instance.highestLevel(game.id))
+                                  ProgressStore.instance.highestLevel(game.id),
+                                )
                               : t.play,
                           maxLines: 1,
                           style: TextStyle(
-                              fontWeight: FontWeight.w700, color: game.color),
+                            fontWeight: FontWeight.w700,
+                            color: game.color,
+                          ),
                         ),
                       ),
                     ),
@@ -597,27 +659,36 @@ class _GameCard extends StatelessWidget {
                       children: [
                         if (game.hasLevels &&
                             ProgressStore.instance.totalStars(game.id) > 0) ...[
-                          const Icon(Icons.star_rounded,
-                              size: 16, color: Color(0xFFF5B301)),
+                          const Icon(
+                            Icons.star_rounded,
+                            size: 16,
+                            color: Color(0xFFF5B301),
+                          ),
                           const SizedBox(width: 2),
                           Text(
                             '${ProgressStore.instance.totalStars(game.id)}',
                             style: const TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w700,
-                                color: Colors.black54),
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.black54,
+                            ),
                           ),
                         ],
-                        Icon(Icons.chevron_right_rounded,
-                            size: 18, color: game.color),
+                        Icon(
+                          Icons.chevron_right_rounded,
+                          size: 18,
+                          color: game.color,
+                        ),
                       ],
                     ),
                   ],
                 )
               else
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.black.withValues(alpha: 0.08),
                     borderRadius: BorderRadius.circular(20),
@@ -625,7 +696,9 @@ class _GameCard extends StatelessWidget {
                   child: Text(
                     t.comingSoon,
                     style: const TextStyle(
-                        fontSize: 12, fontWeight: FontWeight.w600),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
             ],

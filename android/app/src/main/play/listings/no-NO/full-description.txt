@@ -1,29 +1,39 @@
-Hjernetrim samler tolv små oppgaver som er laget for å være behagelige å bruke — og skikkelig morsomme å løse.
+Hjernetrim er femten små spill for hodet: piler, ord, tall, logikk og hukommelse. Enkle å komme i gang med, og de blir faktisk vanskeligere jo lenger du kommer.
 
-Alt er bygget rundt én idé: grensesnittet skal være enkelt, ikke oppgavene. Stor tekst, store trykkflater, tydelige farger og rolige overganger. Ingen klokke som teller ned, ingen mas, ingen reklame. Du bestemmer tempoet selv.
+Alt er bygget rundt én idé: grensesnittet skal være enkelt, ikke oppgavene. Stor, tydelig tekst, store knapper og rolige overganger. Ingen klokke med mindre du vil ha en, ingen mas og ingen reklame. Du bestemmer tempoet selv.
 
 SPILLENE
 
+Logikk
+• Pilbilder — hvert brett er et bilde, og den siste pilen avslører hva det var
 • Pillabyrint — nøst opp lange, buktende piler og send dem ut av brettet
 • Pilflukt — send hver pil ut i retningen den peker
-• Bokstavsalat — sett bokstavene i riktig rekkefølge
-• Ordleting — finn de skjulte ordene i bokstavrutenettet
+• Bildekryss — bruk talltipsene til å finne det skjulte bildet
+• Knekk koden — finn den hemmelige koden
+• Følg sporet — trykk på sirklene i rekkefølge
+• Hva kommer etterpå? — finn mønsteret
+
+Ord
 • Ord — gjett det skjulte ordet på fem bokstaver
+• Ordleting — finn de skjulte ordene i bokstavrutenettet
+• Bokstavsalat — sett bokstavene i riktig rekkefølge
+
+Tall
 • Tallkryss — fyll ut kryssordet med regnestykker
 • Mini-sudoku — fyll rutenettet uten gjentakelser
+• 2048 — slå sammen brikker til målet
+
+Hukommelse
 • Memory — finn parene
 • Simon — gjenta lysrekkefølgen
-• Hva kommer etterpå? — finn mønsteret
-• Knekk koden — finn den hemmelige koden
-• 2048 — slå sammen brikker til målet
 
 VANSKELIGHETSGRAD SOM FAKTISK ØKER
 
-Hvert spill har nivåer som blir vanskeligere etter hvert — ikke bare større brett, men oppgaver som krever mer planlegging. Ordspillene henter fra store ordlister og går fra vanlige ord til sjeldnere ord jo lenger du kommer.
+Hvert spill har nivåer som blir vanskeligere etter hvert — ikke bare større brett, men oppgaver som krever mer planlegging. Pilbilder alene har over 200 bilder. Ordspillene henter fra store ordlister og går fra vanlige ord til sjeldnere ord jo lenger du kommer.
 
 DAGENS ØKT
 
-En liten daglig utfordring holder oversikt over hvor mange dager på rad du har spilt. Ingen påminnelser du ikke har bedt om.
+Et lite daglig mål holder oversikt over hvor mange dager på rad du har spilt, og appen foreslår hva du kan spille neste. Spillene du spilte sist, ligger øverst. Ingen påminnelser du ikke har bedt om.
 
 PERSONVERN
 

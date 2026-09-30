@@ -6,8 +6,14 @@
 # starts near zero exactly when a late board is what needs looking at.
 #
 # Only ever touches `highest_level_*`. Stars, saved boards, times and settings are
-# left alone, and `ProgressStore.recordReached` only ever raises the value, so
-# nothing here can lose progress.
+# left alone.
+#
+# It **refuses to lower** a level unless you pass -Force, which is not fussiness:
+# an earlier version set the value absolutely and knocked a real playthrough from
+# 101 back to 75. Stars survive that, but the unlocked ceiling does not, and the
+# player has to climb back. Lowering is also almost never what you want -- the
+# picker shows *every* level up to the highest, so a lower level is already
+# reachable without touching anything.
 #
 # Debug builds only: `run-as` needs a debuggable package, which is what
 # `flutter run` / F5 installs.
@@ -19,7 +25,8 @@ param(
     [int]$Level = 100,
     [string]$Game = 'all',
     [string]$Serial,
-    [switch]$Show
+    [switch]$Show,
+    [switch]$Force
 )
 
 $ErrorActionPreference = 'Stop'
@@ -27,7 +34,7 @@ $package = 'net.skjelten.brain_workout'
 $prefs = 'shared_prefs/FlutterSharedPreferences.xml'
 
 $games = @(
-    'arrow_escape', 'arrow_maze', 'wordle', 'number_cross', 'word_search',
+    'arrow_escape', 'arrow_maze', 'arrow_pictures', 'wordle', 'number_cross', 'word_search',
     'mini_sudoku', 'merge', 'memory_match', 'word_scramble', 'crack_code',
     'trail', 'simon', 'nonogram', 'what_next'
 )
@@ -69,6 +76,10 @@ foreach ($g in $targets) {
     $node = $xml.map.long | Where-Object { $_.name -eq $key }
     if ($node) {
         $was = $node.value
+        if ([int]$was -gt $Level -and -not $Force) {
+            Write-Host ("   {0,-16} {1} -> {2}  SKIPPED (would lower; -Force to override)" -f $g, $was, $Level) -ForegroundColor Yellow
+            continue
+        }
         $node.value = "$Level"
     } else {
         $node = $xml.CreateElement('long')

@@ -4,6 +4,7 @@ import 'l10n/generated/app_localizations.dart';
 import 'screens/home_screen.dart';
 import 'services/app_info.dart';
 import 'services/app_locale.dart';
+import 'services/app_text_scale.dart';
 import 'services/progress_store.dart';
 import 'theme/app_theme.dart';
 
@@ -15,6 +16,7 @@ Future<void> main() async {
   if (storedLanguage != null) {
     appLocaleOverride.value = Locale(storedLanguage);
   }
+  appLargerText.value = ProgressStore.instance.largerText;
   runApp(const BrainWorkoutApp());
 }
 
@@ -46,11 +48,15 @@ class BrainWorkoutApp extends StatelessWidget {
           }
           return const Locale('en');
         },
-        // Enlarge all text a little for easier reading.
-        builder: (context, child) => MediaQuery.withClampedTextScaling(
-          minScaleFactor: 1.1,
-          maxScaleFactor: 1.3,
-          child: child!,
+        // Enlarge all text a little for easier reading, unless the player has
+        // switched that off in Settings.
+        builder: (context, child) => ValueListenableBuilder<bool>(
+          valueListenable: appLargerText,
+          builder: (context, larger, _) => MediaQuery.withClampedTextScaling(
+            minScaleFactor: appMinTextScale(larger),
+            maxScaleFactor: appMaxTextScale,
+            child: child!,
+          ),
         ),
         home: const HomeScreen(),
       ),

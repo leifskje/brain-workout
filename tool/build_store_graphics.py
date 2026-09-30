@@ -2,6 +2,7 @@
 
   store/icon_512.png        512x512, no alpha  (Play's store icon)
   store/feature_1024x500.png  1024x500, no alpha (Play's feature graphic)
+  store/feature_1024x500_<lang>.png  the same with the app name and a tagline
 
 Both are derived from assets/icon/app_icon.png, so they stay in step with the
 launcher icon. Play rejects transparency in either, so the alpha channel is
@@ -10,7 +11,14 @@ flattened onto the app's brand blue rather than left to chance.
 Run: python tool/build_store_graphics.py
 """
 import os
-from PIL import Image
+from PIL import Image, ImageDraw, ImageFont
+
+FONT_DIR = r'C:\dev\flutter\bin\cache\artifacts\material_fonts'
+# Name and tagline per language on the feature graphic.
+TITLES = {
+    'en': ('Brain Workout', '15 games for your brain'),
+    'nb': ('Hjernetrim', '15 spill for hodet'),
+}
 
 SRC = 'assets/icon/app_icon.png'
 OUT = 'store'
@@ -64,7 +72,36 @@ def main():
     feature_path = os.path.join(OUT, 'feature_1024x500.png')
     feature.save(feature_path, 'PNG')
 
-    for path, want in ((icon_path, (512, 512)), (feature_path, (1024, 500))):
+    # Titled versions: brain on the left, name and tagline beside it. All of it
+    # stays inside a wide margin, since Play crops the edges on some surfaces.
+    bold = ImageFont.truetype(os.path.join(FONT_DIR, 'roboto-bold.ttf'), 92)
+    medium = ImageFont.truetype(os.path.join(FONT_DIR, 'roboto-medium.ttf'), 40)
+    small = badge.copy()
+    small.thumbnail((260, 260), Image.LANCZOS)
+    titled = []
+    for lang, (name, tagline) in TITLES.items():
+        banner = Image.new('RGB', (1024, 500))
+        banner.paste(feature.crop((0, 0, 1024, 500)))
+        # Paint the gradient again without the centred brain.
+        for y in range(500):
+            tt = y / 499
+            row = tuple(round(top[i] + (bottom[i] - top[i]) * tt) for i in range(3))
+            banner.paste(row, (0, y, 1024, y + 1))
+        draw = ImageDraw.Draw(banner)
+        name_w = draw.textlength(name, font=bold)
+        tag_w = draw.textlength(tagline, font=medium)
+        block = small.width + 50 + max(name_w, tag_w)
+        x0 = int((1024 - block) / 2)
+        banner.paste(small, (x0, (500 - small.height) // 2), small)
+        tx = x0 + small.width + 50
+        draw.text((tx, 170), name, font=bold, fill='white')
+        draw.text((tx, 285), tagline, font=medium, fill=(225, 238, 248))
+        path = os.path.join(OUT, f'feature_1024x500_{lang}.png')
+        banner.save(path, 'PNG')
+        titled.append(path)
+
+    for path, want in ((icon_path, (512, 512)), (feature_path, (1024, 500)),
+                       *((p, (1024, 500)) for p in titled)):
         check = Image.open(path)
         ok = check.size == want and check.mode == 'RGB'
         kb = os.path.getsize(path) / 1024

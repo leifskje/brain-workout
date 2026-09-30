@@ -69,9 +69,13 @@ def main():
             io.open(path, 'w', encoding='utf-8', newline='\n').write(value + '\n')
             print(f'{path}  ({len(value)} chars)')
 
-        # Graphics. Play wants the same icon and feature graphic per locale.
+        # Graphics: the same icon everywhere; the feature graphic carries the
+        # app name, so it is per language when one exists.
+        feature = f'store/feature_1024x500_{lang}.png'
+        if not os.path.exists(feature):
+            feature = 'store/feature_1024x500.png'
         for src, sub in (('store/icon_512.png', 'icon'),
-                         ('store/feature_1024x500.png', 'feature-graphic')):
+                         (feature, 'feature-graphic')):
             dest_dir = os.path.join(base, 'graphics', sub)
             os.makedirs(dest_dir, exist_ok=True)
             if os.path.exists(src):

@@ -1,10 +1,51 @@
 import 'dart:isolate';
 
+import '../games/arrow_escape/arrow_escape_models.dart';
+import '../games/arrow_pictures/arrow_pictures_models.dart';
 import '../games/snake_arrows/snake_arrows_models.dart';
 import 'progress_store.dart';
 
-/// Builds Arrow Maze boards ahead of time, so a slow generation never shows up
-/// as a wait.
+/// Arrow Maze's boards, prefetched.
+final arrowMazePrefetch = BoardPrefetch<SnakeBoard>(
+  gameId: 'arrow_maze',
+  generatorVersion: SnakeBoard.generatorVersion,
+  generate: SnakeBoard.generate,
+  toJson: _snakeToJson,
+  fromJson: SnakeBoard.fromJson,
+);
+
+Map<String, dynamic> _snakeToJson(SnakeBoard b) => b.toJson();
+
+/// Arrow Pictures' boards, prefetched.
+final arrowPicturesPrefetch = BoardPrefetch<ArrowBoard>(
+  gameId: 'arrow_pictures',
+  generatorVersion: pictureGeneratorVersion,
+  generate: generatePictureBoard,
+  toJson: _arrowToJson,
+  fromJson: ArrowBoard.fromJson,
+);
+
+Map<String, dynamic> _arrowToJson(ArrowBoard b) => b.toJson();
+
+/// Arrow Pictures' long-arrow boards. A cache id of its own: the two kinds of
+/// board share a game id for progress, but not a board format.
+final arrowPicturesLongPrefetch = BoardPrefetch<SnakeBoard>(
+  gameId: 'arrow_pictures_long',
+  generatorVersion: pictureGeneratorVersion,
+  generate: generateLongPictureBoard,
+  toJson: _snakeToJson,
+  fromJson: SnakeBoard.fromJson,
+);
+
+/// Warms whichever kind of board Arrow Pictures [level] uses.
+void warmPictureLevel(int level) =>
+    pictureArrowsForLevel(level) == PictureArrows.long
+        ? arrowPicturesLongPrefetch.warm(level)
+        : arrowPicturesPrefetch.warm(level);
+
+/// Builds a game's boards ahead of time, so a slow generation never shows up
+/// as a wait. One instance per game; written for Arrow Maze and generalised
+/// when picture boards needed the same thing.
 ///
 /// This is worth more than any constant-factor work on the generator itself. Board
 /// cost grows with area, and the ~400ms budget that pinned the board cap was only a
@@ -33,25 +74,39 @@ import 'progress_store.dart';
 ///    the player sees — only when they see it.
 ///  - **Every path degrades to generating on the spot.** A miss, a mismatched level,
 ///    an isolate failure or an unusable payload all fall through to
-///    `SnakeBoard.generate`. Nothing here can prevent a level from opening.
+///    [generate]. Nothing here can prevent a level from opening.
 ///  - **A stored board carries the generator version that built it**
-///    ([SnakeBoard.generatorVersion]), so changing the generator drops the cache
-///    rather than serving boards the current build would never produce.
-class BoardPrefetch {
-  BoardPrefetch._();
+///    ([generatorVersion]), so changing the generator drops the cache rather
+///    than serving boards the current build would never produce.
+class BoardPrefetch<B> {
+  BoardPrefetch({
+    required this.gameId,
+    required this.generatorVersion,
+    required this.generate,
+    required this.toJson,
+    required this.fromJson,
+  });
 
-  /// The only game cached here: Arrow Maze is the one whose generation is slow
-  /// enough to be felt.
-  static const _gameId = 'arrow_maze';
+  final String gameId;
+  final int generatorVersion;
 
-  static int? _level;
-  static SnakeBoard? _board;
-  static Future<void>? _inFlight;
+  /// Runs inside a background isolate, so it must be a static or top-level
+  /// function: a closure capturing this object would drag its futures along.
+  final B Function(int level) generate;
+
+  /// Must not serialise play state (which arrows have left), or a cached board
+  /// comes back half-cleared. See the note on `SnakeBoard.toJson`.
+  final Map<String, dynamic> Function(B board) toJson;
+  final B? Function(Map<String, dynamic> json) fromJson;
+
+  int? _level;
+  B? _board;
+  Future<void>? _inFlight;
 
   /// The level the in-flight build is for. Needed because [obtain] has to tell
   /// "a board for the level I want is nearly ready" from "a board for some other
   /// level is being built", and those want opposite behaviour.
-  static int? _inFlightLevel;
+  int? _inFlightLevel;
 
   /// A warm asked for while another build was in flight, run when that finishes.
   ///
@@ -59,14 +114,14 @@ class BoardPrefetch {
   /// is most likely to want next", and the newest is the best guess. Dropping the
   /// request instead — which is what this used to do — could skip warming a level
   /// *entirely*, which is the one outcome the whole class exists to prevent.
-  static int? _queued;
+  int? _queued;
 
   /// Starts building the board for [level] in a background isolate.
   ///
   /// Fire and forget: callers do not await it. Runs off the UI isolate because
   /// generation is synchronous CPU work — doing it inline would freeze whatever
   /// the player is looking at.
-  static void warm(int level) {
+  void warm(int level) {
     if (has(level)) return; // already in memory
     if (_inFlightLevel == level) return; // already building this one
     if (_hasPersisted(level)) return; // survived a restart; nothing to build
@@ -82,17 +137,14 @@ class BoardPrefetch {
   /// For the level *being played*: the prefetch naturally stores level N+1, so
   /// without this, being killed mid-level and coming back regenerates the very
   /// board that was already on screen.
-  static void remember(int level, SnakeBoard board) {
+  void remember(int level, B board) {
     final store = ProgressStore.instanceOrNull;
     if (store == null) return;
-    if (store.hasPrefetchedBoard(_gameId, level, SnakeBoard.generatorVersion)) {
-      return;
-    }
-    store.savePrefetchedBoard(
-        _gameId, level, SnakeBoard.generatorVersion, board.toJson());
+    if (store.hasPrefetchedBoard(gameId, level, generatorVersion)) return;
+    store.savePrefetchedBoard(gameId, level, generatorVersion, toJson(board));
   }
 
-  static void _start(int level) {
+  void _start(int level) {
     late final Future<void> mine;
     mine = _run(level).whenComplete(() {
       // A [reset] (or a newer build) while this one was running makes us stale:
@@ -108,17 +160,20 @@ class BoardPrefetch {
     _inFlightLevel = level;
   }
 
-  static Future<void> _run(int level) async {
+  Future<void> _run(int level) async {
     try {
       // Only the level number crosses into the isolate, and only plain lists come
-      // back — an object graph is not reliably sendable.
-      final json = await Isolate.run(() => SnakeBoard.generate(level).toJson());
-      final board = SnakeBoard.fromJson(json);
+      // back — an object graph is not reliably sendable. Locals, not fields, so
+      // the closure does not capture `this`.
+      final generate = this.generate;
+      final toJson = this.toJson;
+      final json = await Isolate.run(() => toJson(generate(level)));
+      final board = fromJson(json);
       if (board == null) return;
       _level = level;
       _board = board;
-      ProgressStore.instanceOrNull?.savePrefetchedBoard(
-          _gameId, level, SnakeBoard.generatorVersion, json);
+      ProgressStore.instanceOrNull
+          ?.savePrefetchedBoard(gameId, level, generatorVersion, json);
     } on Object {
       // An isolate that cannot spawn (or any other failure) must not break the
       // game; the caller falls back to generating on the spot. Nothing is
@@ -127,17 +182,17 @@ class BoardPrefetch {
   }
 
   /// Whether a stored board for [level] exists, without rebuilding it.
-  static bool _hasPersisted(int level) =>
-      ProgressStore.instanceOrNull?.hasPrefetchedBoard(
-          _gameId, level, SnakeBoard.generatorVersion) ??
+  bool _hasPersisted(int level) =>
+      ProgressStore.instanceOrNull
+          ?.hasPrefetchedBoard(gameId, level, generatorVersion) ??
       false;
 
   /// The stored board for [level] rebuilt, or null if there isn't a usable one.
-  static SnakeBoard? _persisted(int level) {
+  B? _persisted(int level) {
     final json = ProgressStore.instanceOrNull
-        ?.loadPrefetchedBoard(_gameId, level, SnakeBoard.generatorVersion);
+        ?.loadPrefetchedBoard(gameId, level, generatorVersion);
     if (json == null) return null;
-    return SnakeBoard.fromJson(json);
+    return fromJson(json);
   }
 
   /// The board for [level], with the caller's spinner given a chance to paint
@@ -170,7 +225,7 @@ class BoardPrefetch {
   /// board appears in the same frame, so there was no pause and therefore no
   /// queued tap to defend against. Guarding taps anyway just makes the first
   /// 400ms of every level dead, which is a new annoyance in place of the old one.
-  static Future<({SnakeBoard board, bool wasWarm})> obtain(int level) async {
+  Future<({B board, bool wasWarm})> obtain(int level) async {
     final ready = take(level);
     if (ready != null) return (board: ready, wasWarm: true);
 
@@ -191,14 +246,14 @@ class BoardPrefetch {
     }
 
     await Future<void>.delayed(Duration.zero);
-    return (board: SnakeBoard.generate(level), wasWarm: false);
+    return (board: generate(level), wasWarm: false);
   }
 
   /// The prefetched board for [level] if one is ready, else null.
   ///
   /// Consumed on read: a board is handed out once, because the screen mutates it as
   /// the player clears arrows and a second caller must not receive that state.
-  static SnakeBoard? take(int level) {
+  B? take(int level) {
     if (_level != level) return null;
     final board = _board;
     _level = null;
@@ -208,28 +263,28 @@ class BoardPrefetch {
 
   /// The in-flight build, if any — a test seam so a test can await the isolate
   /// instead of guessing at a delay.
-  static Future<void>? get pending => _inFlight;
+  Future<void>? get pending => _inFlight;
 
   /// The level currently being built in the background, if any — a test seam so
   /// a widget test can assert that warming *started*, which is all that is
   /// observable inside a fake-async zone (the isolate itself cannot finish there).
-  static int? get warmingLevel => _inFlightLevel;
+  int? get warmingLevel => _inFlightLevel;
 
   /// Test seam: drop anything held, in memory and on disk.
-  static void reset() {
+  void reset() {
     _level = null;
     _board = null;
     _inFlight = null;
     _inFlightLevel = null;
     _queued = null;
-    ProgressStore.instanceOrNull?.clearPrefetchedBoards(_gameId);
+    ProgressStore.instanceOrNull?.clearPrefetchedBoards(gameId);
   }
 
   /// Test seam: whether a board for [level] is ready to be taken.
-  static bool has(int level) => _level == level && _board != null;
+  bool has(int level) => _level == level && _board != null;
 
   /// Test seam: put a board in directly, without an isolate.
-  static void seed(int level, SnakeBoard board) {
+  void seed(int level, B board) {
     _level = level;
     _board = board;
   }

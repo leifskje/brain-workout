@@ -53,6 +53,7 @@ import 'package:brain_workout/services/board_prefetch.dart';
 import 'package:brain_workout/services/app_locale.dart';
 import 'package:brain_workout/widgets/how_to_play.dart';
 import 'package:brain_workout/widgets/win_dialog.dart';
+import 'package:brain_workout/services/app_text_scale.dart';
 import 'package:brain_workout/services/progress_store.dart';
 import 'package:brain_workout/theme/motion.dart';
 
@@ -129,12 +130,42 @@ void main() {
 
     expect(find.text('Brain Workout'), findsOneWidget);
     expect(find.text('Arrow Escape'), findsOneWidget);
-    // Category chips and the Play next suggestion are visible; the Continue
-    // row is not (nothing has been played yet).
-    expect(find.text('Logic'), findsWidgets);
-    expect(find.text('Words'), findsOneWidget);
+    // The first section heading and the Play next suggestion are visible; the
+    // Continue section is not (nothing has been played yet).
+    expect(find.text('Logic'), findsOneWidget);
     expect(find.textContaining('Play next:'), findsOneWidget);
     expect(find.text('Continue'), findsNothing);
+
+    // Every game sits under its own heading, reachable by scrolling alone.
+    for (final heading in ['Words', 'Numbers', 'Memory']) {
+      await tester.scrollUntilVisible(find.text(heading), 300,
+          scrollable: find.byType(Scrollable).first);
+      expect(find.text(heading), findsOneWidget);
+    }
+  });
+
+  testWidgets('Each game is listed under its category heading',
+      (tester) async {
+    tester.view.physicalSize = const Size(1080, 2280);
+    tester.view.devicePixelRatio = 2.625;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(const BrainWorkoutApp());
+
+    // Word Search is a words game: it must come after the Words heading and
+    // before the next one, not wherever the catalog happened to put it.
+    final scrollable = find.byType(Scrollable).first;
+    await tester.scrollUntilVisible(find.text('Words'), 100,
+        scrollable: scrollable);
+    // Heading to the top of the viewport, so its cards are on screen below it.
+    await tester.ensureVisible(find.text('Words'));
+    await tester.pumpAndSettle();
+    final words = tester.getTopLeft(find.text('Words')).dy;
+    final game = tester.getTopLeft(find.text('Word Search')).dy;
+    expect(game, greaterThan(words));
+    final numbers = find.text('Numbers');
+    if (numbers.evaluate().isNotEmpty) {
+      expect(game, lessThan(tester.getTopLeft(numbers).dy));
+    }
   });
 
   testWidgets('Home screen game cards survive the largest text scale',
@@ -164,9 +195,9 @@ void main() {
     expect(find.text('Arrow Escape'), findsOneWidget);
 
     // Taller cards mean the lower ones are off-screen and never built, so scroll
-    // through the whole grid — the overflow could be on any card.
-    final grid = find.byType(GridView);
-    for (var i = 0; i < 6; i++) {
+    // through the whole list — the overflow could be on any card.
+    final grid = find.byType(CustomScrollView);
+    for (var i = 0; i < 10; i++) {
       await tester.drag(grid, const Offset(0, -400));
       await tester.pumpAndSettle();
       expect(tester.takeException(), isNull,
@@ -287,7 +318,9 @@ void main() {
     ));
 
     expect(find.text('Hjernetrim'), findsOneWidget);
-    expect(find.text('Tallkryss'), findsOneWidget);
+    // Titles from the top of the grid: lower cards are off-screen and unbuilt.
+    expect(find.text('Pilflukt'), findsOneWidget);
+    expect(find.text('Pilbilder'), findsOneWidget);
     expect(find.text('Logikk'), findsWidgets);
     expect(find.textContaining('Spill neste:'), findsOneWidget);
   });
@@ -316,6 +349,10 @@ void main() {
     final button = find.byKey(const ValueKey('home_send_feedback'));
     await tester.scrollUntilVisible(button, 100,
         scrollable: find.byType(Scrollable).last);
+    // The list builds a little past the fold, so "found" can still be
+    // off-screen; bring it fully in before asking whether it can be tapped.
+    await tester.ensureVisible(button);
+    await tester.pumpAndSettle();
     expect(button.hitTestable(), findsOneWidget);
 
     // A report is useless if it cannot be tied to a build, so the version has
@@ -334,6 +371,36 @@ void main() {
 
     expect(find.text('Continue'), findsOneWidget);
     expect(find.text('Number Cross — Level 1'), findsOneWidget);
+  });
+
+  testWidgets('Continue lists the three most recent games, newest first',
+      (tester) async {
+    tester.view.physicalSize = const Size(1080, 2280);
+    tester.view.devicePixelRatio = 2.625;
+    addTearDown(tester.view.reset);
+    SharedPreferences.setMockInitialValues({
+      'last_opened_arrow_escape': 1, // oldest: past the cap
+      'last_opened_simon': 2,
+      'last_opened_number_cross': 4,
+      'last_opened_mini_sudoku': 3,
+    });
+    await ProgressStore.init();
+    await tester.pumpWidget(const BrainWorkoutApp());
+
+    // One heading however many rows.
+    expect(find.text('Continue'), findsOneWidget);
+    final rows = [
+      'Number Cross — Level 1',
+      'Mini Sudoku — Level 1',
+      'Simon — Level 1',
+    ];
+    for (final r in rows) {
+      expect(find.text(r), findsOneWidget, reason: r);
+    }
+    expect(find.text('Arrow Escape — Level 1'), findsNothing);
+    final ys = [for (final r in rows) tester.getTopLeft(find.text(r)).dy];
+    expect(ys, orderedEquals([...ys]..sort()),
+        reason: 'the most recent game must be on top');
   });
 
   test('Progress lost to the old Home bug is repaired from the star records',
@@ -706,6 +773,40 @@ void main() {
     await tester.pumpAndSettle();
     expect(ProgressStore.instance.showTimerDuringPlay, isTrue);
     expect(tester.widget<SwitchListTile>(toggle).value, isTrue);
+  });
+
+  testWidgets('Larger text is on by default and can follow the phone instead',
+      (tester) async {
+    tester.view.physicalSize = const Size(1080, 2280);
+    tester.view.devicePixelRatio = 2.625;
+    addTearDown(tester.view.reset);
+    addTearDown(() => appLargerText.value = true);
+    SharedPreferences.setMockInitialValues({});
+    await ProgressStore.init();
+    appLargerText.value = ProgressStore.instance.largerText;
+
+    // The phone is at 1.0 in tests. On by default, so an update never shrinks
+    // anyone's text: the app lifts it to its 1.1 floor.
+    await tester.pumpWidget(const BrainWorkoutApp());
+    await tester.pumpAndSettle();
+    double scale() => MediaQuery.textScalerOf(
+            tester.element(find.byType(HomeScreen)))
+        .scale(1);
+    expect(ProgressStore.instance.largerText, isTrue);
+    expect(scale(), closeTo(1.1, 0.001));
+
+    await tester.tap(find.byKey(const ValueKey('home_settings')));
+    await tester.pumpAndSettle();
+    final toggle = find.byKey(const ValueKey('settings_larger_text'));
+    expect(tester.widget<SwitchListTile>(toggle).value, isTrue);
+    await tester.tap(toggle);
+    await tester.pumpAndSettle();
+    expect(ProgressStore.instance.largerText, isFalse);
+
+    // Off: the phone's own 1.0 is followed, for players who want denser screens.
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    expect(scale(), closeTo(1.0, 0.001));
   });
 
   testWidgets('The clock appears in a game only once switched on',
@@ -4298,6 +4399,75 @@ void main() {
         reason: 'a refused save must change nothing');
   });
 
+  test('Arrow Escape: shapes are well formed', () {
+    // A typo in an ASCII mask is invisible by eye and produces a board with a
+    // ragged edge, so assert every row is the same width before trusting it.
+    for (final shape in arrowShapes) {
+      expect(shape.rows, isNotEmpty, reason: shape.name);
+      for (final row in shape.rows) {
+        expect(row.length, shape.colCount,
+            reason: '${shape.name}: every row must be ${shape.colCount} wide');
+      }
+      expect(shape.cellCount, greaterThan(20), reason: shape.name);
+      expect(shape.cellCount, lessThan(shape.rowCount * shape.colCount),
+          reason: '${shape.name} must leave some air, or it is not a shape');
+    }
+  });
+
+  test('Arrow Escape: a shaped board is solvable and matches its silhouette',
+      () {
+    // The point of the whole feature: _buildDense never cared which cells were
+    // live, so a mask needs no new generator. If this passes, that holds.
+    for (final shape in arrowShapes) {
+      final board = ArrowBoard.generateShaped(shape);
+
+      expect(board.pieces.length, shape.cellCount,
+          reason: '${shape.name}: every filled cell gets exactly one arrow');
+
+      // Arrows sit on the shape and nowhere else.
+      final occupied = {for (final p in board.pieces) (p.row, p.col)};
+      expect(occupied.length, board.pieces.length,
+          reason: '${shape.name}: no two arrows may share a cell');
+      for (var r = 0; r < shape.rowCount; r++) {
+        for (var c = 0; c < shape.colCount; c++) {
+          expect(occupied.contains((r, c)), shape.filled(r, c),
+              reason: '${shape.name}: cell ($r,$c) does not match the mask');
+        }
+      }
+
+      // Solvable by firing whatever is clear -- exact here, since the game is
+      // monotone.
+      expect(board.measureDifficulty().solvableGreedily, isTrue,
+          reason: '${shape.name} is not solvable');
+
+      // And not trivial: a silhouette must still be in the band the levelled
+      // boards use, or it is decoration with the game taken out.
+      expect(board.measureDifficulty().meanBranching, lessThan(8.0),
+          reason: '${shape.name} plays itself');
+    }
+  });
+
+  test('Arrow Escape: shaped generation is deterministic and seed-varied', () {
+    final shape = arrowShapes.first;
+    String fingerprint(ArrowBoard b) =>
+        b.pieces.map((p) => '${p.row},${p.col},${p.dir.index}').join(';');
+
+    expect(fingerprint(ArrowBoard.generateShaped(shape, seed: 3)),
+        fingerprint(ArrowBoard.generateShaped(shape, seed: 3)),
+        reason: 'a retry must give the same board, as everywhere else');
+    expect(fingerprint(ArrowBoard.generateShaped(shape, seed: 3)),
+        isNot(fingerprint(ArrowBoard.generateShaped(shape, seed: 4))),
+        reason: 'a different seed must give a different board');
+  });
+
+  test('Arrow Escape: adding shapes did not disturb the levelled boards', () {
+    // _buildDense grew a parameter. Levels 1-40 are frozen and 41+ are tuned, so
+    // the default path has to be byte-identical to before the change.
+    expect(ArrowBoard.generate(100).pieces.length, 196);
+    expect(ArrowBoard.generate(41).pieces.length, 90);
+    expect(ArrowBoard.generate(20).pieces.length, 44);
+  });
+
   test('Arrow Escape: the blocking chain is measured, and is only a diagnostic',
       () {
     // The forced sequential depth of a board. Kept honest in two directions.
@@ -4560,7 +4730,7 @@ void main() {
     // Reported from a live build: "I feel I often get a hang, so I press again,
     // then am suddenly in game and have clicked an arrow that cannot escape."
     //
-    // Both halves were real. BoardPrefetch.take() returns null whenever the
+    // Both halves were real. arrowMazePrefetch.take() returns null whenever the
     // prefetch has not finished, and the screen then generated synchronously on
     // the UI thread -- 144-271ms at the upper levels with nothing on screen to
     // explain it. Then the retry tap landed on the board that had meanwhile
@@ -4570,7 +4740,7 @@ void main() {
     addTearDown(tester.view.reset);
 
     const level = 30;
-    BoardPrefetch.reset(); // nothing warmed: the case the player hit
+    arrowMazePrefetch.reset(); // nothing warmed: the case the player hit
     await tester
         .pumpWidget(localizedApp(const SnakeArrowsScreen(startLevel: level)));
 
@@ -4841,14 +5011,14 @@ void main() {
       () async {
     // A plain test, not testWidgets: the isolate needs the real event loop, and
     // testWidgets runs its body in a fake-async zone where it would never finish.
-    BoardPrefetch.reset();
+    arrowMazePrefetch.reset();
     const level = 31;
-    BoardPrefetch.warm(level);
-    await BoardPrefetch.pending;
+    arrowMazePrefetch.warm(level);
+    await arrowMazePrefetch.pending;
 
-    expect(BoardPrefetch.has(level), isTrue,
+    expect(arrowMazePrefetch.has(level), isTrue,
         reason: 'the background build should have produced a board');
-    final prefetched = BoardPrefetch.take(level)!;
+    final prefetched = arrowMazePrefetch.take(level)!;
     final local = SnakeBoard.generate(level);
 
     // The safety property this whole feature rests on: generation is deterministic
@@ -4865,12 +5035,12 @@ void main() {
 
     // Taking it consumes it: the screen mutates the board as arrows are cleared,
     // so a second caller must not be handed that same instance.
-    expect(BoardPrefetch.has(level), isFalse);
-    expect(BoardPrefetch.take(level), isNull);
+    expect(arrowMazePrefetch.has(level), isFalse);
+    expect(arrowMazePrefetch.take(level), isNull);
     // And the wrong level never matches.
-    BoardPrefetch.seed(level, local);
-    expect(BoardPrefetch.take(level + 1), isNull);
-    BoardPrefetch.reset();
+    arrowMazePrefetch.seed(level, local);
+    expect(arrowMazePrefetch.take(level + 1), isNull);
+    arrowMazePrefetch.reset();
   });
 
   testWidgets('Arrow Maze: a warm board still swallows the retry tap',
@@ -4889,11 +5059,11 @@ void main() {
     tester.view.physicalSize = const Size(1080, 2280);
     tester.view.devicePixelRatio = 2.625;
     addTearDown(tester.view.reset);
-    addTearDown(BoardPrefetch.reset);
+    addTearDown(arrowMazePrefetch.reset);
 
     const level = 3;
-    BoardPrefetch.reset();
-    BoardPrefetch.seed(level, SnakeBoard.generate(level));
+    arrowMazePrefetch.reset();
+    arrowMazePrefetch.seed(level, SnakeBoard.generate(level));
 
     await tester
         .pumpWidget(localizedApp(const SnakeArrowsScreen(startLevel: level)));
@@ -4936,20 +5106,20 @@ void main() {
     tester.view.physicalSize = const Size(1080, 2280);
     tester.view.devicePixelRatio = 2.625;
     addTearDown(tester.view.reset);
-    addTearDown(BoardPrefetch.reset);
+    addTearDown(arrowMazePrefetch.reset);
 
     // Seeded directly rather than via `warm`, because an isolate cannot complete
     // inside testWidgets' fake-async zone.
     const level = 3;
-    BoardPrefetch.reset();
-    BoardPrefetch.seed(level, SnakeBoard.generate(level));
-    expect(BoardPrefetch.has(level), isTrue);
+    arrowMazePrefetch.reset();
+    arrowMazePrefetch.seed(level, SnakeBoard.generate(level));
+    expect(arrowMazePrefetch.has(level), isTrue);
 
     await tester.pumpWidget(localizedApp(const SnakeArrowsScreen(startLevel: level)));
     await tester.pumpAndSettle();
 
     // Entering the level consumed the prefetched board rather than generating one.
-    expect(BoardPrefetch.has(level), isFalse,
+    expect(arrowMazePrefetch.has(level), isFalse,
         reason: 'the screen should have taken the prefetched board');
     // ...and the board on screen is playable, so what it took was usable.
     expect(find.byKey(const ValueKey('arrow_maze_board')), findsOneWidget);
@@ -4973,10 +5143,10 @@ void main() {
     tester.view.physicalSize = const Size(1080, 2280);
     tester.view.devicePixelRatio = 2.625;
     addTearDown(tester.view.reset);
-    addTearDown(BoardPrefetch.reset);
+    addTearDown(arrowMazePrefetch.reset);
 
     const level = 3;
-    BoardPrefetch.reset();
+    arrowMazePrefetch.reset();
     await tester
         .pumpWidget(localizedApp(const SnakeArrowsScreen(startLevel: level)));
     await tester.pumpAndSettle();
@@ -4988,7 +5158,7 @@ void main() {
     // the warm rides on its tail so the isolate spawn cannot compete with the
     // board's first paint.
     await tester.pump(const Duration(milliseconds: 450));
-    expect(BoardPrefetch.warmingLevel, level + 1,
+    expect(arrowMazePrefetch.warmingLevel, level + 1,
         reason: 'the next board should already be building, mid-level');
 
     // And the board being played is filed too, so being killed and reopened here
@@ -5009,10 +5179,10 @@ void main() {
     tester.view.physicalSize = const Size(1080, 2280);
     tester.view.devicePixelRatio = 2.625;
     addTearDown(tester.view.reset);
-    addTearDown(BoardPrefetch.reset);
+    addTearDown(arrowMazePrefetch.reset);
 
     const level = 30;
-    BoardPrefetch.reset(); // nothing in memory: a cold start
+    arrowMazePrefetch.reset(); // nothing in memory: a cold start
     ProgressStore.instance.savePrefetchedBoard('arrow_maze', level,
         SnakeBoard.generatorVersion, SnakeBoard.generate(level).toJson());
 
@@ -5026,7 +5196,7 @@ void main() {
 
     // A board built by an older generator is refused rather than served: it is
     // not merely stale, it is a board this build would never make for this level.
-    BoardPrefetch.reset();
+    arrowMazePrefetch.reset();
     ProgressStore.instance.savePrefetchedBoard('arrow_maze', level,
         SnakeBoard.generatorVersion + 1, SnakeBoard.generate(level).toJson());
     // A different key, or Flutter reuses the State above and never reloads --
@@ -5049,26 +5219,26 @@ void main() {
   test('Board prefetch: a stored board is reused, an older generator is not',
       () async {
     const level = 9;
-    BoardPrefetch.reset();
+    arrowMazePrefetch.reset();
     final local = SnakeBoard.generate(level);
     ProgressStore.instance.savePrefetchedBoard(
         'arrow_maze', level, SnakeBoard.generatorVersion, local.toJson());
 
-    final hit = await BoardPrefetch.obtain(level);
+    final hit = await arrowMazePrefetch.obtain(level);
     expect(hit.wasWarm, isTrue, reason: 'the stored board should have been used');
     expect(hit.board.rows, local.rows);
     expect(hit.board.cols, local.cols);
     expect(hit.board.arrows.length, local.arrows.length);
 
     // Stored boards are keyed by level, so another level is a plain miss.
-    expect((await BoardPrefetch.obtain(level + 1)).wasWarm, isFalse);
+    expect((await arrowMazePrefetch.obtain(level + 1)).wasWarm, isFalse);
 
-    BoardPrefetch.reset();
+    arrowMazePrefetch.reset();
     ProgressStore.instance.savePrefetchedBoard(
         'arrow_maze', level, SnakeBoard.generatorVersion + 1, local.toJson());
-    expect((await BoardPrefetch.obtain(level)).wasWarm, isFalse,
+    expect((await arrowMazePrefetch.obtain(level)).wasWarm, isFalse,
         reason: 'a board from an older generator must be ignored');
-    BoardPrefetch.reset();
+    arrowMazePrefetch.reset();
   });
 
   test('Board prefetch: a warm asked for during another build is not dropped',
@@ -5080,27 +5250,27 @@ void main() {
     // note "obtain() copes". It does cope -- by generating on the spot, which is
     // the wait this class exists to remove. A dropped request meant a level was
     // never warmed at all.
-    BoardPrefetch.reset();
-    BoardPrefetch.warm(5);
-    expect(BoardPrefetch.warmingLevel, 5);
-    BoardPrefetch.warm(6); // arrives while 5 is still building
+    arrowMazePrefetch.reset();
+    arrowMazePrefetch.warm(5);
+    expect(arrowMazePrefetch.warmingLevel, 5);
+    arrowMazePrefetch.warm(6); // arrives while 5 is still building
 
-    await BoardPrefetch.pending;
-    expect(BoardPrefetch.has(5), isTrue, reason: 'level 5 should have been built');
+    await arrowMazePrefetch.pending;
+    expect(arrowMazePrefetch.has(5), isTrue, reason: 'level 5 should have been built');
 
-    await BoardPrefetch.pending;
-    expect(BoardPrefetch.has(6), isTrue,
+    await arrowMazePrefetch.pending;
+    expect(arrowMazePrefetch.has(6), isTrue,
         reason: 'the request for level 6 was dropped instead of queued');
-    BoardPrefetch.reset();
+    arrowMazePrefetch.reset();
   });
 
   test('Board prefetch: nothing warmed still produces the right board',
       () async {
     // The invariant every other change here has to preserve: nothing in the
     // prefetch may ever stop a level from opening.
-    BoardPrefetch.reset();
+    arrowMazePrefetch.reset();
     const level = 7;
-    final got = await BoardPrefetch.obtain(level);
+    final got = await arrowMazePrefetch.obtain(level);
     expect(got.wasWarm, isFalse);
     final local = SnakeBoard.generate(level);
     expect(got.board.rows, local.rows);

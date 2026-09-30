@@ -1,5 +1,5 @@
-Fixed: in Word Search, the hint would say there were none left when there still were, and a hint could be invisible when it landed on a letter you had already found. Both are sorted.
+New: Arrow Pictures, a game where every board is a picture. There are 215 of them, and the last arrow reveals what it was.
 
-Fixed: Arrow Maze now builds the next board while you play, so the wait before a new board is gone in almost every case.
+New home screen: the games you played last are at the top, and the rest are grouped into Logic, Words, Numbers and Memory.
 
-Also: Arrow Escape boards keep getting fuller and harder past level 40 instead of staying the same, with more hearts on the biggest boards.
+New setting: Larger text can be switched off if you prefer to follow your phone's text size.
