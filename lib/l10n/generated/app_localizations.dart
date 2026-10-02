@@ -1555,6 +1555,60 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{count, plural, =1{1 word you missed} other{{count} words you missed}}'**
   String letterHiveMissed(int count);
+
+  /// No description provided for @categoryCards.
+  ///
+  /// In en, this message translates to:
+  /// **'Cards'**
+  String get categoryCards;
+
+  /// No description provided for @gameFreecellTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'FreeCell'**
+  String get gameFreecellTitle;
+
+  /// No description provided for @gameFreecellSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'The classic patience: plan every card home'**
+  String get gameFreecellSubtitle;
+
+  /// No description provided for @helpFreecell.
+  ///
+  /// In en, this message translates to:
+  /// **'Move every card to the four piles at the top right, building each suit up from Ace to King. In the columns, a card can go on a card one higher of the other colour: a red 6 on a black 7. Each free cell at the top left holds any one card.\n\nTap a card to pick it up, then tap where it should go. Tap it again to send it home, or to a free cell. You can move several cards at once when there is room to do it one at a time, so empty free cells and columns let you move longer runs. Cards that are safe to send home go there by themselves.\n\nUndo is free and unlimited. On later levels some free cells are closed.'**
+  String get helpFreecell;
+
+  /// No description provided for @freecellUndo.
+  ///
+  /// In en, this message translates to:
+  /// **'Undo'**
+  String get freecellUndo;
+
+  /// No description provided for @freecellMoves.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 move} other{{count} moves}}'**
+  String freecellMoves(int count);
+
+  /// No description provided for @freecellNoMoves.
+  ///
+  /// In en, this message translates to:
+  /// **'No moves left. Undo and try another way.'**
+  String get freecellNoMoves;
+
+  /// No description provided for @freecellHintStuck.
+  ///
+  /// In en, this message translates to:
+  /// **'I can\'t find a way to win from here. Try undoing a few moves.'**
+  String get freecellHintStuck;
+
+  /// No description provided for @freecellTooMany.
+  ///
+  /// In en, this message translates to:
+  /// **'Only {max} cards can move at once right now. Empty a free cell or a column to move more.'**
+  String freecellTooMany(int max);
 }
 
 class _AppLocalizationsDelegate
