@@ -1609,6 +1609,102 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Only {max} cards can move at once right now. Empty a free cell or a column to move more.'**
   String freecellTooMany(int max);
+
+  /// No description provided for @gameWordLadderTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Word Ladder'**
+  String get gameWordLadderTitle;
+
+  /// No description provided for @gameWordLadderSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Change one letter at a time'**
+  String get gameWordLadderSubtitle;
+
+  /// No description provided for @helpWordLadder.
+  ///
+  /// In en, this message translates to:
+  /// **'Turn the start word into the target word one letter at a time. Every step must be a real word of the same length, like COLD, CORD, WORD, WARD, WARM. Tap a letter in your word, then tap the letter to put there. Try to match the shortest ladder, but any ladder that gets there clears the level. Stepping back is free, a word that isn\'t one costs nothing, and nothing is timed.'**
+  String get helpWordLadder;
+
+  /// No description provided for @wordLadderPar.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{Shortest: 1 step} other{Shortest: {count} steps}}'**
+  String wordLadderPar(int count);
+
+  /// No description provided for @wordLadderSteps.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =0{No steps yet} =1{You: 1 step} other{You: {count} steps}}'**
+  String wordLadderSteps(int count);
+
+  /// No description provided for @wordLadderStepBack.
+  ///
+  /// In en, this message translates to:
+  /// **'Step back'**
+  String get wordLadderStepBack;
+
+  /// No description provided for @wordLadderStart.
+  ///
+  /// In en, this message translates to:
+  /// **'Start'**
+  String get wordLadderStart;
+
+  /// No description provided for @wordLadderTarget.
+  ///
+  /// In en, this message translates to:
+  /// **'Target'**
+  String get wordLadderTarget;
+
+  /// No description provided for @wordLadderTapLetter.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap a letter to change it'**
+  String get wordLadderTapLetter;
+
+  /// No description provided for @wordLadderPickLetter.
+  ///
+  /// In en, this message translates to:
+  /// **'Now pick the new letter'**
+  String get wordLadderPickLetter;
+
+  /// No description provided for @wordLadderNotAWord.
+  ///
+  /// In en, this message translates to:
+  /// **'{word} is not in the word list'**
+  String wordLadderNotAWord(String word);
+
+  /// No description provided for @wordLadderAlreadyUsed.
+  ///
+  /// In en, this message translates to:
+  /// **'{word} is already on your ladder'**
+  String wordLadderAlreadyUsed(String word);
+
+  /// No description provided for @wordLadderHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Hint: try {word}'**
+  String wordLadderHint(String word);
+
+  /// No description provided for @wordLadderNoWay.
+  ///
+  /// In en, this message translates to:
+  /// **'No way on from here. Step back and try another word.'**
+  String get wordLadderNoWay;
+
+  /// No description provided for @wordLadderWon.
+  ///
+  /// In en, this message translates to:
+  /// **'You climbed it in {steps} steps. The shortest is {par}.'**
+  String wordLadderWon(int steps, int par);
+
+  /// No description provided for @wordLadderBest.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{Your best: 1 step} other{Your best: {count} steps}}'**
+  String wordLadderBest(int count);
 }
 
 class _AppLocalizationsDelegate

@@ -265,5 +265,21 @@
   "freecellMoves": "{count, plural, =1{1 trekk} other{{count} trekk}}",
   "freecellNoMoves": "Ingen trekk igjen. Angre og prøv en annen vei.",
   "freecellHintStuck": "Jeg finner ingen vei til seier herfra. Prøv å angre noen trekk.",
-  "freecellTooMany": "Bare {max} kort kan flyttes samtidig nå. Tøm en fri celle eller en kolonne for å flytte flere."
+  "freecellTooMany": "Bare {max} kort kan flyttes samtidig nå. Tøm en fri celle eller en kolonne for å flytte flere.",
+  "gameWordLadderTitle": "Ordstigen",
+  "gameWordLadderSubtitle": "Bytt én bokstav om gangen",
+  "helpWordLadder": "Gjør startordet om til målordet ved å bytte én bokstav om gangen. Hvert steg må være et ekte ord like langt som de andre, som KATT, HATT, HALT, HALS. Trykk på en bokstav i ordet ditt, og så på bokstaven som skal stå der. Prøv å klare det på færrest mulig steg, men alle stiger som kommer fram, klarer nivået. Det koster ingenting å gå et steg tilbake eller å prøve et ord som ikke finnes, og ingenting er på tid.",
+  "wordLadderPar": "{count, plural, =1{Korteste: 1 steg} other{Korteste: {count} steg}}",
+  "wordLadderSteps": "{count, plural, =0{Ingen steg ennå} =1{Du: 1 steg} other{Du: {count} steg}}",
+  "wordLadderStepBack": "Steg tilbake",
+  "wordLadderStart": "Start",
+  "wordLadderTarget": "Mål",
+  "wordLadderTapLetter": "Trykk på en bokstav for å bytte den",
+  "wordLadderPickLetter": "Velg den nye bokstaven",
+  "wordLadderNotAWord": "{word} står ikke i ordlista",
+  "wordLadderAlreadyUsed": "{word} er allerede i stigen din",
+  "wordLadderHint": "Tips: prøv {word}",
+  "wordLadderNoWay": "Herfra kommer du ikke videre. Gå et steg tilbake og prøv et annet ord.",
+  "wordLadderWon": "Du klarte det på {steps} steg. Korteste vei er {par}.",
+  "wordLadderBest": "{count, plural, =1{Din beste: 1 steg} other{Din beste: {count} steg}}"
 }
