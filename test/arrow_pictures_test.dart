@@ -513,6 +513,122 @@ void main() {
     expect(ArrowPicturesScreen.shortSpec.pictureOutline, isFalse);
   });
 
+  testWidgets('Arrow Pictures: a wide picture zooms into the whole board area',
+      (tester) async {
+    // A 16x7 picture fills only a strip of the portrait board area. Zoom used
+    // to be confined to that strip, so zooming in barely helped.
+    tester.view.physicalSize = const Size(1080, 2280);
+    tester.view.devicePixelRatio = 2.625;
+    addTearDown(tester.view.reset);
+
+    final level = pictureShapes.indexWhere((s) => s.name == 'fish_skeleton') + 1;
+    await tester
+        .pumpWidget(localizedApp(ArrowPicturesScreen(startLevel: level)));
+    await tester.pump(const Duration(milliseconds: 1));
+    await tester.pump(const Duration(milliseconds: 1));
+    await tester.pump(const Duration(milliseconds: 450)); // past the tap guard
+
+    final viewer = find.byKey(const ValueKey('arrow_pictures_viewer'));
+    final boardFinder = find.byKey(const ValueKey('arrow_pictures_board'));
+    final fit = tester.getRect(boardFinder);
+    expect(tester.getRect(viewer).height, greaterThan(fit.height * 1.8),
+        reason: 'the zoom area must be the board area, not the picture strip');
+
+    await tester.tap(find.byKey(const ValueKey('arrow_pictures_zoom_in')));
+    await tester.pump();
+    final zoomed = tester.getRect(boardFinder);
+    expect(zoomed.height, closeTo(fit.height * 1.5, 1));
+
+    // A tap while zoomed still frees the arrow under it. Aim at a clear arrow
+    // whose centre is on screen, using the painted (transformed) board rect.
+    final board = generatePictureBoard(level);
+    final cell = zoomed.width / board.cols;
+    final area = tester.getRect(viewer);
+    Offset centre(ArrowPiece p) =>
+        zoomed.topLeft + Offset((p.col + 0.5) * cell, (p.row + 0.5) * cell);
+    final target = board.pieces
+        .firstWhere((p) => board.isPathClear(p) && area.contains(centre(p)));
+    await tester.tapAt(centre(target));
+    await tester.pump(const Duration(seconds: 1));
+    await tester.pumpWidget(const SizedBox());
+    final saved = ProgressStore.instance.loadBoard('arrow_pictures', level)!;
+    expect(saved['escaped'], [target.id]);
+  });
+
+  testWidgets('Arrow Pictures: long-arrow boards zoom into the whole area too',
+      (tester) async {
+    tester.view.physicalSize = const Size(1080, 2280);
+    tester.view.devicePixelRatio = 2.625;
+    addTearDown(tester.view.reset);
+
+    final level =
+        pictureShapes.indexWhere((s) => s.name == 'double_decker_bus') + 1;
+    expect(pictureArrowsForLevel(level), PictureArrows.long);
+    await tester
+        .pumpWidget(localizedApp(ArrowPicturesScreen(startLevel: level)));
+    await tester.pump(const Duration(milliseconds: 1));
+    await tester.pump(const Duration(milliseconds: 1));
+    final viewer = tester.getRect(find.byKey(const ValueKey('arrow_pictures_viewer')));
+    final board = tester.getRect(find.byKey(const ValueKey('arrow_pictures_board')));
+    expect(viewer.height, greaterThan(board.height * 1.3));
+    expect(viewer.contains(board.center), isTrue);
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('Arrow Pictures: the reveal returns to fit if zoomed in',
+      (tester) async {
+    tester.view.physicalSize = const Size(1080, 2280);
+    tester.view.devicePixelRatio = 2.625;
+    addTearDown(tester.view.reset);
+
+    final level = pictureShapes.indexWhere((s) => s.name == 'fish_skeleton') + 1;
+    await tester
+        .pumpWidget(localizedApp(ArrowPicturesScreen(startLevel: level)));
+    await tester.pump(const Duration(milliseconds: 1));
+    await tester.pump(const Duration(milliseconds: 1));
+    await tester.pump(const Duration(milliseconds: 450));
+
+    final boardFinder = find.byKey(const ValueKey('arrow_pictures_board'));
+    final fit = tester.getRect(boardFinder);
+    final board = generatePictureBoard(level);
+    final fitCell = fit.width / board.cols;
+
+    // Clear all but one arrow at fit.
+    while (board.pieces.where((p) => !p.escaped).length > 1) {
+      final p = board.pieces.firstWhere((p) => !p.escaped && board.isPathClear(p));
+      await tester.tapAt(fit.topLeft +
+          Offset((p.col + 0.5) * fitCell, (p.row + 0.5) * fitCell));
+      p.escaped = true;
+      await tester.pump(const Duration(milliseconds: 600));
+    }
+    // Zoom in centred on the last arrow, as a pinch there would.
+    final last = board.pieces.firstWhere((p) => !p.escaped);
+    final viewer = tester.widget<InteractiveViewer>(
+        find.byKey(const ValueKey('arrow_pictures_viewer')));
+    final viewerRect =
+        tester.getRect(find.byKey(const ValueKey('arrow_pictures_viewer')));
+    final lastLocal = fit.topLeft - viewerRect.topLeft +
+        Offset((last.col + 0.5) * fitCell, (last.row + 0.5) * fitCell);
+    viewer.transformationController!.value = Matrix4.identity()
+      ..translateByDouble(viewerRect.width / 2 - 2 * lastLocal.dx,
+          viewerRect.height / 2 - 2 * lastLocal.dy, 0, 1)
+      ..scaleByDouble(2, 2, 1, 1);
+    await tester.pump();
+    expect(tester.getRect(boardFinder).width, closeTo(fit.width * 2, 1));
+
+    await tester.tapAt(viewerRect.center);
+    await tester.pump(const Duration(milliseconds: 600));
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(viewer.transformationController!.value, Matrix4.identity(),
+        reason: 'the finished picture must be seen whole');
+    expect(tester.getRect(boardFinder), fit);
+
+    for (var i = 0; i < 40; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+    await tester.pumpWidget(const SizedBox());
+  });
+
   testWidgets('Arrow Pictures: the finished picture is revealed before the dialog',
       (tester) async {
     tester.view.physicalSize = const Size(1080, 2280);

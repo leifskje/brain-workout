@@ -4,33 +4,50 @@ Written to let a fresh agent pick up without re-deriving anything. Read `CLAUDE.
 first; it holds the conventions and the hard-won lessons. This file is *where things
 stand*, not how to work here.
 
-Last published: **1.1.3 (versionCode 6)**, internal track, Sep 2026. `main` is that
-release. **1.2.0+7 is prepared on `les/picture-boards` (30 Sep)**: version
-bumped, release notes written, and the store listing refreshed locally (new
-text, titled feature graphics, rendered and framed screenshots). The listing
-isn't published and neither is the bundle. It needs a PR to `main`, then the
-owner's go for `publishBundle` and `publishListing`.
+Last published: **1.2.0 (versionCode 7)**, internal track, 30 Sep 2026: Arrow
+Pictures (215 pictures), the grouped home screen, the Larger text setting, and
+a refreshed store listing (published with it). `main` is that release (PR #2);
+the next upload needs another `version:` bump.
 
 Check what testers actually have with `python tool/play_track_status.py` rather than
 reading `pubspec.yaml` — that file describes the *next* build, and a versionCode in
 git is no evidence it was uploaded.
 
-## What to do first (written 30 Sep)
+## What to do first (written 1 Oct)
 
-**Arrow Pictures**, branch `les/picture-boards` (29 Sep's work committed and
-pushed; 30 Sep's work uncommitted for the owner to review). Nothing near `main`,
-nothing released.
+**Branch `les/picture-zoom`, uncommitted:** an Arrow Pictures zoom fix the owner
+reported. The owner checked both halves on the emulator (2 Oct). Left: commit,
+PR, and maybe a 1.2.1.
 
-Done 30 Sep: **215 pictures** (every new one passed a blind silhouette audit),
-the list **pinned** by a test, **mirrored replays**, and the cause of F5 wiping
-app data found (below).
+- **Zoom was confined to the picture's own box,** so a short, wide picture (fish
+  skeleton, level 17) zoomed inside a thin strip and arrows got *harder* to hit.
+  The viewer's child is now the whole board area with the board centred in it,
+  in both `arrow_escape_screen.dart` and `snake_arrows_screen.dart`. The boards
+  themselves are unchanged (padding the masks would change every board players
+  have progress on).
+- **Finishing while zoomed in revealed only part of the picture.** It now resets
+  to fit before the reveal. The reset is instant; animate it if it feels abrupt.
+- Tests: three new ones in `test/arrow_pictures_test.dart`, two of them checked
+  by breaking the fix. Gates were green at hand-over: `flutter analyze` clean,
+  `flutter test` 189 passing.
 
-1. **Owner spot-check** of the new pictures on the emulator — first free the
-   emulator's disk (see *Dev environment*), or F5 wipes progress again. The
-   *Next* list of [picture-boards.md](picture-boards.md) has the weakest
-   pictures, the short-arrow boundary question (now level 101) and the
-   Norwegian names check.
-2. Then back to the ranked list: difficulty choice is next.
+Then, in order:
+
+1. **Owner spot-check of the new pictures** (still open from 30 Sep). First free
+   the emulator's disk (see *Dev environment*), or F5 wipes progress again. The
+   *Next* list of [picture-boards.md](picture-boards.md) has the weakest pictures
+   and the short-arrow boundary question (now level 101). The Norwegian picture
+   names were fixed 30 Sep; the owner may still want a look at "en spar" and
+   "en kløver".
+2. **Difficulty choice** ([difficulty-choice.md](difficulty-choice.md)): more
+   pressing now that the audience is broad (see `CLAUDE.md`).
+3. **New games** in the build order of [new-games.md](new-games.md). Challenge
+   modes are thoughts, not decisions ([challenge-modes.md](challenge-modes.md)).
+
+Store screenshots are generated, not captured: `flutter test
+tool/store_screens/render_test.dart`, then `python tool/frame_screenshots.py`,
+then `python tool/sync_play_listing.py`. Re-run after visible UI changes; see
+[store-listing.md](store-listing.md).
 
 ## Arrow Pictures — what exists (29 Sep)
 
@@ -108,10 +125,9 @@ and never *harder to work out*.
 
 ## Open work, ranked
 
-1. **Arrow Pictures: owner spot-check**, then ship — see *What to do first* and
-   [picture-boards.md](picture-boards.md). Before shipping it also
-   needs a `version:` bump and probably the store listing/screenshots updated
-   for a new game (ask; `publishListing` writes to the live account).
+1. **Arrow Pictures:** shipped in 1.2.0. Left: the zoom fix on `les/picture-zoom`,
+   and the owner's spot-check. See *What to do first* and
+   [picture-boards.md](picture-boards.md).
 2. **Difficulty choice**, starting with the Word Search assist —
    [difficulty-choice.md](difficulty-choice.md).
 3. **New games**, in the build order in [new-games.md](new-games.md): letter

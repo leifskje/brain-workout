@@ -459,6 +459,8 @@ class _SnakeArrowsScreenState extends State<SnakeArrowsScreen>
       _showWin();
       return;
     }
+    // Back to fit first: a reveal seen zoomed in shows only part of the picture.
+    _resetZoom();
     _reveal.forward(from: 0).whenComplete(() {
       Future.delayed(const Duration(milliseconds: 900), () {
         if (mounted) _showWin();
@@ -643,7 +645,9 @@ class _SnakeArrowsScreenState extends State<SnakeArrowsScreen>
         // the escape at a constant speed. Only the layout knows the cell size.
         _cell = cell;
         final boardSize = Size(cell * _board.cols, cell * _board.rows);
-        _viewport = boardSize;
+        // The viewport is the whole board area, not just the board: a short,
+        // wide picture zoomed inside its own box only ever grew within a strip.
+        _viewport = Size(constraints.maxWidth, constraints.maxHeight);
 
         // The InteractiveViewer sits *outside* the GestureDetector on purpose.
         // Hit testing passes through the transform, so the detector below always
@@ -659,29 +663,34 @@ class _SnakeArrowsScreenState extends State<SnakeArrowsScreen>
           // Keeps the board inside the viewport, so it can never be panned off
           // screen and lost.
           boundaryMargin: EdgeInsets.zero,
-          child: GestureDetector(
-            onTapUp: (details) {
-              final c = (details.localPosition.dx / cell).floor();
-              final r = (details.localPosition.dy / cell).floor();
-              if (r >= 0 && r < _board.rows && c >= 0 && c < _board.cols) {
-                _handleTapCell(r, c);
-              }
-            },
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(18),
-              child: CustomPaint(
-                key: ValueKey('${_gameId}_board'),
-                size: boardSize,
-                painter: _SnakePainter(
-                  board: _board,
-                  cell: cell,
-                  picture: _picture,
-                  pictureOutline: _spec.pictureOutline,
-                  reveal: _reveal.value,
-                  escapingId: _escapingId,
-                  escapeT: _escapeCtrl.value,
-                  blockedId: _blockedId,
-                  shakeT: _shakeCtrl.isAnimating ? _shakeCtrl.value : null,
+          child: SizedBox.fromSize(
+            size: _viewport,
+            child: Center(
+              child: GestureDetector(
+                onTapUp: (details) {
+                  final c = (details.localPosition.dx / cell).floor();
+                  final r = (details.localPosition.dy / cell).floor();
+                  if (r >= 0 && r < _board.rows && c >= 0 && c < _board.cols) {
+                    _handleTapCell(r, c);
+                  }
+                },
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(18),
+                  child: CustomPaint(
+                    key: ValueKey('${_gameId}_board'),
+                    size: boardSize,
+                    painter: _SnakePainter(
+                      board: _board,
+                      cell: cell,
+                      picture: _picture,
+                      pictureOutline: _spec.pictureOutline,
+                      reveal: _reveal.value,
+                      escapingId: _escapingId,
+                      escapeT: _escapeCtrl.value,
+                      blockedId: _blockedId,
+                      shakeT: _shakeCtrl.isAnimating ? _shakeCtrl.value : null,
+                    ),
+                  ),
                 ),
               ),
             ),
