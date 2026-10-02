@@ -1,5 +1,3 @@
-New: Arrow Pictures, a game where every board is a picture. There are 215 of them, and the last arrow reveals what it was.
+Four new games: Bridges (connect the islands), Letter Hive (make words from seven letters), Word Ladder (change one letter at a time) and FreeCell, the classic card game, in a new Cards section.
 
-New home screen: the games you played last are at the top, and the rest are grouped into Logic, Words, Numbers and Memory.
-
-New setting: Larger text can be switched off if you prefer to follow your phone's text size.
+Fixed: zooming in on wide Arrow Pictures boards now works properly, and the finished picture is always shown in full.

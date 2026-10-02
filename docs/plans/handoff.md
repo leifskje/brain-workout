@@ -15,12 +15,11 @@ git is no evidence it was uploaded.
 
 ## What to do first (written 2 Oct)
 
-**Release plan (2 Oct):** one release at the end of the day. `main` holds the
-zoom fix, Bridges and Letter Hive (pushed: up to Bridges). **Branch
-`les/new-games`** adds FreeCell and Word Ladder (built by two parallel agents,
-merged and verified there) and a Letter Hive fix (uncommitted at writing).
-Merge it into `main` only after the owner has played both games. Bump
-`version:` before any upload; the owner says when to publish.
+**Release (2 Oct):** `main` holds the zoom fix and four new games: Bridges,
+Letter Hive, Word Ladder and FreeCell (the last two built by parallel agents,
+merged and verified). `version:` is bumped to **1.3.0+8** and the release notes
+are written. **Not yet published** unless the line above says so; the owner says
+when.
 
 - **Bridges, Letter Hive:** the owner played both (2 Oct); see
   [new-games.md](new-games.md). Letter Hive got a hint and a "show missed words"
@@ -125,8 +124,8 @@ and never *harder to work out*.
 
 ## Open work, ranked
 
-1. **Arrow Pictures:** shipped in 1.2.0. Left: the zoom fix on `les/picture-zoom`,
-   and the owner's spot-check. See *What to do first* and
+1. **Arrow Pictures:** shipped in 1.2.0, zoom fix in 1.3.0. Left: the owner's
+   spot-check. See *What to do first* and
    [picture-boards.md](picture-boards.md).
 2. **Difficulty choice**, starting with the Word Search assist —
    [difficulty-choice.md](difficulty-choice.md).

@@ -1,5 +1,3 @@
-Nytt: Pilbilder, et spill der hvert brett er et bilde. Det er 215 av dem, og den siste pilen avslører hva det var.
+Fire nye spill: Broer (bind sammen øyene), Bikuben (lag ord av sju bokstaver), Ordstigen (bytt én bokstav om gangen) og kabalen FreeCell, i en ny Kort-seksjon.
 
-Ny startside: spillene du spilte sist ligger øverst, og resten er samlet under Logikk, Ord, Tall og Hukommelse.
-
-Ny innstilling: Større tekst kan slås av hvis du heller vil følge telefonens tekststørrelse.
+Rettet: zoom på brede Pilbilder-brett virker nå som den skal, og det ferdige bildet vises alltid i sin helhet.
