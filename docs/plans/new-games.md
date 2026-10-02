@@ -88,7 +88,7 @@ crossing) so each island has its number of bridges and everything joins up.
   A difficulty axis past level 31 is also missing: the connectivity count
   stops at 5, the most the pool reliably reaches.
 
-## Word ladder
+## Word ladder — built 2 Oct as "Word Ladder" / "Ordstigen", not yet released
 
 Turn COLD into WARM one letter at a time, with every step a real word.
 
@@ -99,8 +99,20 @@ Turn COLD into WARM one letter at a time, with every step a real word.
   comes from path length and how many tempting dead ends lie near the path.
 - **Interface:** change one letter per step, with undo. The shortest possible
   length is shown as a target, never a limit.
-- **Risk:** Norwegian inflected forms make the graph noisy. Use lemmas only (the
-  same issue as [compound-words.md](compound-words.md)).
+- **Risk, as it turned out:** Norwegian inflected forms make the all-words graph
+  dense, but the shortcut check below handles that; lemmas were not needed. The
+  real limit is six letters, with only 70–190 Norwegian pairs per shape, so
+  Norwegian stays at 4–5 letters.
+- **As built:** any real word is accepted as a step, but the par and the hints
+  use only the par tiers (en 1–2, nb 1–3; the tiers aren't comparable across
+  languages). A pair is rejected if *any* word gives a shorter ladder, so
+  "Shortest: N" is literally true. Difficulty is **detour**: the par minus the
+  letters that differ. It rises from 0 (4 letters, 3 steps) to 4 (5 letters,
+  9 steps). Hint = the next word on a shortest ladder from the current word.
+  Stars: 3 at par with no hint, 2 within par + 2. Untimed. A few slurs
+  (`LadderIndex.neverSet`) are never *set* as puzzle words, though still
+  accepted if typed (owner, 2 Oct). Tune with
+  `dart run tool/analyze_word_ladder.dart [N] [--spread] [--pairs] [--path]`.
 
 ## Cryptogram
 
@@ -144,10 +156,10 @@ here is released until the owner asks.
 |---|---|---|---|---|
 | 1 | **Letter hive** ✅ built | Reuses the word lists and the daily-puzzle machinery | S | None (owner accepts the nb gap) |
 | 2 | **Chess puzzles** | CC0 data brings its own difficulty curve | M | None |
-| 3 | **FreeCell** | The most-played casual game; pure skill | M | None |
+| 3 | **FreeCell** ✅ built | The most-played casual game; pure skill | M | None |
 | 4 | **Bridges** ✅ built | New kind of logic; the Picture Logic proof method carries over | M | None |
 | 5 | **Sokoban** | Planning where a wrong move loses | M–L | None (levels generated) |
-| 6 | **Word ladder** | Words with real dead ends | S–M | Low (lemmas) |
+| 6 | **Word ladder** ✅ built | Words with real dead ends | S–M | Low (lemmas) |
 | 7 | **Odd One Out** | Attention; the plan exists | M | Low |
 | 8 | **Mahjong solitaire** | Popular, but needs its own tile art (blind audit) | L | Art |
 | 9 | **Cryptogram** | Needs a proverb bank in two languages | M | Content |
@@ -163,3 +175,20 @@ level 1. Consider doing it before game #3.
 - **The home screen** now groups games by category heading. Each new game needs
 a `GameCategory`, and if chess, FreeCell and Mahjong arrive together a
 "Cards & board" category may earn a heading of its own.
+
+## FreeCell, as built (2 Oct, not yet released)
+
+- New **Cards** category. Tap to move, no dragging; safe cards go home by
+  themselves; undo free and unlimited. Stars count hints only (3 with none, 2
+  with one or two), because trying a line and undoing it *is* the thinking.
+  The personal best is the move count of the winning line. Untimed.
+- Deals are seeded shuffles kept only if the solver (best-first search,
+  positions hashed ignoring column and cell order) wins them. Difficulty is
+  the free cells given against the fewest the solver needs: 4 cells needing ≤2
+  (levels 1–8), 4 needing 3 (9–24), 3 needing 2 (25–36), 3 needing 3 (37–54),
+  2 needing 2 (55+). Solver effort (nodes) is far too noisy to be the knob.
+  Tune with `dart run tool/analyze_freecell_difficulty.dart`.
+- The hint is instant while you follow the deal's proof, and comes from the
+  solver once you leave it. "Can't find a way" is not a proof there is none:
+  the solver's move set is deliberately incomplete.
+- The save stores the moves and replays them, so undo survives a resume.
