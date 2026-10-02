@@ -312,6 +312,8 @@ class _ArrowEscapeScreenState extends State<ArrowEscapeScreen>
       _showWin();
       return;
     }
+    // Back to fit first: a reveal seen zoomed in shows only part of the picture.
+    _resetZoom();
     _reveal.forward(from: 0).whenComplete(() {
       Future.delayed(const Duration(milliseconds: 900), () {
         if (mounted) _showWin();
@@ -517,7 +519,9 @@ class _ArrowEscapeScreenState extends State<ArrowEscapeScreen>
         final width = cell * _board.cols;
         final height = cell * _board.rows;
 
-        _viewport = Size(width, height);
+        // The viewport is the whole board area, not just the board: a short,
+        // wide picture zoomed inside its own box only ever grew within a strip.
+        _viewport = Size(constraints.maxWidth, constraints.maxHeight);
 
         // The InteractiveViewer sits *outside* the board content, as in Arrow
         // Maze. Here the arrows are real widgets rather than a painted canvas,
@@ -574,7 +578,10 @@ class _ArrowEscapeScreenState extends State<ArrowEscapeScreen>
           // Keeps the board inside the viewport, so it can never be panned off
           // screen and lost.
           boundaryMargin: EdgeInsets.zero,
-          child: board,
+          child: SizedBox.fromSize(
+            size: _viewport,
+            child: Center(child: board),
+          ),
         );
       },
     );

@@ -260,7 +260,10 @@ A pre-commit hook (`.githooks/pre-commit`, enabled via `core.hooksPath`) runs
   board with every arrow tappable, `boundaryMargin` is zero so it cannot be panned away,
   and loading or restarting returns to fit. Explicit +/−/fit buttons exist because
   pinch is awkward for this audience, and they are hidden on boards narrow enough not to
-  need them.
+  need them. The viewer's child is the **whole board area** with the board centred in it,
+  not the board itself: picture boards are any shape, and a short, wide one zoomed
+  inside its own box only ever grew within a strip. A finished picture board returns to
+  fit before its reveal, or the player sees only the zoomed-in part of the picture.
 - **`AppLifecycleState.paused` stops the scheduler, so it freezes animations under
   test.** Reading autosaved state mid-animation by pausing looked like proof that
   Arrow Maze's bonus cascade stopped after one arrow; the cascade was fine and the
