@@ -1067,4 +1067,126 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get bridgesNotJoined =>
       'Every island is full, but they are not all joined into one group yet.';
+
+  @override
+  String get gameLetterHiveTitle => 'Letter Hive';
+
+  @override
+  String get gameLetterHiveSubtitle => 'Make words from seven letters';
+
+  @override
+  String get helpLetterHive =>
+      'Make words of four or more letters from the seven in the hive. Every word must use the centre letter, and a letter can be used more than once. Longer words score more, and a word that uses all seven letters scores a bonus. Reach the goal to clear the level, then keep going for more stars if you like. Tap the letters to spell a word, then OK. Nothing is timed.';
+
+  @override
+  String get letterHiveOk => 'OK';
+
+  @override
+  String get letterHiveDelete => 'Delete';
+
+  @override
+  String get letterHiveShuffle => 'Shuffle';
+
+  @override
+  String get letterHiveTapLetters => 'Tap the letters to spell a word';
+
+  @override
+  String get letterHiveTooShort => 'Too short: at least 4 letters';
+
+  @override
+  String letterHiveMissingCentre(String letter) {
+    return 'Every word must use the centre letter, $letter';
+  }
+
+  @override
+  String get letterHiveNotAWord => 'Not in the word list';
+
+  @override
+  String get letterHiveAlreadyFound => 'Already found';
+
+  @override
+  String letterHivePoints(int points) {
+    return 'Nice! +$points';
+  }
+
+  @override
+  String letterHivePangram(int points) {
+    return 'All seven letters! +$points';
+  }
+
+  @override
+  String letterHiveBonus(int points) {
+    return 'A rare one, a bonus! +$points';
+  }
+
+  @override
+  String letterHiveScore(int score, int goal) {
+    return 'Score $score · goal $goal';
+  }
+
+  @override
+  String letterHiveFound(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count words found',
+      one: '1 word found',
+      zero: 'No words yet',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get letterHiveKeepGoing => 'Keep going';
+
+  @override
+  String letterHiveGoalReached(int level) {
+    return 'You reached the goal on level $level. Keep going for more stars, or move on.';
+  }
+
+  @override
+  String letterHiveMoreStars(int stars) {
+    String _temp0 = intl.Intl.pluralLogic(
+      stars,
+      locale: localeName,
+      other: 'Three stars!',
+      two: 'Two stars!',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String letterHiveHintLine(String pattern, int count) {
+    return 'Hint: $pattern ($count letters)';
+  }
+
+  @override
+  String get letterHiveNoHints => 'You have found every word the goal counts!';
+
+  @override
+  String get letterHiveShowMissed => 'Show missed words';
+
+  @override
+  String get letterHiveRevealTitle => 'Show every word?';
+
+  @override
+  String get letterHiveRevealBody =>
+      'You keep the stars you have, but this level can\'t earn any more.';
+
+  @override
+  String get letterHiveRevealConfirm => 'Show them';
+
+  @override
+  String get letterHiveRevealCancel => 'Not yet';
+
+  @override
+  String letterHiveMissed(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count words you missed',
+      one: '1 word you missed',
+    );
+    return '$_temp0';
+  }
 }

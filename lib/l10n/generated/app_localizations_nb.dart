@@ -1069,4 +1069,126 @@ class AppLocalizationsNb extends AppLocalizations {
   @override
   String get bridgesNotJoined =>
       'Alle øyene er fulle, men de henger ikke sammen i én gruppe ennå.';
+
+  @override
+  String get gameLetterHiveTitle => 'Bikuben';
+
+  @override
+  String get gameLetterHiveSubtitle => 'Lag ord av sju bokstaver';
+
+  @override
+  String get helpLetterHive =>
+      'Lag ord på fire eller flere bokstaver av de sju i kuben. Hvert ord må bruke bokstaven i midten, og en bokstav kan brukes flere ganger. Lange ord gir flere poeng, og et ord som bruker alle sju bokstavene gir bonus. Nå målet for å klare nivået, og fortsett gjerne for flere stjerner. Trykk på bokstavene for å stave et ord, og så OK. Ingenting er på tid.';
+
+  @override
+  String get letterHiveOk => 'OK';
+
+  @override
+  String get letterHiveDelete => 'Slett';
+
+  @override
+  String get letterHiveShuffle => 'Stokk';
+
+  @override
+  String get letterHiveTapLetters => 'Trykk på bokstavene for å stave et ord';
+
+  @override
+  String get letterHiveTooShort => 'For kort: minst 4 bokstaver';
+
+  @override
+  String letterHiveMissingCentre(String letter) {
+    return 'Hvert ord må bruke bokstaven i midten, $letter';
+  }
+
+  @override
+  String get letterHiveNotAWord => 'Finnes ikke i ordlisten';
+
+  @override
+  String get letterHiveAlreadyFound => 'Allerede funnet';
+
+  @override
+  String letterHivePoints(int points) {
+    return 'Fint! +$points';
+  }
+
+  @override
+  String letterHivePangram(int points) {
+    return 'Alle sju bokstavene! +$points';
+  }
+
+  @override
+  String letterHiveBonus(int points) {
+    return 'Et sjeldent ord, bonus! +$points';
+  }
+
+  @override
+  String letterHiveScore(int score, int goal) {
+    return 'Poeng $score · mål $goal';
+  }
+
+  @override
+  String letterHiveFound(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count ord funnet',
+      one: '1 ord funnet',
+      zero: 'Ingen ord ennå',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get letterHiveKeepGoing => 'Fortsett';
+
+  @override
+  String letterHiveGoalReached(int level) {
+    return 'Du nådde målet på nivå $level. Fortsett for flere stjerner, eller gå videre.';
+  }
+
+  @override
+  String letterHiveMoreStars(int stars) {
+    String _temp0 = intl.Intl.pluralLogic(
+      stars,
+      locale: localeName,
+      other: 'Tre stjerner!',
+      two: 'To stjerner!',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String letterHiveHintLine(String pattern, int count) {
+    return 'Tips: $pattern ($count bokstaver)';
+  }
+
+  @override
+  String get letterHiveNoHints => 'Du har funnet alle ordene som teller!';
+
+  @override
+  String get letterHiveShowMissed => 'Vis ordene jeg ikke fant';
+
+  @override
+  String get letterHiveRevealTitle => 'Vise alle ordene?';
+
+  @override
+  String get letterHiveRevealBody =>
+      'Du beholder stjernene du har, men nivået kan ikke gi flere.';
+
+  @override
+  String get letterHiveRevealConfirm => 'Vis dem';
+
+  @override
+  String get letterHiveRevealCancel => 'Ikke ennå';
+
+  @override
+  String letterHiveMissed(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count ord du ikke fant',
+      one: '1 ord du ikke fant',
+    );
+    return '$_temp0';
+  }
 }

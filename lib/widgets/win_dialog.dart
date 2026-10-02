@@ -212,8 +212,14 @@ class _WinDialogState extends State<_WinDialog>
                 ),
               ],
               const SizedBox(height: 16),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
+              // Stacks the buttons when they don't fit side by side: "Keep
+              // going" + "Next level" at the largest text size on a small
+              // phone overflowed a Row.
+              OverflowBar(
+                alignment: MainAxisAlignment.end,
+                overflowAlignment: OverflowBarAlignment.end,
+                spacing: 8,
+                overflowSpacing: 4,
                 children: [
                   TextButton(
                     onPressed: () => Navigator.pop(
@@ -224,7 +230,6 @@ class _WinDialogState extends State<_WinDialog>
                     child: Text(widget.closeLabel ??
                         AppLocalizations.of(context).home),
                   ),
-                  const SizedBox(width: 8),
                   FilledButton(
                     style:
                         FilledButton.styleFrom(backgroundColor: widget.accent),

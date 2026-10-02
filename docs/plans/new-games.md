@@ -32,7 +32,7 @@ Find the winning move: mate in 1, 2 or 3, winning a piece, and so on.
 - **Risk:** the size of the data. Ship a pre-filtered CSV in the assets, not the
   800 MB dump.
 
-## Letter hive (NYT's "Spelling Bee" is a trademark; name ours)
+## Letter hive (NYT's "Spelling Bee" is a trademark; name ours) — built 2 Oct as "Letter Hive" / "Bikuben", not yet released
 
 Seven letters in a honeycomb, one of them in the centre. Make words of four or
 more letters that always use the centre letter. A word using all seven scores a
@@ -47,9 +47,23 @@ bonus.
 - **Interface:** tap letters, big Enter and Delete buttons, found words listed.
   No timer. It can have a date-seeded daily puzzle, like
   [word-of-the-day.md](word-of-the-day.md).
-- **Risk:** offensive words in the Norwegian list. That gap already exists in
-  the backlog, and this game shows found words back to the player, so it makes
-  the gap more visible.
+- **Offensive words in the Norwegian list:** not a risk any more. The owner
+  decided on 2 Oct that the gap is fine; the players accept it.
+- **As built:** the goal counts only common and ordinary words (SCOWL / corpus
+  tiers 1–2) up to level 15, and adds the rare tier from 16, so early goals
+  never need BEBEERU or MUUMUU. Any real word is *accepted*, rare and junk
+  tiers included, as a bonus: a player who knows a rare word is never told it
+  isn't one. Goal 25% of the points at level 1 → 55% from level 31; 2 and 3
+  stars at 1.5× and 2× the goal. Reaching the goal offers "Keep going". English
+  never uses S (plurals double the puzzle). The word lists stop at 8 letters,
+  so pangrams are 7–8 long. Untimed. Look at puzzles with
+  `dart run tool/analyze_letter_hive.dart [maxLevel] [en|nb] [--words]`.
+- **Hint** (header lightbulb, unlimited): names an unfound counted word as
+  "GU _ _ _ _ _", one more letter per tap until it is found. The first hint caps
+  the level at 2 stars, as in Word Search and Word Scramble.
+- **Show missed words:** offered only once the goal is met, after a confirm.
+  Stars are frozen from then on, or it would be a list to copy.
+- **Not built yet:** the daily puzzle.
 
 ## Bridges (Hashi) — built 2 Oct, on `les/bridges`, not yet released
 
@@ -128,7 +142,7 @@ here is released until the owner asks.
 
 | # | Game | Why here | Effort | Content risk |
 |---|---|---|---|---|
-| 1 | **Letter hive** | Reuses the word lists and the daily-puzzle machinery | S | Low (the nb offensive-word gap) |
+| 1 | **Letter hive** ✅ built | Reuses the word lists and the daily-puzzle machinery | S | None (owner accepts the nb gap) |
 | 2 | **Chess puzzles** | CC0 data brings its own difficulty curve | M | None |
 | 3 | **FreeCell** | The most-played casual game; pure skill | M | None |
 | 4 | **Bridges** ✅ built | New kind of logic; the Picture Logic proof method carries over | M | None |
