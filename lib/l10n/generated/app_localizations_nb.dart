@@ -1191,4 +1191,128 @@ class AppLocalizationsNb extends AppLocalizations {
     );
     return '$_temp0';
   }
+
+  @override
+  String get categoryCards => 'Kort';
+
+  @override
+  String get gameFreecellTitle => 'FreeCell';
+
+  @override
+  String get gameFreecellSubtitle =>
+      'Den klassiske kabalen: planlegg veien hjem for hvert kort';
+
+  @override
+  String get helpFreecell =>
+      'Flytt alle kortene til de fire bunkene øverst til høyre, og bygg hver sort opp fra ess til konge. I kolonnene kan et kort legges på et kort som er én høyere og har motsatt farge: en rød 6 på en svart 7. Hver fri celle øverst til venstre har plass til ett kort.\n\nTrykk på et kort for å plukke det opp, og trykk der det skal. Trykk på det igjen for å sende det hjem, eller til en fri celle. Du kan flytte flere kort samtidig når det er plass til å gjøre det ett om gangen, så tomme celler og kolonner lar deg flytte lengre rekker. Kort som trygt kan sendes hjem, går dit av seg selv.\n\nAngre er gratis og ubegrenset. På senere nivåer er noen av de frie cellene stengt.';
+
+  @override
+  String get freecellUndo => 'Angre';
+
+  @override
+  String freecellMoves(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count trekk',
+      one: '1 trekk',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get freecellNoMoves =>
+      'Ingen trekk igjen. Angre og prøv en annen vei.';
+
+  @override
+  String get freecellHintStuck =>
+      'Jeg finner ingen vei til seier herfra. Prøv å angre noen trekk.';
+
+  @override
+  String freecellTooMany(int max) {
+    return 'Bare $max kort kan flyttes samtidig nå. Tøm en fri celle eller en kolonne for å flytte flere.';
+  }
+
+  @override
+  String get gameWordLadderTitle => 'Ordstigen';
+
+  @override
+  String get gameWordLadderSubtitle => 'Bytt én bokstav om gangen';
+
+  @override
+  String get helpWordLadder =>
+      'Gjør startordet om til målordet ved å bytte én bokstav om gangen. Hvert steg må være et ekte ord like langt som de andre, som KATT, HATT, HALT, HALS. Trykk på en bokstav i ordet ditt, og så på bokstaven som skal stå der. Prøv å klare det på færrest mulig steg, men alle stiger som kommer fram, klarer nivået. Det koster ingenting å gå et steg tilbake eller å prøve et ord som ikke finnes, og ingenting er på tid.';
+
+  @override
+  String wordLadderPar(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Korteste: $count steg',
+      one: 'Korteste: 1 steg',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String wordLadderSteps(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Du: $count steg',
+      one: 'Du: 1 steg',
+      zero: 'Ingen steg ennå',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get wordLadderStepBack => 'Steg tilbake';
+
+  @override
+  String get wordLadderStart => 'Start';
+
+  @override
+  String get wordLadderTarget => 'Mål';
+
+  @override
+  String get wordLadderTapLetter => 'Trykk på en bokstav for å bytte den';
+
+  @override
+  String get wordLadderPickLetter => 'Velg den nye bokstaven';
+
+  @override
+  String wordLadderNotAWord(String word) {
+    return '$word står ikke i ordlista';
+  }
+
+  @override
+  String wordLadderAlreadyUsed(String word) {
+    return '$word er allerede i stigen din';
+  }
+
+  @override
+  String wordLadderHint(String word) {
+    return 'Tips: prøv $word';
+  }
+
+  @override
+  String get wordLadderNoWay =>
+      'Herfra kommer du ikke videre. Gå et steg tilbake og prøv et annet ord.';
+
+  @override
+  String wordLadderWon(int steps, int par) {
+    return 'Du klarte det på $steps steg. Korteste vei er $par.';
+  }
+
+  @override
+  String wordLadderBest(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Din beste: $count steg',
+      one: 'Din beste: 1 steg',
+    );
+    return '$_temp0';
+  }
 }

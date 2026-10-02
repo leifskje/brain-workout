@@ -15,33 +15,21 @@ git is no evidence it was uploaded.
 
 ## What to do first (written 2 Oct)
 
-**Release plan (2 Oct):** one release at the end of the day, holding everything
-built today: the Arrow Pictures zoom fix, Bridges, and Letter hive. Bump
-`version:` first; the owner says when to publish.
+**Release plan (2 Oct):** one release at the end of the day. `main` holds the
+zoom fix, Bridges and Letter Hive (pushed: up to Bridges). **Branch
+`les/new-games`** adds FreeCell and Word Ladder (built by two parallel agents,
+merged and verified there) and a Letter Hive fix (uncommitted at writing).
+Merge it into `main` only after the owner has played both games. Bump
+`version:` before any upload; the owner says when to publish.
 
-**Bridges ("Broer") is merged into `main` and pushed.** The owner played it on
-the emulator, early and late levels: plays well, early levels easy as intended,
-water taps hit the right bridge.
-
-- Generated like Picture Logic: a candidate is kept only if `solveBridges`
-  finishes it without guessing, which also proves the solution unique. Levels
-  1–40 are tested for that, levels 1–8 against an independent exhaustive
-  counter.
-- Difficulty is how often a connectivity argument is needed, 0 → 5 by level 31;
-  see the Bridges section of [new-games.md](new-games.md) for the numbers and
-  what is still thin (few decoys on early boards, no axis past level 31).
-- Timed like Picture Logic: time is recorded, but the clock only shows
-  if the player turned it on. No lose state; a Check button costs a star.
-- Generation is ~200 ms worst case on the desktop, synchronous. If it feels slow
-  on a phone, `BoardPrefetch` is the known fix.
-
-**Branch `les/letter-hive`, uncommitted: a new game, Letter Hive ("Bikuben").**
-Next: the owner plays it on the emulator, then commit and merge. Details in the
-Letter hive section of [new-games.md](new-games.md). It has a hint and, once
-the goal is met, a "show missed words" reveal (owner asked, 2 Oct). The owner
-found level 1 hard going with an ordinary vocabulary; worth watching whether
-the goal is set right. The win dialog's buttons
-now stack when they don't fit (an `OverflowBar`), which every game shares.
+- **Bridges, Letter Hive:** the owner played both (2 Oct); see
+  [new-games.md](new-games.md). Letter Hive got a hint and a "show missed words"
+  reveal, and its generator now walks a shuffled list of letter sets: the first
+  version repeated 29 of 120 Norwegian levels (see the seeding bullet in
+  `CLAUDE.md`).
+- **FreeCell, Word Ladder:** the owner has only tried FreeCell briefly (the big
+  centre suit was removed at their request). Details, curves and open points in
+  [new-games.md](new-games.md).
 
 Then, in order:
 

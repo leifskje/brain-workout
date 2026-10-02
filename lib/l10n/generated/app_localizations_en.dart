@@ -1189,4 +1189,127 @@ class AppLocalizationsEn extends AppLocalizations {
     );
     return '$_temp0';
   }
+
+  @override
+  String get categoryCards => 'Cards';
+
+  @override
+  String get gameFreecellTitle => 'FreeCell';
+
+  @override
+  String get gameFreecellSubtitle =>
+      'The classic patience: plan every card home';
+
+  @override
+  String get helpFreecell =>
+      'Move every card to the four piles at the top right, building each suit up from Ace to King. In the columns, a card can go on a card one higher of the other colour: a red 6 on a black 7. Each free cell at the top left holds any one card.\n\nTap a card to pick it up, then tap where it should go. Tap it again to send it home, or to a free cell. You can move several cards at once when there is room to do it one at a time, so empty free cells and columns let you move longer runs. Cards that are safe to send home go there by themselves.\n\nUndo is free and unlimited. On later levels some free cells are closed.';
+
+  @override
+  String get freecellUndo => 'Undo';
+
+  @override
+  String freecellMoves(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count moves',
+      one: '1 move',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get freecellNoMoves => 'No moves left. Undo and try another way.';
+
+  @override
+  String get freecellHintStuck =>
+      'I can\'t find a way to win from here. Try undoing a few moves.';
+
+  @override
+  String freecellTooMany(int max) {
+    return 'Only $max cards can move at once right now. Empty a free cell or a column to move more.';
+  }
+
+  @override
+  String get gameWordLadderTitle => 'Word Ladder';
+
+  @override
+  String get gameWordLadderSubtitle => 'Change one letter at a time';
+
+  @override
+  String get helpWordLadder =>
+      'Turn the start word into the target word one letter at a time. Every step must be a real word of the same length, like COLD, CORD, WORD, WARD, WARM. Tap a letter in your word, then tap the letter to put there. Try to match the shortest ladder, but any ladder that gets there clears the level. Stepping back is free, a word that isn\'t one costs nothing, and nothing is timed.';
+
+  @override
+  String wordLadderPar(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Shortest: $count steps',
+      one: 'Shortest: 1 step',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String wordLadderSteps(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'You: $count steps',
+      one: 'You: 1 step',
+      zero: 'No steps yet',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get wordLadderStepBack => 'Step back';
+
+  @override
+  String get wordLadderStart => 'Start';
+
+  @override
+  String get wordLadderTarget => 'Target';
+
+  @override
+  String get wordLadderTapLetter => 'Tap a letter to change it';
+
+  @override
+  String get wordLadderPickLetter => 'Now pick the new letter';
+
+  @override
+  String wordLadderNotAWord(String word) {
+    return '$word is not in the word list';
+  }
+
+  @override
+  String wordLadderAlreadyUsed(String word) {
+    return '$word is already on your ladder';
+  }
+
+  @override
+  String wordLadderHint(String word) {
+    return 'Hint: try $word';
+  }
+
+  @override
+  String get wordLadderNoWay =>
+      'No way on from here. Step back and try another word.';
+
+  @override
+  String wordLadderWon(int steps, int par) {
+    return 'You climbed it in $steps steps. The shortest is $par.';
+  }
+
+  @override
+  String wordLadderBest(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Your best: $count steps',
+      one: 'Your best: 1 step',
+    );
+    return '$_temp0';
+  }
 }

@@ -94,6 +94,29 @@ void main() {
     }
   });
 
+  test('No letter set repeats until every one has been used', () {
+    // Version 1 seeded each level with Random(level * k + c), and nearby
+    // seeds drew alike: 29 of the first 120 Norwegian levels repeated one.
+    for (final language in ['en', 'nb']) {
+      final index = indexFor(language);
+      final seen = <String, int>{};
+      final distinct = index.letterSets.length;
+      for (var level = 1; level <= 200 && level <= distinct; level++) {
+        final p = LetterHivePuzzle.generate(level, index);
+        final key = (p.letters.split('')..sort()).join();
+        expect(
+          seen[key],
+          isNull,
+          reason: '$language level $level repeats level ${seen[key]}',
+        );
+        seen[key] = level;
+      }
+    }
+    // Far past the end of the sets, a level still opens.
+    final far = LetterHivePuzzle.generate(1500, indexFor('nb'));
+    expect(far.pangrams, isNotEmpty);
+  });
+
   test('Words are checked fairly and scored the usual way', () {
     final index = indexFor('en');
     final p = LetterHivePuzzle.generate(1, index);

@@ -59,6 +59,22 @@ class HiveIndex {
   /// The pangram has to be findable, so rare words are never seeds.
   final List<String> seeds = [];
 
+  /// The seeds' distinct letter sets, each once, in a fixed shuffled order:
+  /// the sequence levels walk through (see [LetterHivePuzzle.generate]).
+  late final List<String> letterSets = () {
+    final byMask = <int, String>{};
+    for (final seed in seeds) {
+      final letters = <String>[];
+      for (var i = 0; i < seed.length; i++) {
+        if (!letters.contains(seed[i])) letters.add(seed[i]);
+      }
+      letters.sort();
+      byMask.putIfAbsent(maskOf(seed)!, () => letters.join());
+    }
+    final sets = byMask.values.toList()..sort();
+    return sets..shuffle(Random(20261002));
+  }();
+
   /// English drops S from the letter sets, as the well-known version of this
   /// puzzle does: with an S nearly every word comes with its plural and the
   /// puzzle doubles in size without getting any more interesting.
@@ -212,42 +228,70 @@ class LetterHivePuzzle {
 
   /// Bumped whenever generation changes, so a save from an older generator is
   /// not laid onto a different puzzle.
-  static const generatorVersion = 1;
+  static const generatorVersion = 2;
 
   /// Deterministic per level and language: same puzzle on every retry.
+  ///
+  /// Levels walk [HiveIndex.letterSets] in order, each taking the next set
+  /// with a centre letter that fits its band, so no letter set comes back
+  /// until every one has been used. Version 1 drew a random seed word per
+  /// level from `Random(level * k + c)`, and nearby seeds gave correlated
+  /// draws: 29 of the first 120 Norwegian levels repeated an earlier one,
+  /// level 36 the very same letters as 35.
   static LetterHivePuzzle generate(int level, HiveIndex index) {
-    final cfg = letterHiveConfigForLevel(level);
-    final rng = Random(level * 7853 + 211);
-    final seeds = index.seeds;
-    (String, List<String>)? fallback;
-    for (var attempt = 0; attempt < 400 && seeds.isNotEmpty; attempt++) {
-      final seed = seeds[rng.nextInt(seeds.length)];
-      final distinct = <String>[];
-      for (var i = 0; i < seed.length; i++) {
-        if (!distinct.contains(seed[i])) distinct.add(seed[i]);
-      }
-      final centre = distinct[rng.nextInt(distinct.length)];
-      final others = distinct.where((c) => c != centre).toList()..shuffle(rng);
-      final letters = centre + others.join();
-      final answers = index.answersFor(
-        index.maskOf(letters)!,
-        index.maskOf(centre)!,
-        cfg.tiers,
-      );
-      if (answers.length >= cfg.minAnswers &&
-          answers.length <= cfg.maxAnswers) {
-        return LetterHivePuzzle._(index, letters, answers, level);
-      }
-      // Remember the closest miss, so a thin word list still yields a puzzle.
-      if (fallback == null ||
-          _bandDistance(answers.length, cfg) <
-              _bandDistance(fallback.$2.length, cfg)) {
-        fallback = (letters, answers);
-      }
-    }
-    if (fallback == null) {
+    final sets = index.letterSets;
+    if (sets.isEmpty) {
       throw StateError('No seed words for ${index.language}');
     }
+    var current = 1;
+    (String, List<String>)? closest;
+    // Later laps reuse a set with a different centre. The cap only grows
+    // with the level, so a very high level still finds its place.
+    final cap = sets.length * (3 + level ~/ 100);
+    for (var i = 0; i < cap; i++) {
+      final cfg = letterHiveConfigForLevel(current);
+      final rng = Random(i * 7919 + 17);
+      final distinct = sets[i % sets.length].split('')..shuffle(rng);
+      for (final centre in distinct) {
+        final others = distinct.where((c) => c != centre).join();
+        final letters = centre + others;
+        final answers = index.answersFor(
+          index.maskOf(letters)!,
+          index.maskOf(centre)!,
+          cfg.tiers,
+        );
+        if (answers.length >= cfg.minAnswers &&
+            answers.length <= cfg.maxAnswers) {
+          if (current == level) {
+            return LetterHivePuzzle._(index, letters, answers, level);
+          }
+          current++;
+          closest = null;
+          break;
+        }
+        // Remember the closest miss, so a thin word list still yields a puzzle.
+        if (current == level &&
+            (closest == null ||
+                _bandDistance(answers.length, cfg) <
+                    _bandDistance(closest.$2.length, cfg))) {
+          closest = (letters, answers);
+        }
+      }
+    }
+    // Not expected: only if the band admits almost nothing in this language.
+    final fallback =
+        closest ??
+        () {
+          final letters = sets[level % sets.length];
+          return (
+            letters,
+            index.answersFor(
+              index.maskOf(letters)!,
+              index.maskOf(letters[0])!,
+              letterHiveConfigForLevel(level).tiers,
+            ),
+          );
+        }();
     return LetterHivePuzzle._(index, fallback.$1, fallback.$2, level);
   }
 

@@ -637,6 +637,8 @@ void main() {
       'crack_code',
       'merge',
       'letter_hive', // a hunt with no end point; a clock has nothing to time
+      'freecell',
+      'word_ladder', // a planning game: a clock argues against thinking ahead
     };
 
     final found = <String>{};

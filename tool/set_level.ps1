@@ -36,7 +36,7 @@ $prefs = 'shared_prefs/FlutterSharedPreferences.xml'
 $games = @(
     'arrow_escape', 'arrow_maze', 'arrow_pictures', 'wordle', 'number_cross', 'word_search',
     'mini_sudoku', 'merge', 'memory_match', 'word_scramble', 'crack_code',
-    'trail', 'simon', 'nonogram', 'what_next', 'bridges', 'letter_hive'
+    'trail', 'simon', 'nonogram', 'what_next', 'bridges', 'letter_hive', 'freecell', 'word_ladder'
 )
 
 if ($Game -ne 'all' -and $games -notcontains $Game) {

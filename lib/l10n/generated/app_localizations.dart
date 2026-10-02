@@ -1555,6 +1555,156 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'{count, plural, =1{1 word you missed} other{{count} words you missed}}'**
   String letterHiveMissed(int count);
+
+  /// No description provided for @categoryCards.
+  ///
+  /// In en, this message translates to:
+  /// **'Cards'**
+  String get categoryCards;
+
+  /// No description provided for @gameFreecellTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'FreeCell'**
+  String get gameFreecellTitle;
+
+  /// No description provided for @gameFreecellSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'The classic patience: plan every card home'**
+  String get gameFreecellSubtitle;
+
+  /// No description provided for @helpFreecell.
+  ///
+  /// In en, this message translates to:
+  /// **'Move every card to the four piles at the top right, building each suit up from Ace to King. In the columns, a card can go on a card one higher of the other colour: a red 6 on a black 7. Each free cell at the top left holds any one card.\n\nTap a card to pick it up, then tap where it should go. Tap it again to send it home, or to a free cell. You can move several cards at once when there is room to do it one at a time, so empty free cells and columns let you move longer runs. Cards that are safe to send home go there by themselves.\n\nUndo is free and unlimited. On later levels some free cells are closed.'**
+  String get helpFreecell;
+
+  /// No description provided for @freecellUndo.
+  ///
+  /// In en, this message translates to:
+  /// **'Undo'**
+  String get freecellUndo;
+
+  /// No description provided for @freecellMoves.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 move} other{{count} moves}}'**
+  String freecellMoves(int count);
+
+  /// No description provided for @freecellNoMoves.
+  ///
+  /// In en, this message translates to:
+  /// **'No moves left. Undo and try another way.'**
+  String get freecellNoMoves;
+
+  /// No description provided for @freecellHintStuck.
+  ///
+  /// In en, this message translates to:
+  /// **'I can\'t find a way to win from here. Try undoing a few moves.'**
+  String get freecellHintStuck;
+
+  /// No description provided for @freecellTooMany.
+  ///
+  /// In en, this message translates to:
+  /// **'Only {max} cards can move at once right now. Empty a free cell or a column to move more.'**
+  String freecellTooMany(int max);
+
+  /// No description provided for @gameWordLadderTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Word Ladder'**
+  String get gameWordLadderTitle;
+
+  /// No description provided for @gameWordLadderSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Change one letter at a time'**
+  String get gameWordLadderSubtitle;
+
+  /// No description provided for @helpWordLadder.
+  ///
+  /// In en, this message translates to:
+  /// **'Turn the start word into the target word one letter at a time. Every step must be a real word of the same length, like COLD, CORD, WORD, WARD, WARM. Tap a letter in your word, then tap the letter to put there. Try to match the shortest ladder, but any ladder that gets there clears the level. Stepping back is free, a word that isn\'t one costs nothing, and nothing is timed.'**
+  String get helpWordLadder;
+
+  /// No description provided for @wordLadderPar.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{Shortest: 1 step} other{Shortest: {count} steps}}'**
+  String wordLadderPar(int count);
+
+  /// No description provided for @wordLadderSteps.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =0{No steps yet} =1{You: 1 step} other{You: {count} steps}}'**
+  String wordLadderSteps(int count);
+
+  /// No description provided for @wordLadderStepBack.
+  ///
+  /// In en, this message translates to:
+  /// **'Step back'**
+  String get wordLadderStepBack;
+
+  /// No description provided for @wordLadderStart.
+  ///
+  /// In en, this message translates to:
+  /// **'Start'**
+  String get wordLadderStart;
+
+  /// No description provided for @wordLadderTarget.
+  ///
+  /// In en, this message translates to:
+  /// **'Target'**
+  String get wordLadderTarget;
+
+  /// No description provided for @wordLadderTapLetter.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap a letter to change it'**
+  String get wordLadderTapLetter;
+
+  /// No description provided for @wordLadderPickLetter.
+  ///
+  /// In en, this message translates to:
+  /// **'Now pick the new letter'**
+  String get wordLadderPickLetter;
+
+  /// No description provided for @wordLadderNotAWord.
+  ///
+  /// In en, this message translates to:
+  /// **'{word} is not in the word list'**
+  String wordLadderNotAWord(String word);
+
+  /// No description provided for @wordLadderAlreadyUsed.
+  ///
+  /// In en, this message translates to:
+  /// **'{word} is already on your ladder'**
+  String wordLadderAlreadyUsed(String word);
+
+  /// No description provided for @wordLadderHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Hint: try {word}'**
+  String wordLadderHint(String word);
+
+  /// No description provided for @wordLadderNoWay.
+  ///
+  /// In en, this message translates to:
+  /// **'No way on from here. Step back and try another word.'**
+  String get wordLadderNoWay;
+
+  /// No description provided for @wordLadderWon.
+  ///
+  /// In en, this message translates to:
+  /// **'You climbed it in {steps} steps. The shortest is {par}.'**
+  String wordLadderWon(int steps, int par);
+
+  /// No description provided for @wordLadderBest.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{Your best: 1 step} other{Your best: {count} steps}}'**
+  String wordLadderBest(int count);
 }
 
 class _AppLocalizationsDelegate

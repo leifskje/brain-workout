@@ -207,6 +207,13 @@ A pre-commit hook (`.githooks/pre-commit`, enabled via `core.hooksPath`) runs
   *which* legal arrow you fire never changes whether the board clears, only the
   branching counts along the way. Levels 1–40 are frozen behind `arrowDenseFirstLevel`
   and pinned by fingerprint in the tests — players have progress there.
+- **Don't seed a level's generator with `Random(level * k + c)` and draw once.**
+  Nearby seeds give correlated first draws, so neighbouring levels pick alike:
+  29 of the first 120 Norwegian Letter Hive levels repeated an earlier one
+  (level 36 had level 35's letters), and Word Ladder repeated too. Either hash
+  the seed or, better, walk a fixed shuffled list so nothing repeats until it
+  has all been used (`LetterHivePuzzle.generate`). Generators that draw many
+  times per level, like the arrow games, are not affected the same way.
 - **Move slow generation off the critical path before optimising it.** Arrow Maze board
   cost grows with area, and the ~400ms budget that capped board size only existed
   because generation sat between "Next level" and seeing a board. `BoardPrefetch` builds
