@@ -51,7 +51,7 @@ bonus.
   the backlog, and this game shows found words back to the player, so it makes
   the gap more visible.
 
-## Bridges (Hashi)
+## Bridges (Hashi) — built 2 Oct, on `les/bridges`, not yet released
 
 Islands with numbers. Connect them with bridges (one or two, straight, never
 crossing) so each island has its number of bridges and everything joins up.
@@ -63,6 +63,16 @@ crossing) so each island has its number of bridges and everything joins up.
   Minesweeper. Grid size stays within 13×13 for legibility.
 - **Interface:** tap two islands to add a bridge; tap the bridge to cycle 1 → 2
   → none. It is very visual and has little text.
+- **As built:** the difficulty metric is how many times counting runs dry and
+  a connectivity argument ("this would seal a group off", "this is the only
+  link left") is needed: 0 on levels 1–3, rising to 5 from level 31. Board
+  width stops at 12. Tune with `dart run tool/analyze_bridges_difficulty.dart`;
+  look at boards with `dart run tool/dump_bridges.dart <level>`.
+- **Next, if it plays well:** decoys (bridges a pair could take but the
+  solution doesn't) are what the player can get wrong, and the early boards
+  have few, since 11 islands on 7×9 barely see each other. Level 1 has none.
+  A difficulty axis past level 31 is also missing: the connectivity count
+  stops at 5, the most the pool reliably reaches.
 
 ## Word ladder
 
@@ -121,7 +131,7 @@ here is released until the owner asks.
 | 1 | **Letter hive** | Reuses the word lists and the daily-puzzle machinery | S | Low (the nb offensive-word gap) |
 | 2 | **Chess puzzles** | CC0 data brings its own difficulty curve | M | None |
 | 3 | **FreeCell** | The most-played casual game; pure skill | M | None |
-| 4 | **Bridges** | New kind of logic; the Picture Logic proof method carries over | M | None |
+| 4 | **Bridges** ✅ built | New kind of logic; the Picture Logic proof method carries over | M | None |
 | 5 | **Sokoban** | Planning where a wrong move loses | M–L | None (levels generated) |
 | 6 | **Word ladder** | Words with real dead ends | S–M | Low (lemmas) |
 | 7 | **Odd One Out** | Attention; the plan exists | M | Low |

@@ -143,6 +143,9 @@ A pre-commit hook (`.githooks/pre-commit`, enabled via `core.hooksPath`) runs
   forced, so uniqueness costs nothing extra. Candidates it can't finish are
   thrown away. Don't try to reverse-solve it. The uniqueness claim is checked
   against an independent exhaustive counter in the tests rather than assumed.
+  **Bridges works the same way** (`solveBridges`): it narrows each pair's
+  bridge count with counting, crossing and connectivity rules that hold in
+  every solution, and keeps only candidates it can finish.
 - **A knob you assume is a tradeoff might be free — measure before designing
   around it.** The nonogram clue-gutter cap was planned as a
   difficulty-vs-legibility tradeoff. Caps of 4, 5, 6 and 7 turn out to admit an

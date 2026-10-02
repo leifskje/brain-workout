@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/game_definition.dart';
 import 'arrow_escape/arrow_escape_screen.dart';
 import 'arrow_pictures/arrow_pictures_screen.dart';
+import 'bridges/bridges_screen.dart';
 import 'crack_code/crack_code_screen.dart';
 import 'memory_match/memory_match_screen.dart';
 import 'merge/merge_screen.dart';
@@ -147,6 +148,15 @@ final List<GameDefinition> gamesCatalog = [
     color: const Color(0xFF00796B),
     category: GameCategory.logic,
     levelBuilder: (level) => NonogramScreen(startLevel: level),
+  ),
+  GameDefinition(
+    id: 'bridges',
+    title: (t) => t.gameBridgesTitle,
+    subtitle: (t) => t.gameBridgesSubtitle,
+    icon: Icons.hub_rounded,
+    color: const Color(0xFF0277BD),
+    category: GameCategory.logic,
+    levelBuilder: (level) => BridgesScreen(startLevel: level),
   ),
   GameDefinition(
     id: 'what_next',

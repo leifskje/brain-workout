@@ -13,23 +13,29 @@ Check what testers actually have with `python tool/play_track_status.py` rather 
 reading `pubspec.yaml` — that file describes the *next* build, and a versionCode in
 git is no evidence it was uploaded.
 
-## What to do first (written 1 Oct)
+## What to do first (written 2 Oct)
 
-**Branch `les/picture-zoom`, uncommitted:** an Arrow Pictures zoom fix the owner
-reported. The owner checked both halves on the emulator (2 Oct). Left: commit,
-PR, and maybe a 1.2.1.
+**Branch `les/bridges`, uncommitted: a new game, Bridges ("Broer").** The
+owner played it on the emulator, levels 1–2 and late levels (2 Oct): plays
+well, early levels easy as intended, water taps hit the right bridge. Left:
+commit and PR. It ships as
+**1.3.0**. The Arrow Pictures zoom fix is merged into `main` (local, not yet
+pushed) and is meant to go out first as **1.2.1**, on its own.
 
-- **Zoom was confined to the picture's own box,** so a short, wide picture (fish
-  skeleton, level 17) zoomed inside a thin strip and arrows got *harder* to hit.
-  The viewer's child is now the whole board area with the board centred in it,
-  in both `arrow_escape_screen.dart` and `snake_arrows_screen.dart`. The boards
-  themselves are unchanged (padding the masks would change every board players
-  have progress on).
-- **Finishing while zoomed in revealed only part of the picture.** It now resets
-  to fit before the reveal. The reset is instant; animate it if it feels abrupt.
-- Tests: three new ones in `test/arrow_pictures_test.dart`, two of them checked
-  by breaking the fix. Gates were green at hand-over: `flutter analyze` clean,
-  `flutter test` 189 passing.
+- Generated like Picture Logic: a candidate is kept only if `solveBridges`
+  finishes it without guessing, which also proves the solution unique. Levels
+  1–40 are tested for that, levels 1–8 against an independent exhaustive
+  counter.
+- Difficulty is how often a connectivity argument is needed, 0 → 5 by level 31;
+  see the Bridges section of [new-games.md](new-games.md) for the numbers and
+  what is still thin (few decoys on early boards, no axis past level 31).
+- Timed like Picture Logic: time is recorded, but the clock only shows
+  if the player turned it on. No lose state; a Check button costs a star.
+- Generation is ~200 ms worst case on the desktop, synchronous. If it feels slow
+  on a phone, `BoardPrefetch` is the known fix.
+- Worth the owner's eye: whether tapping the water between islands hits the
+  intended bridge where two possible bridges cross, and how level 1 feels (it
+  has no wrong options at all).
 
 Then, in order:
 
