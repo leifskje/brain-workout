@@ -1189,4 +1189,87 @@ class AppLocalizationsEn extends AppLocalizations {
     );
     return '$_temp0';
   }
+
+  @override
+  String get gameWordLadderTitle => 'Word Ladder';
+
+  @override
+  String get gameWordLadderSubtitle => 'Change one letter at a time';
+
+  @override
+  String get helpWordLadder =>
+      'Turn the start word into the target word one letter at a time. Every step must be a real word of the same length, like COLD, CORD, WORD, WARD, WARM. Tap a letter in your word, then tap the letter to put there. Try to match the shortest ladder, but any ladder that gets there clears the level. Stepping back is free, a word that isn\'t one costs nothing, and nothing is timed.';
+
+  @override
+  String wordLadderPar(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Shortest: $count steps',
+      one: 'Shortest: 1 step',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String wordLadderSteps(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'You: $count steps',
+      one: 'You: 1 step',
+      zero: 'No steps yet',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get wordLadderStepBack => 'Step back';
+
+  @override
+  String get wordLadderStart => 'Start';
+
+  @override
+  String get wordLadderTarget => 'Target';
+
+  @override
+  String get wordLadderTapLetter => 'Tap a letter to change it';
+
+  @override
+  String get wordLadderPickLetter => 'Now pick the new letter';
+
+  @override
+  String wordLadderNotAWord(String word) {
+    return '$word is not in the word list';
+  }
+
+  @override
+  String wordLadderAlreadyUsed(String word) {
+    return '$word is already on your ladder';
+  }
+
+  @override
+  String wordLadderHint(String word) {
+    return 'Hint: try $word';
+  }
+
+  @override
+  String get wordLadderNoWay =>
+      'No way on from here. Step back and try another word.';
+
+  @override
+  String wordLadderWon(int steps, int par) {
+    return 'You climbed it in $steps steps. The shortest is $par.';
+  }
+
+  @override
+  String wordLadderBest(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: 'Your best: $count steps',
+      one: 'Your best: 1 step',
+    );
+    return '$_temp0';
+  }
 }

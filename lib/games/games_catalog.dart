@@ -16,6 +16,7 @@ import 'snake_arrows/snake_arrows_screen.dart';
 import 'trail/trail_screen.dart';
 import 'what_next/what_next_screen.dart';
 import 'word_scramble/word_scramble_screen.dart';
+import 'word_ladder/word_ladder_screen.dart';
 import 'word_search/word_search_screen.dart';
 import 'wordle/wordle_screen.dart';
 
@@ -122,6 +123,15 @@ final List<GameDefinition> gamesCatalog = [
     color: const Color(0xFFB8860B),
     category: GameCategory.words,
     levelBuilder: (level) => LetterHiveScreen(startLevel: level),
+  ),
+  GameDefinition(
+    id: 'word_ladder',
+    title: (t) => t.gameWordLadderTitle,
+    subtitle: (t) => t.gameWordLadderSubtitle,
+    icon: Icons.stairs_rounded,
+    color: const Color(0xFF283593),
+    category: GameCategory.words,
+    levelBuilder: (level) => WordLadderScreen(startLevel: level),
   ),
   GameDefinition(
     id: 'crack_code',
