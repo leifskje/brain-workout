@@ -6,6 +6,7 @@ import 'arrow_pictures/arrow_pictures_screen.dart';
 import 'bridges/bridges_screen.dart';
 import 'crack_code/crack_code_screen.dart';
 import 'letter_hive/letter_hive_screen.dart';
+import 'freecell/freecell_screen.dart';
 import 'memory_match/memory_match_screen.dart';
 import 'merge/merge_screen.dart';
 import 'mini_sudoku/mini_sudoku_screen.dart';
@@ -176,5 +177,14 @@ final List<GameDefinition> gamesCatalog = [
     color: const Color(0xFFEF8A3D),
     category: GameCategory.logic,
     levelBuilder: (level) => WhatNextScreen(startLevel: level),
+  ),
+  GameDefinition(
+    id: 'freecell',
+    title: (t) => t.gameFreecellTitle,
+    subtitle: (t) => t.gameFreecellSubtitle,
+    icon: Icons.style_rounded,
+    color: const Color(0xFF2E7D32),
+    category: GameCategory.cards,
+    levelBuilder: (level) => FreeCellScreen(startLevel: level),
   ),
 ];

@@ -8,13 +8,15 @@ enum GameCategory {
   words,
   numbers,
   memory,
-  logic;
+  logic,
+  cards;
 
   String label(AppLocalizations t) => switch (this) {
         words => t.categoryWords,
         numbers => t.categoryNumbers,
         memory => t.categoryMemory,
         logic => t.categoryLogic,
+        cards => t.categoryCards,
       };
 }
 

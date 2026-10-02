@@ -1189,4 +1189,44 @@ class AppLocalizationsEn extends AppLocalizations {
     );
     return '$_temp0';
   }
+
+  @override
+  String get categoryCards => 'Cards';
+
+  @override
+  String get gameFreecellTitle => 'FreeCell';
+
+  @override
+  String get gameFreecellSubtitle =>
+      'The classic patience: plan every card home';
+
+  @override
+  String get helpFreecell =>
+      'Move every card to the four piles at the top right, building each suit up from Ace to King. In the columns, a card can go on a card one higher of the other colour: a red 6 on a black 7. Each free cell at the top left holds any one card.\n\nTap a card to pick it up, then tap where it should go. Tap it again to send it home, or to a free cell. You can move several cards at once when there is room to do it one at a time, so empty free cells and columns let you move longer runs. Cards that are safe to send home go there by themselves.\n\nUndo is free and unlimited. On later levels some free cells are closed.';
+
+  @override
+  String get freecellUndo => 'Undo';
+
+  @override
+  String freecellMoves(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count moves',
+      one: '1 move',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get freecellNoMoves => 'No moves left. Undo and try another way.';
+
+  @override
+  String get freecellHintStuck =>
+      'I can\'t find a way to win from here. Try undoing a few moves.';
+
+  @override
+  String freecellTooMany(int max) {
+    return 'Only $max cards can move at once right now. Empty a free cell or a column to move more.';
+  }
 }
