@@ -15,12 +15,13 @@ git is no evidence it was uploaded.
 
 ## What to do first (written 2 Oct)
 
-**Branch `les/bridges`, uncommitted: a new game, Bridges ("Broer").** The
-owner played it on the emulator, levels 1–2 and late levels (2 Oct): plays
-well, early levels easy as intended, water taps hit the right bridge. Left:
-commit and PR. It ships as
-**1.3.0**. The Arrow Pictures zoom fix is merged into `main` (local, not yet
-pushed) and is meant to go out first as **1.2.1**, on its own.
+**Release plan (2 Oct):** one release at the end of the day, holding everything
+built today: the Arrow Pictures zoom fix, Bridges, and Letter hive. Bump
+`version:` first; the owner says when to publish.
+
+**Bridges ("Broer") is merged into `main` and pushed.** The owner played it on
+the emulator, early and late levels: plays well, early levels easy as intended,
+water taps hit the right bridge.
 
 - Generated like Picture Logic: a candidate is kept only if `solveBridges`
   finishes it without guessing, which also proves the solution unique. Levels
@@ -33,9 +34,14 @@ pushed) and is meant to go out first as **1.2.1**, on its own.
   if the player turned it on. No lose state; a Check button costs a star.
 - Generation is ~200 ms worst case on the desktop, synchronous. If it feels slow
   on a phone, `BoardPrefetch` is the known fix.
-- Worth the owner's eye: whether tapping the water between islands hits the
-  intended bridge where two possible bridges cross, and how level 1 feels (it
-  has no wrong options at all).
+
+**Branch `les/letter-hive`, uncommitted: a new game, Letter Hive ("Bikuben").**
+Next: the owner plays it on the emulator, then commit and merge. Details in the
+Letter hive section of [new-games.md](new-games.md). It has a hint and, once
+the goal is met, a "show missed words" reveal (owner asked, 2 Oct). The owner
+found level 1 hard going with an ordinary vocabulary; worth watching whether
+the goal is set right. The win dialog's buttons
+now stack when they don't fit (an `OverflowBar`), which every game shares.
 
 Then, in order:
 
@@ -168,6 +174,10 @@ and never *harder to work out*.
 
 ## Closed since the last handoff
 
+- *Norwegian offensive-word filter* — not needed: the owner decided on 2 Oct
+  that the gap is fine, as the players accept it. Word games may show words from
+  the unfiltered list.
+
 - *Every tenth level a picture, or every board?* — neither: a separate game,
   every board a picture (owner, 29 Sep). Both arrow kinds in one game, short on
   the small pictures, long on the big ones.
@@ -184,8 +194,6 @@ and never *harder to work out*.
   capped at 8 letters, leaving 9 usable bridge words in Norwegian. Needs an uncapped
   *lemma* list re-derived from Ordbank, or a hand-authored bank. Numbers in
   [compound-words.md](compound-words.md).
-- **Norwegian offensive-word filter** — pre-existing gap affecting every `nb` word
-  game. A native speaker has to write it; guessing at one is worse than not having it.
 
 ## Refused, with reasons — do not quietly build these
 

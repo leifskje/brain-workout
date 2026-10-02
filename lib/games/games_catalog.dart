@@ -5,6 +5,7 @@ import 'arrow_escape/arrow_escape_screen.dart';
 import 'arrow_pictures/arrow_pictures_screen.dart';
 import 'bridges/bridges_screen.dart';
 import 'crack_code/crack_code_screen.dart';
+import 'letter_hive/letter_hive_screen.dart';
 import 'memory_match/memory_match_screen.dart';
 import 'merge/merge_screen.dart';
 import 'mini_sudoku/mini_sudoku_screen.dart';
@@ -112,6 +113,15 @@ final List<GameDefinition> gamesCatalog = [
     color: const Color(0xFF7A9D3C),
     category: GameCategory.words,
     levelBuilder: (level) => WordScrambleScreen(startLevel: level),
+  ),
+  GameDefinition(
+    id: 'letter_hive',
+    title: (t) => t.gameLetterHiveTitle,
+    subtitle: (t) => t.gameLetterHiveSubtitle,
+    icon: Icons.hexagon_rounded,
+    color: const Color(0xFFB8860B),
+    category: GameCategory.words,
+    levelBuilder: (level) => LetterHiveScreen(startLevel: level),
   ),
   GameDefinition(
     id: 'crack_code',

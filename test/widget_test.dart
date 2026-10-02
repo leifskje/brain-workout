@@ -636,6 +636,7 @@ void main() {
       'what_next',
       'crack_code',
       'merge',
+      'letter_hive', // a hunt with no end point; a clock has nothing to time
     };
 
     final found = <String>{};

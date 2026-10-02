@@ -1393,6 +1393,168 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Every island is full, but they are not all joined into one group yet.'**
   String get bridgesNotJoined;
+
+  /// No description provided for @gameLetterHiveTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Letter Hive'**
+  String get gameLetterHiveTitle;
+
+  /// No description provided for @gameLetterHiveSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Make words from seven letters'**
+  String get gameLetterHiveSubtitle;
+
+  /// No description provided for @helpLetterHive.
+  ///
+  /// In en, this message translates to:
+  /// **'Make words of four or more letters from the seven in the hive. Every word must use the centre letter, and a letter can be used more than once. Longer words score more, and a word that uses all seven letters scores a bonus. Reach the goal to clear the level, then keep going for more stars if you like. Tap the letters to spell a word, then OK. Nothing is timed.'**
+  String get helpLetterHive;
+
+  /// No description provided for @letterHiveOk.
+  ///
+  /// In en, this message translates to:
+  /// **'OK'**
+  String get letterHiveOk;
+
+  /// No description provided for @letterHiveDelete.
+  ///
+  /// In en, this message translates to:
+  /// **'Delete'**
+  String get letterHiveDelete;
+
+  /// No description provided for @letterHiveShuffle.
+  ///
+  /// In en, this message translates to:
+  /// **'Shuffle'**
+  String get letterHiveShuffle;
+
+  /// No description provided for @letterHiveTapLetters.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap the letters to spell a word'**
+  String get letterHiveTapLetters;
+
+  /// No description provided for @letterHiveTooShort.
+  ///
+  /// In en, this message translates to:
+  /// **'Too short: at least 4 letters'**
+  String get letterHiveTooShort;
+
+  /// No description provided for @letterHiveMissingCentre.
+  ///
+  /// In en, this message translates to:
+  /// **'Every word must use the centre letter, {letter}'**
+  String letterHiveMissingCentre(String letter);
+
+  /// No description provided for @letterHiveNotAWord.
+  ///
+  /// In en, this message translates to:
+  /// **'Not in the word list'**
+  String get letterHiveNotAWord;
+
+  /// No description provided for @letterHiveAlreadyFound.
+  ///
+  /// In en, this message translates to:
+  /// **'Already found'**
+  String get letterHiveAlreadyFound;
+
+  /// No description provided for @letterHivePoints.
+  ///
+  /// In en, this message translates to:
+  /// **'Nice! +{points}'**
+  String letterHivePoints(int points);
+
+  /// No description provided for @letterHivePangram.
+  ///
+  /// In en, this message translates to:
+  /// **'All seven letters! +{points}'**
+  String letterHivePangram(int points);
+
+  /// No description provided for @letterHiveBonus.
+  ///
+  /// In en, this message translates to:
+  /// **'A rare one, a bonus! +{points}'**
+  String letterHiveBonus(int points);
+
+  /// No description provided for @letterHiveScore.
+  ///
+  /// In en, this message translates to:
+  /// **'Score {score} · goal {goal}'**
+  String letterHiveScore(int score, int goal);
+
+  /// No description provided for @letterHiveFound.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =0{No words yet} =1{1 word found} other{{count} words found}}'**
+  String letterHiveFound(int count);
+
+  /// No description provided for @letterHiveKeepGoing.
+  ///
+  /// In en, this message translates to:
+  /// **'Keep going'**
+  String get letterHiveKeepGoing;
+
+  /// No description provided for @letterHiveGoalReached.
+  ///
+  /// In en, this message translates to:
+  /// **'You reached the goal on level {level}. Keep going for more stars, or move on.'**
+  String letterHiveGoalReached(int level);
+
+  /// No description provided for @letterHiveMoreStars.
+  ///
+  /// In en, this message translates to:
+  /// **'{stars, plural, =2{Two stars!} other{Three stars!}}'**
+  String letterHiveMoreStars(int stars);
+
+  /// No description provided for @letterHiveHintLine.
+  ///
+  /// In en, this message translates to:
+  /// **'Hint: {pattern} ({count} letters)'**
+  String letterHiveHintLine(String pattern, int count);
+
+  /// No description provided for @letterHiveNoHints.
+  ///
+  /// In en, this message translates to:
+  /// **'You have found every word the goal counts!'**
+  String get letterHiveNoHints;
+
+  /// No description provided for @letterHiveShowMissed.
+  ///
+  /// In en, this message translates to:
+  /// **'Show missed words'**
+  String get letterHiveShowMissed;
+
+  /// No description provided for @letterHiveRevealTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Show every word?'**
+  String get letterHiveRevealTitle;
+
+  /// No description provided for @letterHiveRevealBody.
+  ///
+  /// In en, this message translates to:
+  /// **'You keep the stars you have, but this level can\'t earn any more.'**
+  String get letterHiveRevealBody;
+
+  /// No description provided for @letterHiveRevealConfirm.
+  ///
+  /// In en, this message translates to:
+  /// **'Show them'**
+  String get letterHiveRevealConfirm;
+
+  /// No description provided for @letterHiveRevealCancel.
+  ///
+  /// In en, this message translates to:
+  /// **'Not yet'**
+  String get letterHiveRevealCancel;
+
+  /// No description provided for @letterHiveMissed.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 word you missed} other{{count} words you missed}}'**
+  String letterHiveMissed(int count);
 }
 
 class _AppLocalizationsDelegate
