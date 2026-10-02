@@ -1029,4 +1029,42 @@ class AppLocalizationsEn extends AppLocalizations {
   String pictureCleared(int level, String picture) {
     return 'You cleared level $level. It was $picture!';
   }
+
+  @override
+  String get gameBridgesTitle => 'Bridges';
+
+  @override
+  String get gameBridgesSubtitle => 'Connect the islands';
+
+  @override
+  String get helpBridges =>
+      'Each circle is an island, and its number says how many bridges it needs. Join islands with straight bridges along a row or column: one or two between the same pair, and bridges may never cross. When every island has its number and they are all joined into one group, the puzzle is solved. Tap an island and then a neighbour to build a bridge, or tap the water between them. Tap a bridge again to make it double, and once more to remove it. Nothing is timed and a wrong bridge costs you nothing — just fix it.';
+
+  @override
+  String get bridgesHint =>
+      'Tap two islands, or the water between them. Again for a double bridge, once more to remove.';
+
+  @override
+  String get bridgesCheck => 'Check my bridges';
+
+  @override
+  String get bridgesCheckClean => 'No wrong bridges so far!';
+
+  @override
+  String bridgesCheckFound(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count bridges are wrong',
+      one: '1 bridge is wrong',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get bridgesNoCrossing => 'Bridges can\'t cross each other.';
+
+  @override
+  String get bridgesNotJoined =>
+      'Every island is full, but they are not all joined into one group yet.';
 }

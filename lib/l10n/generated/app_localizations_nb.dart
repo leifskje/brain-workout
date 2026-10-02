@@ -1031,4 +1031,42 @@ class AppLocalizationsNb extends AppLocalizations {
   String pictureCleared(int level, String picture) {
     return 'Du klarte nivå $level. Det var $picture!';
   }
+
+  @override
+  String get gameBridgesTitle => 'Broer';
+
+  @override
+  String get gameBridgesSubtitle => 'Bind sammen øyene';
+
+  @override
+  String get helpBridges =>
+      'Hver sirkel er en øy, og tallet sier hvor mange broer den trenger. Bind øyene sammen med rette broer langs en rad eller kolonne: én eller to mellom de samme to øyene, og broene kan aldri krysse hverandre. Når hver øy har sitt tall og alle henger sammen i én gruppe, er oppgaven løst. Trykk på en øy og så på en nabo for å bygge en bro, eller trykk på vannet mellom dem. Trykk på broen igjen for å gjøre den dobbel, og en gang til for å fjerne den. Ingenting er på tid, og en feil bro koster deg ingenting — bare rett den opp.';
+
+  @override
+  String get bridgesHint =>
+      'Trykk på to øyer, eller på vannet mellom dem. Igjen for dobbel bro, en gang til for å fjerne.';
+
+  @override
+  String get bridgesCheck => 'Sjekk broene mine';
+
+  @override
+  String get bridgesCheckClean => 'Ingen feil broer så langt!';
+
+  @override
+  String bridgesCheckFound(int count) {
+    String _temp0 = intl.Intl.pluralLogic(
+      count,
+      locale: localeName,
+      other: '$count broer er feil',
+      one: '1 bro er feil',
+    );
+    return '$_temp0';
+  }
+
+  @override
+  String get bridgesNoCrossing => 'Broer kan ikke krysse hverandre.';
+
+  @override
+  String get bridgesNotJoined =>
+      'Alle øyene er fulle, men de henger ikke sammen i én gruppe ennå.';
 }

@@ -1339,6 +1339,60 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'You cleared level {level}. It was {picture}!'**
   String pictureCleared(int level, String picture);
+
+  /// No description provided for @gameBridgesTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Bridges'**
+  String get gameBridgesTitle;
+
+  /// No description provided for @gameBridgesSubtitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Connect the islands'**
+  String get gameBridgesSubtitle;
+
+  /// No description provided for @helpBridges.
+  ///
+  /// In en, this message translates to:
+  /// **'Each circle is an island, and its number says how many bridges it needs. Join islands with straight bridges along a row or column: one or two between the same pair, and bridges may never cross. When every island has its number and they are all joined into one group, the puzzle is solved. Tap an island and then a neighbour to build a bridge, or tap the water between them. Tap a bridge again to make it double, and once more to remove it. Nothing is timed and a wrong bridge costs you nothing — just fix it.'**
+  String get helpBridges;
+
+  /// No description provided for @bridgesHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Tap two islands, or the water between them. Again for a double bridge, once more to remove.'**
+  String get bridgesHint;
+
+  /// No description provided for @bridgesCheck.
+  ///
+  /// In en, this message translates to:
+  /// **'Check my bridges'**
+  String get bridgesCheck;
+
+  /// No description provided for @bridgesCheckClean.
+  ///
+  /// In en, this message translates to:
+  /// **'No wrong bridges so far!'**
+  String get bridgesCheckClean;
+
+  /// No description provided for @bridgesCheckFound.
+  ///
+  /// In en, this message translates to:
+  /// **'{count, plural, =1{1 bridge is wrong} other{{count} bridges are wrong}}'**
+  String bridgesCheckFound(int count);
+
+  /// No description provided for @bridgesNoCrossing.
+  ///
+  /// In en, this message translates to:
+  /// **'Bridges can\'t cross each other.'**
+  String get bridgesNoCrossing;
+
+  /// No description provided for @bridgesNotJoined.
+  ///
+  /// In en, this message translates to:
+  /// **'Every island is full, but they are not all joined into one group yet.'**
+  String get bridgesNotJoined;
 }
 
 class _AppLocalizationsDelegate

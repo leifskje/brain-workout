@@ -601,6 +601,16 @@ void main() {
     await tester.pump();
   });
 
+  test('set_level.ps1 knows every game in the catalog', () {
+    // Its game list is hand-kept, and Bridges shipped to the emulator without
+    // being on it, so the first late-level test of a new game failed there.
+    final script = File('tool/set_level.ps1').readAsStringSync();
+    for (final game in gamesCatalog) {
+      expect(script, contains("'${game.id}'"),
+          reason: 'add ${game.id} to the \$games list in tool/set_level.ps1');
+    }
+  });
+
   test('Exactly the intended games are timed, and the arrow games are not', () {
     // A source check because the wiring is six near-identical edits across six
     // screens, and the interesting part is the *list*: a clock argues against
@@ -613,6 +623,7 @@ void main() {
       'mini_sudoku',
       'word_search',
       'nonogram',
+      'bridges',
       'number_cross',
       'trail',
     };
