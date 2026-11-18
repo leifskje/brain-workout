@@ -67,8 +67,16 @@ under *Conventions* for how to measure that rather than guess at it.
 ## Commands
 
 Flutter is installed at `C:\dev\flutter` (VS Code only — no Android Studio). On a
-fresh terminal `flutter` is on PATH. Android builds need a JDK 17; `JAVA_HOME`
-is provided via `.claude/settings.local.json`.
+fresh terminal `flutter` is on PATH. Android builds need a JDK (21; Gradle 9 / AGP 9
+need 17+); `JAVA_HOME` is provided via `.claude/settings.local.json`, and
+Flutter's own `flutter config --jdk-dir` must match it. Both hold a
+patch-versioned folder name, so a JDK update leaves them stale.
+
+**No JDK is installed on the dev machine** (removed 18 Nov 2026 over CVE-2026-114938).
+Before the next Android build, install Microsoft OpenJDK 21 **≥ 21.0.13.1**
+(`winget install --id Microsoft.OpenJDK.21 --exact --interactive`), then set
+both paths above. Not Oracle JDK: company IT blocks it over licence cost.
+`flutter analyze` / `flutter test` don't need a JDK.
 
 - Run on the emulator: `flutter emulators --launch pixel_api35` then `flutter run`
 - Quick desktop check (no emulator): `flutter run -d windows`

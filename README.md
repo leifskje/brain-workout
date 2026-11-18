@@ -12,7 +12,7 @@ Primary target is Android; Windows desktop and web also build.
 | Tool | Notes |
 |---|---|
 | Flutter SDK (stable) | https://docs.flutter.dev/get-started/install — repo developed on 3.44.x |
-| JDK 17 | Only for Android builds. [Microsoft OpenJDK 17](https://learn.microsoft.com/java/openjdk/download) works well; set `JAVA_HOME` |
+| JDK 21 | Only for Android builds (Gradle 9 / AGP 9 need 17+). [Microsoft OpenJDK 21](https://learn.microsoft.com/java/openjdk/download), **21.0.13.1 or later** (CVE-2026-114938); set `JAVA_HOME` |
 | Android SDK | Either via Android Studio, or command-line tools only (this repo was set up without Android Studio: `cmdline-tools`, `platform-tools`, `platforms;android-35`, `build-tools`, `emulator`) |
 | VS Code + Flutter extension | Or any editor you like |
 | Visual Studio C++ workload | Only if you want `flutter run -d windows` |
@@ -31,9 +31,11 @@ flutter doctor         # fix anything red; `flutter doctor --android-licenses`
 flutter test           # should be all green
 ```
 
-`JAVA_HOME` must point at the JDK 17 install for Android builds (set it as a
+`JAVA_HOME` must point at the JDK 21 install for Android builds (set it as a
 user environment variable, or in `.claude/settings.local.json` if you use
-Claude Code — that file is gitignored and machine-local).
+Claude Code — that file is gitignored and machine-local). Flutter also keeps
+its own copy: `flutter config --jdk-dir <path>`. Update both after a JDK
+update, since the install folder name carries the patch version.
 
 ## Run
 
@@ -159,7 +161,7 @@ Tested on an ARM Surface — expect these differences:
   Flutter extension in VS Code and point it at the SDK
   (`%LOCALAPPDATA%\Android\Sdk`) and you have the same editor setup as the
   dev machine.
-- Flutter stable and Microsoft OpenJDK 17 both run natively on Windows
+- Flutter stable and Microsoft OpenJDK 21 both run natively on Windows
   arm64. `flutter run -d windows` additionally needs the Visual Studio C++
   ARM64 components.
 
